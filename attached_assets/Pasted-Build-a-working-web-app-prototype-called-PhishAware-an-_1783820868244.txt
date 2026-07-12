@@ -1,0 +1,73 @@
+Build a working web-app prototype called PhishAware, an AI-powered educational platform that teaches people to recognize and resist phishing attacks. This is a defensive cybersecurity-education tool: everything is simulated inside the app, it never sends real emails, never collects real credentials, and never links to real external sites.
+
+Product goal. Make users measurably more resistant to phishing by turning every interaction into hands-on practice with immediate, personalized AI feedback — not passive slideshows. The app should feel welcoming and encouraging, like Duolingo for spotting scams, never scary or punitive.
+
+Target users. Everyday people and employees of any skill level, from complete beginners to fairly savvy users. The experience adapts to the individual's level.
+
+Tech stack (target, but optimize for a fast working prototype).
+
+
+Frontend: Next.js (App Router) with TypeScript and Tailwind CSS.
+Backend: FastAPI (Python) OR Next.js route handlers — your choice for speed; keep the API cleanly separated so it can be swapped later.
+Database: MongoDB if easy; otherwise use SQLite or a JSON file for the prototype so it runs immediately. Abstract data access behind a small repository layer.
+AI: Groq or Google Gemini via hosted API, read from an environment variable (GROQ_API_KEY or GEMINI_API_KEY). If no key is present, fall back gracefully to a seeded scenario bank and templated feedback so the app always works.
+Deployment target: Render.com (make it Render-ready).
+
+
+MVP scope — build this fully and make it work:
+
+
+Auth: simple email/password sign-up and login, plus a "try as guest" option. Store users and progress.
+Onboarding diagnostic: a short 5-question quiz that shows a few example messages and asks "phishing or legitimate?" to estimate the user's starting awareness level (Beginner / Intermediate / Advanced) and seed their profile.
+Learn library: short-form lessons (2–4 screens each) explaining each phishing type: email phishing, SMS phishing (smishing), voice phishing (vishing), QR-code phishing (quishing), social-media scams, and fake websites. Each lesson ends with the top red-flag cues to look for.
+Practice (the core loop) — email vector first, fully working:
+
+Show a realistic but clearly simulated email in an inbox-style UI (sender, subject, body, links shown as non-clickable text, optional attachment name).
+The user decides: Phishing or Legitimate.
+The user highlights/selects the specific cues that informed their decision (e.g., mismatched sender domain, urgency, generic greeting, suspicious link, request for credentials, spelling errors). Provide selectable cue chips and/or click-to-highlight text.
+The user sets a confidence slider (0–100%).
+On submit, the AI tutor returns: whether they were right, which cues they correctly caught vs. missed, a plain-language explanation, and a calibration note (rewarding well-judged confidence, gently flagging overconfidence). Award XP.
+
+
+
+Dashboard / home: current level, XP, daily streak, a "susceptibility profile" summary (strong vs. weak cue-types), and a "Continue practicing" call to action with the next recommended scenario.
+Susceptibility profile / analytics: per-user breakdown of accuracy by cue-type and by phishing vector, plus a simple progress-over-time chart.
+Gamification: XP, levels, daily streaks, and unlockable badges (e.g., "First Catch," "7-Day Streak," "Domain Detective"). A simple leaderboard (can be seeded with sample users).
+
+
+Flagship AI features — implement these; they are the point of the product:
+
+
+Adaptive AI adversary: instead of a fixed question bank, call the LLM to generate fresh simulated phishing (and some legitimate) emails, weighted toward the cue-types the user most often misses. Cache/seed a starter bank so it works offline.
+Cue-level feedback: grade the user's selected cues against the scenario's known cue set, not just the final verdict.
+Calibration scoring: compare stated confidence to correctness over time and surface a calibration score.
+Susceptibility profile + spaced repetition: track weak cue-types and re-surface them more often in future rounds.
+
+
+Data model (adapt as needed):
+
+
+User { id, name, email, level, xp, streak, badges[], createdAt }
+Scenario { id, vector, isPhish, sender, subject, body, links[], cues[] (label + severity), difficulty }
+Attempt { id, userId, scenarioId, userVerdict, selectedCues[], confidence, correct, xpAwarded, timestamp }
+Profile { userId, cueAccuracy{cue: rate}, vectorAccuracy{vector: rate}, calibrationScore }
+
+
+LLM prompt templates to use (return strict JSON, parse safely):
+
+
+Generate scenario: "You are generating a training example for a phishing-awareness app. Produce a realistic but fictional {vector} message. It should {be a phishing attempt targeting these cue-types: X, Y | be a legitimate message}. Never use real company names in a defamatory way, real personal data, or working links. Return JSON: { isPhish, sender, subject, body, links:[text-only], cues:[{label, severity, explanation}] }."
+Grade attempt: "Given this scenario JSON and the user's verdict ({verdict}), selected cues ({cues}), and confidence ({confidence}), return JSON: { correctVerdict, missedCues:[...], falseCues:[...], explanation (2–3 friendly sentences, growth-mindset tone), calibrationNote }."
+
+
+Seed content so the app works immediately: include at least 6 example email scenarios (mix of phishing and legitimate) with annotated cues — e.g., a fake "IT password reset" with a mismatched domain and urgency; a "package delivery" smishing-style note; a legitimate newsletter; a "CEO gift-card request" (authority + urgency); a "shared document" lure; a genuine account notification. Each phishing example must be obviously educational.
+
+UI / visual direction — make it welcoming (critical):
+
+
+Friendly, modern, encouraging — approachable, not corporate or intimidating.
+Palette: calm trustworthy indigo/blue primary, mint/teal for "safe/correct," a warm coral or amber accent for streaks and celebrations, green for success, amber for caution, red used sparingly. Soft neutral backgrounds, generous whitespace.
+Typography: a friendly humanist/geometric sans (e.g., Inter or Nunito), rounded and legible.
+Rounded cards and pill buttons, soft shadows, progress rings, badge chips, a confidence slider, and clear cue-highlight chips.
+Copy is supportive and second-person: "Nice catch!", "Let's look at what slipped by," never "You failed." Celebrate progress (subtle confetti on level-up).
+Fully responsive (desktop + mobile), keyboard-accessible, good color contrast, and alt text on icons.
