@@ -72,6 +72,19 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // Local dev only: proxy /api to a separately-running API server.
+    // On Replit this env var is unset, so the block is a no-op and the
+    // platform's own routing serves /api (behavior unchanged there).
+    ...(process.env.API_PROXY_TARGET
+      ? {
+          proxy: {
+            '/api': {
+              target: process.env.API_PROXY_TARGET,
+              changeOrigin: true,
+            },
+          },
+        }
+      : {}),
   },
   preview: {
     port,
