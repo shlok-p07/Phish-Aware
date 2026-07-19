@@ -87,7 +87,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <p className="text-sm font-bold text-foreground truncate">{user.name}</p>
             <p className="text-xs font-medium text-muted-foreground capitalize mt-0.5">{user.level} Level • {user.xp} XP</p>
           </div>
-          <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl py-6" onClick={handleLogout}>
+          <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl py-6 hover:cursor-pointer" onClick={handleLogout}>
             <LogOut className="w-5 h-5 mr-3" />
             <span className="font-semibold">Log out</span>
           </Button>
