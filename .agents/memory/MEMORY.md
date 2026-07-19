@@ -1,3 +1,0 @@
-- [Orval + zod v3 email format](orval-zod-email-format.md) — `format: email` in OpenAPI generates zod-v4-only `.email()`, breaking zod v3 installs.
-- [Wouter root wildcard](wouter-root-wildcard.md) — `/:rest*` route pattern doesn't match bare `/`; use `*` for a catch-all that must include root.
-- [Monorepo lib typecheck order](monorepo-lib-typecheck-order.md) — after editing `lib/db` (or other lib) schema/types, rebuild lib typechecks before dependent packages, or they typecheck against stale `dist` declarations.
