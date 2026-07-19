@@ -1,5 +1,6 @@
 "use client";
-import { Link, useLocation } from "@/lib/nav";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Shield, Home, BookOpen, Target, User, Trophy, LogOut } from "lucide-react";
 import { useGetCurrentUser, useLogout, getGetCurrentUserQueryKey } from "@/api-client";
 import { useEffect } from "react";
@@ -7,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [location, setLocation] = useLocation();
+  const pathname = usePathname();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { data: user, isLoading, isError } = useGetCurrentUser({
     query: { retry: false, queryKey: getGetCurrentUserQueryKey() },
@@ -17,26 +19,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isLoading) {
       if (isError || !user) {
-        if (location !== "/auth") setLocation("/auth");
+        if (pathname !== "/auth") router.push("/auth");
       } else {
         const hasOnboarded = localStorage.getItem(`onboardingCompleted_${user.id}`);
-        if (!hasOnboarded && location !== "/onboarding" && location !== "/auth") {
-          setLocation("/onboarding");
+        if (!hasOnboarded && pathname !== "/onboarding" && pathname !== "/auth") {
+          router.push("/onboarding");
         }
       }
     }
-  }, [user, isLoading, isError, location, setLocation]);
+  }, [user, isLoading, isError, pathname, router]);
 
   const handleLogout = () => {
     logout.mutate(undefined, {
       onSuccess: () => {
         queryClient.clear();
-        setLocation("/auth");
+        router.push("/auth");
       }
     });
   };
 
-  if (isLoading || (!user && location !== "/auth")) {
+  if (isLoading || (!user && pathname !== "/auth")) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center bg-background">
         <div className="animate-pulse flex flex-col items-center gap-4">
@@ -70,7 +72,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         
         <nav className="flex-1 space-y-2">
           {navItems.map((item) => {
-            const active = location === item.href;
+            const active = pathname === item.href;
             return (
               <Link key={item.href} href={item.href} className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all font-semibold ${active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
                 <item.icon className="w-6 h-6" />
@@ -114,7 +116,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Mobile Bottom Nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t-2 border-border flex items-center justify-around p-2 pb-safe z-50">
         {navItems.map((item) => {
-          const active = location === item.href;
+          const active = pathname === item.href;
           return (
             <Link key={item.href} href={item.href} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
               <div className={`p-1.5 rounded-full ${active ? "bg-primary/10" : ""}`}>
