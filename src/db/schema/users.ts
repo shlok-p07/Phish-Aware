@@ -12,6 +12,7 @@ export const usersTable = pgTable("users", {
   lastActiveDate: text("last_active_date"),
   badges: jsonb("badges").$type<string[]>().notNull().default([]),
   calibrationScore: real("calibration_score").notNull().default(0),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

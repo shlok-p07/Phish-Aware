@@ -2,33 +2,33 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useGetOnboardingQuiz, useSubmitOnboardingQuiz, useGetCurrentUser, getGetCurrentUserQueryKey } from "@/api-client";
+import type { OnboardingResult } from "@/api-client";
 import { Shield, ArrowRight, ShieldCheck, ShieldAlert, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: user } = useGetCurrentUser({
     query: { retry: false, queryKey: getGetCurrentUserQueryKey() },
   });
-  
+
   const { data: quizQuestions, isLoading: isQuizLoading } = useGetOnboardingQuiz();
   const submitQuiz = useSubmitOnboardingQuiz();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<{scenarioId: string, verdict: boolean}[]>([]);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<OnboardingResult | null>(null);
 
   // If already onboarded, send away.
   useEffect(() => {
-    if (user) {
-      const hasOnboarded = localStorage.getItem(`onboardingCompleted_${user.id}`);
-      if (hasOnboarded) {
-        router.push("/dashboard");
-      }
+    if (user?.onboardingCompleted) {
+      router.push("/dashboard");
     }
   }, [user, router]);
 
@@ -51,7 +51,9 @@ export default function OnboardingPage() {
       // Submit the quiz
       submitQuiz.mutate({ data: { answers: newAnswers } }, {
         onSuccess: (res) => {
-          if (user) localStorage.setItem(`onboardingCompleted_${user.id}`, 'true');
+          // The server marked onboarding complete; refresh the cached user so the
+          // app-layout gate (which reads user.onboardingCompleted) lets us through.
+          queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
           setResult(res);
         },
         onError: () => {
@@ -67,7 +69,7 @@ export default function OnboardingPage() {
 
   if (result) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-muted/30">
+      <div className="min-h-dvh flex items-center justify-center p-4 bg-muted/30">
         <Card className="max-w-md w-full border-2 shadow-lg text-center animate-in zoom-in-95 duration-500 overflow-hidden">
           <div className="bg-primary pt-12 pb-8 px-6 text-primary-foreground relative">
             <Sparkles className="w-16 h-16 absolute top-4 right-4 opacity-20 animate-pulse" />
@@ -105,7 +107,7 @@ export default function OnboardingPage() {
   const progress = (currentStep / quizQuestions.length) * 100;
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-muted/30">
+    <div className="min-h-dvh flex flex-col bg-muted/30">
       <div className="max-w-3xl w-full mx-auto px-4 py-8 flex-1 flex flex-col">
         
         <div className="mb-8 text-center space-y-4">
@@ -128,7 +130,7 @@ export default function OnboardingPage() {
         </div>
 
         <Card className="flex-1 flex flex-col border-2 shadow-sm animate-in slide-in-from-bottom-8 duration-300">
-          <CardHeader className="bg-background border-b-2 px-6 py-4 flex-shrink-0 rounded-t-xl">
+          <CardHeader className="bg-background border-b-2 px-6 py-4 shrink-0 rounded-t-xl">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                  <span className="text-xs font-bold uppercase tracking-wider bg-muted px-2 py-1 rounded-md text-muted-foreground">{currentQ.vector}</span>
@@ -154,7 +156,7 @@ export default function OnboardingPage() {
               </div>
             )}
           </CardContent>
-          <CardFooter className="bg-background p-4 md:p-6 border-t-2 grid grid-cols-2 gap-4 rounded-b-xl flex-shrink-0">
+          <CardFooter className="bg-background p-4 md:p-6 border-t-2 grid grid-cols-2 gap-4 rounded-b-xl shrink-0">
             <Button 
               size="lg" 
               variant="outline" 

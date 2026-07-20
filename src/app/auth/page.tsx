@@ -145,11 +145,19 @@ export default function AuthPage() {
 		return () => ro.disconnect();
 	}, [tab, isLoading, user]);
 
+	const isGuest = Boolean(user?.isGuest);
+
 	useEffect(() => {
-		if (user && !isLoading) {
+		// Real (signed-up) users skip auth. Guests are allowed in so they can
+		// convert their account and keep their progress.
+		if (user && !user.isGuest && !isLoading) {
 			router.push("/dashboard");
 		}
 	}, [user, isLoading, router]);
+
+	useEffect(() => {
+		if (isGuest) setTab("signup");
+	}, [isGuest]);
 
 	const loginForm = useForm<z.infer<typeof loginSchema>>({
 		resolver: zodResolver(loginSchema),
@@ -230,7 +238,7 @@ export default function AuthPage() {
 		});
 	};
 
-	if (isLoading || user) return null;
+	if (isLoading || (user && !user.isGuest)) return null;
 
 	return (
 		<div className="min-h-dvh flex flex-col items-center justify-center p-4 bg-muted/30">
@@ -244,7 +252,9 @@ export default function AuthPage() {
 							PhishAware
 						</h1>
 						<p className="text-muted-foreground font-medium text-lg">
-							Build your scam-spotting instincts.
+							{isGuest
+								? "Create an account to save your guest progress before it expires."
+								: "Build your scam-spotting instincts."}
 						</p>
 					</div>
 				</div>
@@ -477,30 +487,32 @@ export default function AuthPage() {
 					</Tabs>
 				</Card>
 
-				<div className="flex flex-col space-y-4">
-					<div className="relative">
-						<div className="absolute inset-0 flex items-center">
-							<span className="w-full border-t-2 border-border" />
+				{!isGuest && (
+					<div className="flex flex-col space-y-4">
+						<div className="relative">
+							<div className="absolute inset-0 flex items-center">
+								<span className="w-full border-t-2 border-border" />
+							</div>
+							<div className="relative flex justify-center text-xs uppercase font-bold tracking-wider">
+								<span className="bg-muted/30 px-4 text-muted-foreground">
+									Or just try it out
+								</span>
+							</div>
 						</div>
-						<div className="relative flex justify-center text-xs uppercase font-bold tracking-wider">
-							<span className="bg-muted/30 px-4 text-muted-foreground">
-								Or just try it out
-							</span>
-						</div>
-					</div>
 
-					<Button
-						variant="outline"
-						size="lg"
-						className="w-full py-6 rounded-xl border-2 hover:bg-muted font-bold text-base hover:cursor-pointer"
-						onClick={onGuest}
-						disabled={guestMutation.isPending}
-					>
-						<Ghost className="mr-2 h-5 w-5" />
-						Continue as Guest
-						<ArrowRight className="ml-auto h-5 w-5 opacity-50" />
-					</Button>
-				</div>
+						<Button
+							variant="outline"
+							size="lg"
+							className="w-full py-6 rounded-xl border-2 hover:bg-muted font-bold text-base hover:cursor-pointer"
+							onClick={onGuest}
+							disabled={guestMutation.isPending}
+						>
+							<Ghost className="mr-2 h-5 w-5" />
+							Continue as Guest
+							<ArrowRight className="ml-auto h-5 w-5 opacity-50" />
+						</Button>
+					</div>
+				)}
 			</div>
 		</div>
 	);

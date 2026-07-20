@@ -73,6 +73,7 @@ export interface User {
   streak: number;
   badges: string[];
   calibrationScore: number;
+  onboardingCompleted: boolean;
   createdAt: string;
 }
 

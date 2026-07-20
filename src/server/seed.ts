@@ -1,6 +1,7 @@
-import { db, scenariosTable, usersTable } from "@/db";
+import { db, scenariosTable, usersTable, lessonsTable } from "@/db";
 import { hashPassword } from "./password";
 import { SEED_SCENARIOS } from "./seedScenarios";
+import { LESSONS } from "./lessons";
 
 const SAMPLE_LEADERBOARD_USERS = [
   { name: "Morgan Ellis", xp: 620, level: "advanced" as const, streak: 12 },
@@ -16,6 +17,22 @@ export async function seedIfEmpty(): Promise<void> {
   if (existingScenarios.length === 0) {
     await db.insert(scenariosTable).values(SEED_SCENARIOS);
     console.log(`Seeded ${SEED_SCENARIOS.length} practice scenarios`);
+  }
+
+  const existingLessons = await db.select().from(lessonsTable).limit(1);
+  if (existingLessons.length === 0) {
+    await db.insert(lessonsTable).values(
+      LESSONS.map((lesson, index) => ({
+        id: lesson.id,
+        vector: lesson.vector,
+        title: lesson.title,
+        summary: lesson.summary,
+        screens: lesson.screens,
+        redFlags: lesson.redFlags,
+        sortOrder: index,
+      })),
+    );
+    console.log(`Seeded ${LESSONS.length} lessons`);
   }
 
   const existingUsers = await db.select().from(usersTable).limit(1);

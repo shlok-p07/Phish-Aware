@@ -36,6 +36,21 @@ export default function LessonPage() {
 		);
 	}
 
+	if (lesson.vector !== "email") {
+		return (
+			<div className="max-w-2xl mx-auto text-center space-y-4 pt-12">
+				<ShieldAlert className="w-12 h-12 text-amber-500 mx-auto" />
+				<h2 className="text-2xl font-bold">Coming soon</h2>
+				<p className="text-muted-foreground font-medium">
+					This lesson is still a work in progress. Check back soon!
+				</p>
+				<Button asChild variant="outline">
+					<Link href="/learn">Back to Library</Link>
+				</Button>
+			</div>
+		);
+	}
+
 	// Screens + final Red Flags summary screen
 	const totalSteps = lesson.screens.length + 1;
 	const isLastStep = currentStep === totalSteps - 1;
@@ -75,7 +90,7 @@ export default function LessonPage() {
 			</div>
 
 			{/* Main Content Area */}
-			<Card className="border-2 shadow-md overflow-hidden min-h-[400px] flex flex-col animate-in fade-in zoom-in-95 duration-300">
+			<Card className="border-2 shadow-md overflow-hidden min-h-100 flex flex-col animate-in fade-in zoom-in-95 duration-300">
 				<CardContent className="flex-1 p-8 sm:p-12 flex flex-col justify-center">
 					{!isLastStep && (
 						<div className="space-y-6">

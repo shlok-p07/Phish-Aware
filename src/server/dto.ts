@@ -11,6 +11,7 @@ export function toUserDto(user: User) {
     streak: user.streak,
     badges: user.badges,
     calibrationScore: user.calibrationScore,
+    onboardingCompleted: user.onboardingCompleted,
     createdAt: user.createdAt,
   };
 }

@@ -20,3 +20,4 @@
 export * from "./users";
 export * from "./scenarios";
 export * from "./attempts";
+export * from "./lessons";

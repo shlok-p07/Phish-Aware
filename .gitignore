@@ -19,7 +19,7 @@ dist
 /coverage
 
 # env
-.env*.local
+.env*
 
 # IDEs and editors
 /.idea
@@ -43,3 +43,4 @@ Thumbs.db
 /.dev-logs/
 
 .env
+.env.example

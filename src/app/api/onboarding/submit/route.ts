@@ -27,7 +27,10 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const startingXp = Math.round(accuracy * 120);
   const level = levelForXp(startingXp);
 
-  await db.update(usersTable).set({ xp: startingXp, level }).where(eq(usersTable.id, userId));
+  await db
+    .update(usersTable)
+    .set({ xp: startingXp, level, onboardingCompleted: true })
+    .where(eq(usersTable.id, userId));
 
   return json(
     SubmitOnboardingQuizResponse.parse({

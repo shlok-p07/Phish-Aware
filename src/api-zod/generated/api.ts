@@ -30,6 +30,7 @@ export const GetCurrentUserResponse = zod.object({
   "streak": zod.number(),
   "badges": zod.array(zod.string()),
   "calibrationScore": zod.number(),
+  "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 
@@ -60,6 +61,7 @@ export const SignupResponse = zod.object({
   "streak": zod.number(),
   "badges": zod.array(zod.string()),
   "calibrationScore": zod.number(),
+  "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 
@@ -82,6 +84,7 @@ export const LoginResponse = zod.object({
   "streak": zod.number(),
   "badges": zod.array(zod.string()),
   "calibrationScore": zod.number(),
+  "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 
@@ -99,6 +102,7 @@ export const ContinueAsGuestResponse = zod.object({
   "streak": zod.number(),
   "badges": zod.array(zod.string()),
   "calibrationScore": zod.number(),
+  "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 
