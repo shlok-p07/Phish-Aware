@@ -34,7 +34,7 @@ export default function ProfilePage() {
 	if (isLoading) {
 		return (
 			<div className="space-y-6 max-w-5xl mx-auto animate-pulse">
-				<div className="h-32 bg-muted rounded-xl" />
+				<div className="h-32 bg-muted rounded-lg" />
 				<div className="grid md:grid-cols-2 gap-6">
 					<div className="h-64 bg-muted rounded-lg" />
 					<div className="h-64 bg-muted rounded-lg" />

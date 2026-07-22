@@ -19,7 +19,7 @@ export default function LessonPage() {
 	if (isLoading) {
 		return (
 			<div className="max-w-2xl mx-auto h-[60vh] animate-pulse flex items-center justify-center">
-				<div className="w-full h-96 bg-muted rounded-xl" />
+				<div className="w-full h-96 bg-muted rounded-lg" />
 			</div>
 		);
 	}
@@ -140,7 +140,7 @@ export default function LessonPage() {
 						size="lg"
 						onClick={prevStep}
 						disabled={currentStep === 0}
-						className="rounded-xl border font-bold w-1/3 shadow-sm"
+						className="rounded-lg border font-bold w-1/3 shadow-sm"
 					>
 						Back
 					</Button>
@@ -150,14 +150,14 @@ export default function LessonPage() {
 							<Button
 								variant="secondary"
 								size="lg"
-								className="rounded-xl font-bold w-2/3 shadow-sm text-lg"
+								className="rounded-lg font-bold w-2/3 shadow-sm text-lg"
 								asChild
 							>
 								<Link href="/learn">Learn more</Link>
 							</Button>
 							<Button
 								size="lg"
-								className="rounded-xl font-bold w-2/3 shadow-sm text-lg"
+								className="rounded-lg font-bold w-2/3 shadow-sm text-lg"
 								asChild
 							>
 								<Link href="/practice">Put it to practice</Link>
@@ -167,7 +167,7 @@ export default function LessonPage() {
 						<Button
 							size="lg"
 							onClick={nextStep}
-							className="rounded-xl font-bold w-2/3 shadow-sm text-lg group"
+							className="rounded-lg font-bold w-2/3 shadow-sm text-lg group"
 						>
 							Continue
 							<ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />

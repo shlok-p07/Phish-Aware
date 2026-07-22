@@ -89,12 +89,12 @@ export default function AdminTrainingPage() {
             <div className="space-y-2">
               <Label htmlFor="a-title" className="font-semibold">Title</Label>
               <Input id="a-title" placeholder="Q3 phishing refresher" value={title}
-                onChange={(e) => setTitle(e.target.value)} className="rounded-xl" required />
+                onChange={(e) => setTitle(e.target.value)} className="rounded-lg" required />
             </div>
             <div className="space-y-2">
               <Label className="font-semibold">Assign to</Label>
               <Select value={target} onValueChange={setTarget}>
-                <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Everyone</SelectItem>
                   {members.filter((m) => m.status === "active").map((m) => (
@@ -107,15 +107,15 @@ export default function AdminTrainingPage() {
               <div className="space-y-2">
                 <Label htmlFor="a-due" className="font-semibold">Due date</Label>
                 <Input id="a-due" type="date" value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)} className="rounded-xl" required />
+                  onChange={(e) => setDueDate(e.target.value)} className="rounded-lg" required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="a-req" className="font-semibold">Scenarios</Label>
                 <Input id="a-req" type="number" min={1} value={required}
-                  onChange={(e) => setRequired(e.target.value)} className="rounded-xl" />
+                  onChange={(e) => setRequired(e.target.value)} className="rounded-lg" />
               </div>
             </div>
-            <Button type="submit" className="w-full py-6 rounded-xl font-semibold">
+            <Button type="submit" className="w-full py-6 rounded-lg font-semibold">
               <Plus className="w-4 h-4 mr-1" />
               Assign training
             </Button>

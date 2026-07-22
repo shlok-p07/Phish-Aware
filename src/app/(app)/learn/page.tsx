@@ -31,7 +31,7 @@ export default function LearnPage() {
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto animate-pulse">
-        <div className="h-24 bg-muted rounded-xl" />
+        <div className="h-24 bg-muted rounded-lg" />
         <div className="grid md:grid-cols-2 gap-4">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="h-32 bg-muted rounded-lg" />

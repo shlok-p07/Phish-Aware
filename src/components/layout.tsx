@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Shield, Home, BookOpen, Target, User, Trophy, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Building2 } from "lucide-react";
+import { Shield, Home, BookOpen, Target, User, BarChart3, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Building2 } from "lucide-react";
 import { useGetCurrentUser, useLogout, getGetCurrentUserQueryKey } from "@/api-client";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/dashboard", icon: Home, label: "Home" },
     { href: "/learn", icon: BookOpen, label: "Learn" },
     { href: "/practice", icon: Target, label: "Practice" },
-    { href: "/leaderboard", icon: Trophy, label: "Rankings" },
+    { href: "/leaderboard", icon: BarChart3, label: "Benchmark" },
   ];
 
   return (
@@ -78,12 +78,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <aside className={`hidden md:flex ${collapsed ? "w-20" : "w-72"} flex-col border-r border-border bg-card px-4 py-6 sticky top-0 h-dvh overflow-hidden transition-[width] duration-300 ease-in-out`}>
         <div className={`flex items-center mb-6 ${collapsed ? "justify-center px-0" : "gap-3 px-2"}`}>
           <Link href="/dashboard" className={`flex items-center min-w-0 hover:opacity-80 transition-opacity ${collapsed ? "" : "gap-3"}`}>
-            <div className="bg-primary text-primary-foreground p-2 rounded-xl shadow-sm shrink-0">
+            <div className="bg-primary text-primary-foreground p-2 rounded-lg shadow-sm shrink-0">
               <Shield className="w-7 h-7" />
             </div>
             <span className={`text-2xl font-display font-bold text-foreground whitespace-nowrap transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-40"}`}>PhishAware</span>
           </Link>
-          <button onClick={toggleCollapsed} className={`ml-auto p-2 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors hover:cursor-pointer ${collapsed ? "hidden" : ""}`} aria-label="Collapse sidebar">
+          <button onClick={toggleCollapsed} className={`ml-auto p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors hover:cursor-pointer ${collapsed ? "hidden" : ""}`} aria-label="Collapse sidebar">
             <PanelLeftClose className="w-5 h-5" />
           </button>
         </div>
@@ -105,7 +105,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
           <div className={`min-w-0 transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-40"}`}>
             <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
-            <p className="text-xs font-medium text-muted-foreground capitalize mt-0.5 whitespace-nowrap">{user.level} Level • {user.xp} XP</p>
+            <p className="text-xs font-medium text-muted-foreground capitalize mt-0.5 whitespace-nowrap">{user.level} level • {user.xp.toLocaleString()} pts</p>
           </div>
         </Link>
 
@@ -132,7 +132,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Settings className="w-6 h-6 shrink-0" />
             <span className={`whitespace-nowrap transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-40"}`}>Settings</span>
           </Link>
-          <Button variant="ghost" title={collapsed ? "Log out" : undefined} className={`w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl py-6 hover:cursor-pointer ${collapsed ? "justify-center px-0" : "justify-start"}`} onClick={handleLogout}>
+          <Button variant="ghost" title={collapsed ? "Log out" : undefined} className={`w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg py-6 hover:cursor-pointer ${collapsed ? "justify-center px-0" : "justify-start"}`} onClick={handleLogout}>
             <LogOut className={`w-5 h-5 ${collapsed ? "" : "mr-3"}`} />
             <span className={`font-semibold whitespace-nowrap transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-40"}`}>Log out</span>
           </Button>
@@ -169,7 +169,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {[...navItems, { href: "/profile", icon: User, label: "Profile" }].map((item) => {
           const active = pathname === item.href;
           return (
-            <Link key={item.href} href={item.href} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
+            <Link key={item.href} href={item.href} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
               <div className={`p-1.5 rounded-full ${active ? "bg-primary/10" : ""}`}>
                 <item.icon className={`w-6 h-6 ${active ? "fill-primary/20" : ""}`} />
               </div>

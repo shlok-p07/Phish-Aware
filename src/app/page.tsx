@@ -55,8 +55,8 @@ const FEATURES = [
   },
   {
     icon: Trophy,
-    title: "Gamified progress",
-    body: "Earn XP, keep streaks alive, unlock badges, and climb the leaderboard as your skills sharpen.",
+    title: "Measurable progress",
+    body: "Track points, streaks, and milestones, and benchmark each person against their team as skills sharpen.",
   },
 ];
 
@@ -100,7 +100,7 @@ export default async function LandingPage() {
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="bg-primary text-primary-foreground p-2 rounded-xl shadow-sm">
+            <div className="bg-primary text-primary-foreground p-2 rounded-lg shadow-sm">
               <Shield className="w-6 h-6" />
             </div>
             <span className="text-xl font-display font-bold">PhishAware</span>
@@ -110,7 +110,7 @@ export default async function LandingPage() {
             <Button asChild variant="ghost" className="font-semibold">
               <Link href="/auth">Log in</Link>
             </Button>
-            <Button asChild className="font-semibold rounded-xl">
+            <Button asChild className="font-semibold rounded-lg">
               <Link href="/auth">Get started</Link>
             </Button>
           </nav>
@@ -120,40 +120,40 @@ export default async function LandingPage() {
       <main className="flex-1">
         {/* Hero */}
         <section className="max-w-6xl mx-auto px-4 md:px-8 pt-16 md:pt-24 pb-16 text-center">
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary font-semibold text-sm px-4 py-1.5 rounded-full mb-6">
-            <Lock className="w-4 h-4" />
-            No real emails, links, or credentials — ever
+          <div className="inline-flex items-center gap-2 border border-border bg-muted/50 text-muted-foreground font-medium text-sm px-3.5 py-1.5 rounded-md mb-6">
+            <Lock className="w-3.5 h-3.5 text-primary" />
+            Fully simulated — no real emails, links, or credentials
           </div>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold tracking-tight max-w-4xl mx-auto leading-[1.1]">
-            Train your instincts to stop phishing before it lands
+          <h1 className="text-4xl sm:text-5xl md:text-[3.5rem] font-display font-bold tracking-tight max-w-4xl mx-auto leading-[1.08]">
+            Security awareness training that measurably reduces risk
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground font-medium max-w-2xl mx-auto mt-6">
-            PhishAware is hands-on security awareness training. Practice against
-            realistic, simulated attacks across every channel and build detection
-            skills that hold up under pressure.
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mt-6 leading-relaxed">
+            PhishAware gives your team hands-on practice against realistic,
+            simulated attacks across every channel — and gives you the analytics
+            to prove detection skills are improving.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-9">
             <Button
               asChild
               size="lg"
-              className="font-semibold rounded-xl text-lg py-6 px-8 group w-full sm:w-auto"
+              className="font-semibold group w-full sm:w-auto"
             >
               <Link href="/auth">
-                Start training free
-                <ArrowRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
+                Get started
+                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </Button>
             <Button
               asChild
               size="lg"
               variant="outline"
-              className="font-semibold rounded-xl text-lg py-6 px-8 border w-full sm:w-auto"
+              className="font-semibold w-full sm:w-auto"
             >
               <Link href="/auth">Try as a guest</Link>
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground font-medium mt-4">
-            No credit card. No download. Start in seconds.
+          <p className="text-sm text-muted-foreground mt-4">
+            No credit card required. Free to start.
           </p>
         </section>
 
@@ -190,7 +190,7 @@ export default async function LandingPage() {
               {FEATURES.map((f) => (
                 <div
                   key={f.title}
-                  className="bg-card border border-border rounded-xl p-6 md:p-8"
+                  className="bg-card border border-border rounded-lg p-6 md:p-8"
                 >
                   <div className="inline-flex bg-primary/10 text-primary p-3 rounded-lg mb-4">
                     <f.icon className="w-7 h-7" />
@@ -217,7 +217,7 @@ export default async function LandingPage() {
           <div className="grid md:grid-cols-3 gap-6">
             {STEPS.map((s) => (
               <div key={s.step} className="text-center px-4">
-                <div className="w-14 h-14 rounded-lg bg-primary text-primary-foreground font-display font-bold text-2xl flex items-center justify-center mx-auto mb-5 shadow-sm">
+                <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary border border-primary/20 font-display font-bold text-xl flex items-center justify-center mx-auto mb-5">
                   {s.step}
                 </div>
                 <h3 className="text-xl font-bold mb-2">{s.title}</h3>
@@ -231,7 +231,7 @@ export default async function LandingPage() {
 
         {/* Trust / safety */}
         <section className="max-w-4xl mx-auto px-4 md:px-8 pb-16">
-          <div className="bg-primary/5 border border-primary/20 rounded-xl p-8 md:p-10">
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-8 md:p-10">
             <div className="flex flex-col sm:flex-row items-start gap-5">
               <div className="bg-primary text-primary-foreground p-3 rounded-lg shrink-0">
                 <Shield className="w-7 h-7" />
@@ -273,7 +273,7 @@ export default async function LandingPage() {
               asChild
               size="lg"
               variant="secondary"
-              className="font-semibold rounded-md text-lg py-6 px-8 mt-8 group"
+              className="font-semibold mt-8 group"
             >
               <Link href="/auth">
                 Get started

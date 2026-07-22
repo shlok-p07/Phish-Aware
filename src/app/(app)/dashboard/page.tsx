@@ -1,6 +1,6 @@
 "use client";
 import { useGetDashboard } from "@/api-client";
-import { Trophy, Flame, ChevronRight, ShieldCheck, ShieldAlert, Award, Star } from "lucide-react";
+import { Target as TargetIcon, CalendarCheck, ChevronRight, ShieldCheck, ShieldAlert, Award, Star } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="h-32 bg-muted rounded-xl" />
+        <div className="h-32 bg-muted rounded-lg" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="h-24 bg-muted rounded-lg" />
           <div className="h-24 bg-muted rounded-lg" />
@@ -47,14 +47,14 @@ export default function DashboardPage() {
 					</p>
 				</div>
 				<div className="flex items-center gap-4">
-					<div className="min-w-40">
-						<div className="flex items-center justify-between text-xs mb-1.5">
-							<span className="font-semibold text-muted-foreground uppercase tracking-wide">
+					<div className="min-w-56">
+						<div className="flex items-center justify-between gap-3 text-xs mb-1.5">
+							<span className="font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
 								Training progress
 							</span>
 							{summary.xpToNextLevel > 0 && (
-								<span className="text-muted-foreground font-medium">
-									{summary.xpToNextLevel} XP to next
+								<span className="text-muted-foreground font-medium whitespace-nowrap">
+									{summary.xpToNextLevel.toLocaleString()} pts to next level
 								</span>
 							)}
 						</div>
@@ -77,7 +77,7 @@ export default function DashboardPage() {
 							<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 								Detection accuracy
 							</p>
-							<Trophy className="w-4 h-4 text-muted-foreground/50" />
+							<TargetIcon className="w-4 h-4 text-muted-foreground/50" />
 						</div>
 						<p className="text-3xl font-bold tabular-nums">{summary.accuracyRate}%</p>
 					</CardContent>
@@ -99,9 +99,9 @@ export default function DashboardPage() {
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between mb-2">
 							<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-								Current streak
+								Active streak
 							</p>
-							<Flame className={`w-4 h-4 ${summary.streak > 0 ? "text-amber-500" : "text-muted-foreground/50"}`} />
+							<CalendarCheck className={`w-4 h-4 ${summary.streak > 0 ? "text-primary" : "text-muted-foreground/50"}`} />
 						</div>
 						<p className="text-3xl font-bold tabular-nums">
 							{summary.streak}
@@ -116,7 +116,7 @@ export default function DashboardPage() {
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between mb-2">
 							<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-								Badges earned
+								Milestones reached
 							</p>
 							<Award className="w-4 h-4 text-muted-foreground/50" />
 						</div>

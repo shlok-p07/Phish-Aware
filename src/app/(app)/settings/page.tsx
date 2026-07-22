@@ -300,7 +300,7 @@ export default function SettingsPage() {
 						<div className="space-y-1">
 							<p className="text-sm font-semibold">Delete account</p>
 							<p className="text-xs text-muted-foreground font-medium">
-								Removes your profile, progress, XP, streak, and every practice
+								Removes your profile, progress, points, streak, and every practice
 								attempt for good.
 							</p>
 						</div>
@@ -308,7 +308,7 @@ export default function SettingsPage() {
 							<AlertDialogTrigger asChild>
 								<Button
 									variant="destructive"
-									className="shrink-0 rounded-xl font-bold hover:cursor-pointer"
+									className="shrink-0 rounded-lg font-bold hover:cursor-pointer"
 									disabled={deleting}
 								>
 									<Trash2 className="w-4 h-4 mr-2" />
@@ -321,7 +321,7 @@ export default function SettingsPage() {
 									<AlertDialogDescription>
 										This permanently deletes{" "}
 										{user?.isGuest ? "your guest account" : "your account"} and
-										all of your data — progress, XP, streak, badges, and
+										all of your data — progress, points, streak, milestones, and
 										practice history. This action cannot be undone.
 									</AlertDialogDescription>
 								</AlertDialogHeader>

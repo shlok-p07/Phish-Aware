@@ -33,7 +33,7 @@ export default function OnboardingPage() {
   }, [user, router]);
 
   if (isQuizLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><div className="animate-pulse bg-muted w-96 h-64 rounded-xl" /></div>;
+    return <div className="min-h-screen flex items-center justify-center"><div className="animate-pulse bg-muted w-96 h-64 rounded-lg" /></div>;
   }
 
   if (!quizQuestions || quizQuestions.length === 0) {
@@ -92,7 +92,7 @@ export default function OnboardingPage() {
             </p>
           </CardContent>
           <CardFooter className="pb-8">
-            <Button size="lg" className="w-full py-6 text-lg font-bold rounded-xl shadow-sm group" onClick={finishOnboarding}>
+            <Button size="lg" className="w-full py-6 text-lg font-bold rounded-lg shadow-sm group" onClick={finishOnboarding}>
               Go to Dashboard
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>

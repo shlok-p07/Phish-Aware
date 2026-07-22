@@ -273,7 +273,7 @@ export default function AuthPage() {
 				<Card className="border shadow-sm">
 					<Tabs value={tab} onValueChange={setTab} className="w-full">
 						<CardHeader className="pb-4">
-							<TabsList className="grid w-full grid-cols-2 p-1 bg-muted rounded-xl h-auto">
+							<TabsList className="grid w-full grid-cols-2 p-1 bg-muted rounded-lg h-auto">
 								<TabsTrigger
 									value="login"
 									className="py-2.5 rounded-lg font-semibold text-base data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm hover:cursor-pointer"
@@ -293,7 +293,7 @@ export default function AuthPage() {
 								<Button
 									type="button"
 									variant="outline"
-									className="py-6 rounded-xl font-semibold hover:cursor-pointer"
+									className="py-6 rounded-lg font-semibold hover:cursor-pointer"
 									onClick={() => onSso("Google")}
 								>
 									<FcGoogle className="mr-2 h-5 w-5" />
@@ -302,7 +302,7 @@ export default function AuthPage() {
 								<Button
 									type="button"
 									variant="outline"
-									className="py-6 rounded-xl font-semibold hover:cursor-pointer"
+									className="py-6 rounded-lg font-semibold hover:cursor-pointer"
 									onClick={() => onSso("Microsoft")}
 								>
 									<FaMicrosoft className="mr-2 h-5 w-5 text-[#00a4ef]" />
@@ -356,7 +356,7 @@ export default function AuthPage() {
 																	<Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
 																	<Input
 																		placeholder="you@example.com"
-																		className="pl-10 py-6 rounded-xl bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
+																		className="pl-10 py-6 rounded-lg bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
 																		{...field}
 																	/>
 																</div>
@@ -379,7 +379,7 @@ export default function AuthPage() {
 																	<Input
 																		type="password"
 																		placeholder="••••••••"
-																		className="pl-10 py-6 rounded-xl bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
+																		className="pl-10 py-6 rounded-lg bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
 																		{...field}
 																	/>
 																</div>
@@ -390,7 +390,7 @@ export default function AuthPage() {
 												/>
 												<Button
 													type="submit"
-													className="w-full py-6 text-lg rounded-xl font-bold mt-2 shadow-sm hover:cursor-pointer"
+													className="w-full py-6 text-lg rounded-lg font-bold mt-2 shadow-sm hover:cursor-pointer"
 													disabled={loginMutation.isPending}
 												>
 													{loginMutation.isPending ? "Logging in..." : "Log in"}
@@ -427,7 +427,7 @@ export default function AuthPage() {
 																	<User className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
 																	<Input
 																		placeholder="Alex"
-																		className="pl-10 py-6 rounded-xl bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
+																		className="pl-10 py-6 rounded-lg bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
 																		{...field}
 																	/>
 																</div>
@@ -449,7 +449,7 @@ export default function AuthPage() {
 																	<Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
 																	<Input
 																		placeholder="you@example.com"
-																		className="pl-10 py-6 rounded-xl bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
+																		className="pl-10 py-6 rounded-lg bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
 																		{...field}
 																	/>
 																</div>
@@ -503,7 +503,7 @@ export default function AuthPage() {
 																	<Input
 																		type="password"
 																		placeholder="••••••••"
-																		className="pl-10 py-6 rounded-xl bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
+																		className="pl-10 py-6 rounded-lg bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
 																		{...field}
 																	/>
 																</div>
@@ -515,7 +515,7 @@ export default function AuthPage() {
 												/>
 												<Button
 													type="submit"
-													className="w-full py-6 text-lg rounded-xl font-bold mt-2 shadow-sm hover:cursor-pointer"
+													className="w-full py-6 text-lg rounded-lg font-bold mt-2 shadow-sm hover:cursor-pointer"
 													disabled={signupMutation.isPending}
 												>
 													{signupMutation.isPending
@@ -546,7 +546,7 @@ export default function AuthPage() {
 						<Button
 							variant="outline"
 							size="lg"
-							className="w-full py-6 rounded-xl border hover:bg-muted font-bold text-base hover:cursor-pointer"
+							className="w-full py-6 rounded-lg border hover:bg-muted font-bold text-base hover:cursor-pointer"
 							onClick={onGuest}
 							disabled={guestMutation.isPending}
 						>

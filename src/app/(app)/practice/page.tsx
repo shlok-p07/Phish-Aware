@@ -65,7 +65,7 @@ export default function PracticePage() {
     return (
       <div className="max-w-5xl mx-auto h-[60vh] flex flex-col justify-center gap-6 p-4">
         <div className="h-12 w-1/3 bg-muted rounded-lg animate-pulse" />
-        <div className="h-110 w-full bg-muted rounded-xl animate-pulse" />
+        <div className="h-110 w-full bg-muted rounded-lg animate-pulse" />
       </div>
     );
   }
@@ -336,7 +336,7 @@ export default function PracticePage() {
                           <button
                             key={cue.id}
                             onClick={() => toggleCue(cue.id)}
-                            className={`text-sm font-semibold px-3 py-2 rounded-xl border transition-all ${
+                            className={`text-sm font-semibold px-3 py-2 rounded-lg border transition-all ${
                               isSelected
                                 ? 'bg-primary/10 border-primary text-primary shadow-sm scale-[1.02]'
                                 : 'bg-background border-border text-foreground hover:border-primary/50'
@@ -348,7 +348,7 @@ export default function PracticePage() {
                       })}
                     </div>
                     <Button
-                      className="w-full mt-4 py-6 rounded-xl font-bold"
+                      className="w-full mt-4 py-6 rounded-lg font-bold"
                       onClick={() => setStep('confidence')}
                     >
                       Next <ArrowRight className="w-4 h-4 ml-2" />
@@ -377,7 +377,7 @@ export default function PracticePage() {
                     </div>
 
                     <Button
-                      className="w-full py-6 rounded-xl font-bold text-lg shadow-sm"
+                      className="w-full py-6 rounded-lg font-bold text-lg shadow-sm"
                       onClick={handleSubmit}
                       disabled={submitAttempt.isPending}
                     >
@@ -397,7 +397,7 @@ export default function PracticePage() {
 
       {/* Feedback Dialog */}
       <Dialog open={step === 'feedback'} onOpenChange={() => {}}>
-        <DialogContent className="max-w-md p-0 border overflow-hidden rounded-xl gap-0 flex flex-col max-h-[90vh] [&>button]:hidden">
+        <DialogContent className="max-w-md p-0 border overflow-hidden rounded-lg gap-0 flex flex-col max-h-[90vh] [&>button]:hidden">
           {result && (
             <>
               {/* Header colored by correctness */}
@@ -463,7 +463,7 @@ export default function PracticePage() {
                 {/* Rewards */}
                 <div className="flex items-center justify-between border-t pt-4">
                   <div className="space-y-0.5">
-                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">XP Earned</p>
+                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Points earned</p>
                      <p className="text-2xl font-display font-bold text-primary">+{result.xpAwarded}</p>
                   </div>
                   {result.leveledUp && (
@@ -473,7 +473,7 @@ export default function PracticePage() {
               </div>
 
               <DialogFooter className="p-4 bg-muted/20 border-t shrink-0">
-                <Button className="w-full py-6 text-lg font-bold rounded-xl shadow-sm group" onClick={resetAndNext}>
+                <Button className="w-full py-6 text-lg font-bold rounded-lg shadow-sm group" onClick={resetAndNext}>
                   Next Scenario
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>

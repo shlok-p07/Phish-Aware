@@ -58,7 +58,7 @@ export default function AdminMembersPage() {
         </div>
         <Dialog>
           <DialogTrigger asChild>
-            <Button className="rounded-xl font-semibold">
+            <Button className="rounded-lg font-semibold">
               <UserPlus className="w-4 h-4 mr-2" />
               Invite member
             </Button>
@@ -71,17 +71,17 @@ export default function AdminMembersPage() {
               <div className="space-y-2">
                 <Label htmlFor="inv-name" className="font-semibold">Name</Label>
                 <Input id="inv-name" placeholder="Alex Rivera" value={name}
-                  onChange={(e) => setName(e.target.value)} className="rounded-xl" />
+                  onChange={(e) => setName(e.target.value)} className="rounded-lg" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="inv-email" className="font-semibold">Email</Label>
                 <Input id="inv-email" type="email" placeholder="alex@company.com" value={email}
-                  onChange={(e) => setEmail(e.target.value)} className="rounded-xl" />
+                  onChange={(e) => setEmail(e.target.value)} className="rounded-lg" />
               </div>
               <div className="space-y-2">
                 <Label className="font-semibold">Role</Label>
                 <Select value={role} onValueChange={(v) => setRole(v as OrgRole)}>
-                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="member">Member</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
@@ -90,9 +90,9 @@ export default function AdminMembersPage() {
               </div>
             </div>
             <DialogFooter>
-              <DialogClose asChild><Button variant="outline" className="rounded-xl">Cancel</Button></DialogClose>
+              <DialogClose asChild><Button variant="outline" className="rounded-lg">Cancel</Button></DialogClose>
               <DialogClose asChild>
-                <Button className="rounded-xl font-semibold" onClick={submitInvite}>Send invitation</Button>
+                <Button className="rounded-lg font-semibold" onClick={submitInvite}>Send invitation</Button>
               </DialogClose>
             </DialogFooter>
           </DialogContent>

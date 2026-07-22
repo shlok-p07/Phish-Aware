@@ -56,7 +56,7 @@ export default function CreateOrgPage() {
                 placeholder="Acme Corp"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="py-6 rounded-xl"
+                className="py-6 rounded-lg"
                 required
               />
             </div>
@@ -69,13 +69,13 @@ export default function CreateOrgPage() {
                 placeholder="acme.com"
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
-                className="py-6 rounded-xl"
+                className="py-6 rounded-lg"
               />
               <p className="text-xs text-muted-foreground font-medium">
                 Employees who sign up with this domain join automatically. Leave blank to require invites.
               </p>
             </div>
-            <Button type="submit" className="w-full py-6 rounded-xl font-semibold text-base group">
+            <Button type="submit" className="w-full py-6 rounded-lg font-semibold text-base group">
               Create organization
               <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
             </Button>

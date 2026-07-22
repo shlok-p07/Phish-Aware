@@ -48,7 +48,7 @@ export default function AdminSettingsPage() {
         <CardContent className="pt-6 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="s-name" className="font-semibold">Organization name</Label>
-            <Input id="s-name" value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl max-w-md" />
+            <Input id="s-name" value={name} onChange={(e) => setName(e.target.value)} className="rounded-lg max-w-md" />
           </div>
         </CardContent>
       </Card>
@@ -67,7 +67,7 @@ export default function AdminSettingsPage() {
           <div className="space-y-2">
             <Label htmlFor="s-domain" className="font-semibold">Email domain</Label>
             <Input id="s-domain" placeholder="acme.com" value={domain}
-              onChange={(e) => setDomain(e.target.value)} className="rounded-xl max-w-md" />
+              onChange={(e) => setDomain(e.target.value)} className="rounded-lg max-w-md" />
             <p className="text-xs text-muted-foreground font-medium">
               Leave blank to require an invitation for everyone.
             </p>
@@ -89,13 +89,13 @@ export default function AdminSettingsPage() {
           <div className="space-y-2">
             <Label htmlFor="s-seats" className="font-semibold">Seat limit</Label>
             <Input id="s-seats" type="number" min={activeSeats} value={seats}
-              onChange={(e) => setSeats(e.target.value)} className="rounded-xl max-w-40" />
+              onChange={(e) => setSeats(e.target.value)} className="rounded-lg max-w-40" />
           </div>
         </CardContent>
       </Card>
 
       <div className="flex justify-end">
-        <Button className="rounded-xl font-semibold" onClick={save}>
+        <Button className="rounded-lg font-semibold" onClick={save}>
           <Save className="w-4 h-4 mr-2" />
           Save changes
         </Button>
@@ -122,7 +122,7 @@ export default function AdminSettingsPage() {
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="shrink-0 rounded-xl font-semibold">
+                <Button variant="destructive" className="shrink-0 rounded-lg font-semibold">
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete organization
                 </Button>

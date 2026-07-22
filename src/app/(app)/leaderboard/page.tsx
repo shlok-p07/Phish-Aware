@@ -1,8 +1,9 @@
 "use client";
 import { useGetLeaderboard } from "@/api-client";
-import { Trophy, Medal, Crown } from "lucide-react";
+import { Users, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { initials } from "@/lib/utils";
 
 export default function LeaderboardPage() {
   const { data: leaderboard, isLoading, isError } = useGetLeaderboard();
@@ -10,10 +11,10 @@ export default function LeaderboardPage() {
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-3xl mx-auto animate-pulse">
-        <div className="h-24 bg-muted rounded-xl" />
+        <div className="h-32 bg-muted rounded-lg" />
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-20 bg-muted rounded-lg" />
+            <div key={i} className="h-16 bg-muted rounded-lg" />
           ))}
         </div>
       </div>
@@ -24,70 +25,111 @@ export default function LeaderboardPage() {
     return (
       <Card className="max-w-3xl mx-auto border border-destructive/20 bg-destructive/5">
         <CardContent className="pt-6">
-          <p className="text-destructive font-medium text-center">Failed to load rankings.</p>
+          <p className="text-destructive font-medium text-center">Failed to load team benchmark.</p>
         </CardContent>
       </Card>
     );
   }
 
-  const getRankIcon = (rank: number) => {
-    switch (rank) {
-      case 1: return <Crown className="w-6 h-6 text-yellow-500 fill-yellow-500/20" />;
-      case 2: return <Medal className="w-6 h-6 text-slate-400 fill-slate-400/20" />;
-      case 3: return <Medal className="w-6 h-6 text-amber-600 fill-amber-600/20" />;
-      default: return <span className="font-bold text-muted-foreground text-lg w-6 text-center">{rank}</span>;
-    }
-  };
+  const total = leaderboard.length;
+  const me = leaderboard.find((e) => e.isCurrentUser);
+  // Percentile: share of the cohort you rank at or above. Rank 1 → 100th (top of team).
+  const percentile = me ? Math.round(((total - me.rank) / Math.max(1, total - 1)) * 100) : null;
+  // "Top X%" only reads correctly in the upper half; below that, plain-language standing.
+  const topPct = me ? Math.max(1, Math.round((me.rank / total) * 100)) : null;
+  const standingLabel =
+    me && topPct !== null && me.rank <= Math.ceil(total / 2)
+      ? `Top ${topPct}%`
+      : "Building up";
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="text-center space-y-3">
-        <div className="inline-flex bg-primary/10 p-4 rounded-full mb-2">
-          <Trophy className="w-10 h-10 text-primary" />
-        </div>
-        <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight">Leaderboard</h1>
-        <p className="text-muted-foreground text-lg font-medium">See how your detection skills compare.</p>
+    <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="pb-2 border-b border-border">
+        <h1 className="text-2xl font-display font-bold">Team benchmark</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          How your detection performance compares across your organization.
+        </p>
       </div>
 
-      <div className="space-y-3 mt-8">
-        {leaderboard.map((entry) => (
-          <Card 
-            key={entry.rank + entry.name} 
-            className={`border shadow-sm transition-all overflow-hidden ${
-              entry.isCurrentUser 
-                ? "border-primary bg-primary/5 shadow-md scale-[1.02]" 
-                : "border-border hover:border-primary/30"
-            }`}
-          >
-            <div className="flex items-center p-4 sm:p-5 gap-4">
-              <div className="w-10 sm:w-12 flex justify-center shrink-0">
-                {getRankIcon(entry.rank)}
-              </div>
-              
-              <div className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-lg bg-muted border flex items-center justify-center text-xl font-semibold text-muted-foreground uppercase shadow-sm">
-                {entry.name.substring(0, 2)}
-              </div>
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className={`font-bold text-lg truncate ${entry.isCurrentUser ? "text-primary" : "text-foreground"}`}>
-                    {entry.name} {entry.isCurrentUser && "(You)"}
-                  </h3>
-                </div>
-                <p className="text-sm font-medium text-muted-foreground capitalize">
-                  {entry.level} Level
+      {/* Standing summary */}
+      {me && percentile !== null && (
+        <Card className="border shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" /> Your standing
+                </p>
+                <p className="text-3xl font-display font-bold tabular-nums">
+                  {standingLabel}
+                  <span className="text-base font-semibold text-muted-foreground ml-2">
+                    · #{me.rank} of {total} on your team
+                  </span>
                 </p>
               </div>
-
-              <div className="shrink-0 text-right">
-                <Badge variant={entry.isCurrentUser ? "default" : "secondary"} className="text-sm px-3 py-1 font-semibold">
-                  {entry.xp} XP
-                </Badge>
+              <div className="text-right shrink-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Points
+                </p>
+                <p className="text-2xl font-bold tabular-nums">{me.xp.toLocaleString()}</p>
               </div>
             </div>
-          </Card>
-        ))}
-      </div>
+            <div className="mt-5">
+              <div className="flex items-center justify-between text-xs text-muted-foreground font-medium mb-1.5">
+                <span>Team cohort</span>
+                <span>{percentile}th percentile</span>
+              </div>
+              <Progress value={percentile} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Cohort standings */}
+      <Card className="border shadow-sm overflow-hidden">
+        <CardHeader className="bg-muted/30 border-b border-border pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            Team standings
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ul className="divide-y divide-border">
+            {leaderboard.map((entry) => (
+              <li
+                key={entry.rank + entry.name}
+                className={`flex items-center gap-4 px-4 sm:px-5 py-3 ${
+                  entry.isCurrentUser ? "bg-primary/5" : ""
+                }`}
+              >
+                <span className="w-6 text-sm font-semibold tabular-nums text-muted-foreground text-right shrink-0">
+                  {entry.rank}
+                </span>
+                <div className="w-9 h-9 shrink-0 rounded-md bg-muted border flex items-center justify-center text-sm font-semibold text-muted-foreground">
+                  {initials(entry.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={`font-semibold truncate ${
+                      entry.isCurrentUser ? "text-primary" : "text-foreground"
+                    }`}
+                  >
+                    {entry.name}
+                    {entry.isCurrentUser && (
+                      <span className="ml-2 text-xs font-semibold text-muted-foreground">You</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground capitalize">{entry.level} level</p>
+                </div>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                  {entry.xp.toLocaleString()}
+                  <span className="text-xs font-medium text-muted-foreground ml-1">pts</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }
