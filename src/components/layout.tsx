@@ -69,7 +69,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/dashboard", icon: Home, label: "Home" },
     { href: "/learn", icon: BookOpen, label: "Learn" },
     { href: "/practice", icon: Target, label: "Practice" },
-    { href: "/leaderboard", icon: BarChart3, label: "Benchmark" },
+    { href: "/leaderboard", icon: BarChart3, label: "Leaderboard" },
   ];
 
   return (
