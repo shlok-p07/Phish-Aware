@@ -49,6 +49,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import zxcvbn from "zxcvbn";
+import { FcGoogle } from "react-icons/fc";
+import { FaMicrosoft } from "react-icons/fa";
 
 const loginSchema = z.object({
 	email: z.string().email("Please enter a valid email"),
@@ -180,7 +182,7 @@ export default function AuthPage() {
 					queryClient.invalidateQueries({
 						queryKey: getGetCurrentUserQueryKey(),
 					});
-					toast({ title: "Welcome back!" });
+					toast({ title: "Signed in" });
 				},
 				onError: (err: any) => {
 					toast({
@@ -202,7 +204,7 @@ export default function AuthPage() {
 						queryKey: getGetCurrentUserQueryKey(),
 					});
 					toast({
-						title: "Account created!",
+						title: "Account created",
 						description: "Welcome to PhishAware.",
 					});
 				},
@@ -224,8 +226,8 @@ export default function AuthPage() {
 					queryKey: getGetCurrentUserQueryKey(),
 				});
 				toast({
-					title: "Playing as Guest",
-					description: "Your progress will be saved temporarily.",
+					title: "Guest session started",
+					description: "Your progress is saved temporarily for this session.",
 				});
 			},
 			onError: () => {
@@ -238,13 +240,22 @@ export default function AuthPage() {
 		});
 	};
 
+	const onSso = (provider: "Google" | "Microsoft") => {
+		// SSO is not wired to an identity provider yet — surface a clear notice.
+		toast({
+			title: `${provider} SSO coming soon`,
+			description:
+				"Single sign-on isn't enabled yet. Use email and password for now.",
+		});
+	};
+
 	if (isLoading || (user && !user.isGuest)) return null;
 
 	return (
 		<div className="min-h-dvh flex flex-col items-center justify-center p-4 bg-muted/30">
 			<div className="max-w-md w-full space-y-8">
 				<div className="flex flex-col items-center text-center space-y-4">
-					<div className="bg-primary text-primary-foreground p-4 rounded-2xl shadow-md">
+					<div className="bg-primary text-primary-foreground p-4 rounded-lg shadow-md">
 						<Shield className="w-10 h-10" />
 					</div>
 					<div className="space-y-2">
@@ -254,12 +265,12 @@ export default function AuthPage() {
 						<p className="text-muted-foreground font-medium text-lg">
 							{isGuest
 								? "Create an account to save your guest progress before it expires."
-								: "Build your scam-spotting instincts."}
+								: "Sharpen your instincts against phishing."}
 						</p>
 					</div>
 				</div>
 
-				<Card className="border-2 shadow-sm">
+				<Card className="border shadow-sm">
 					<Tabs value={tab} onValueChange={setTab} className="w-full">
 						<CardHeader className="pb-4">
 							<TabsList className="grid w-full grid-cols-2 p-1 bg-muted rounded-xl h-auto">
@@ -278,6 +289,38 @@ export default function AuthPage() {
 							</TabsList>
 						</CardHeader>
 						<CardContent className="pb-6">
+							<div className="grid grid-cols-2 gap-3">
+								<Button
+									type="button"
+									variant="outline"
+									className="py-6 rounded-xl font-semibold hover:cursor-pointer"
+									onClick={() => onSso("Google")}
+								>
+									<FcGoogle className="mr-2 h-5 w-5" />
+									Google
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									className="py-6 rounded-xl font-semibold hover:cursor-pointer"
+									onClick={() => onSso("Microsoft")}
+								>
+									<FaMicrosoft className="mr-2 h-5 w-5 text-[#00a4ef]" />
+									Microsoft
+								</Button>
+							</div>
+
+							<div className="relative my-6">
+								<div className="absolute inset-0 flex items-center">
+									<span className="w-full border-t border-border" />
+								</div>
+								<div className="relative flex justify-center text-xs uppercase font-semibold tracking-wider">
+									<span className="bg-card px-4 text-muted-foreground">
+										Or continue with email
+									</span>
+								</div>
+							</div>
+
 							<div
 								style={{
 									height: height !== undefined ? `${height}px` : undefined,
@@ -491,9 +534,9 @@ export default function AuthPage() {
 					<div className="flex flex-col space-y-4">
 						<div className="relative">
 							<div className="absolute inset-0 flex items-center">
-								<span className="w-full border-t-2 border-border" />
+								<span className="w-full border-t border-border" />
 							</div>
-							<div className="relative flex justify-center text-xs uppercase font-bold tracking-wider">
+							<div className="relative flex justify-center text-xs uppercase font-semibold tracking-wider">
 								<span className="bg-muted/30 px-4 text-muted-foreground">
 									Or just try it out
 								</span>
@@ -503,7 +546,7 @@ export default function AuthPage() {
 						<Button
 							variant="outline"
 							size="lg"
-							className="w-full py-6 rounded-xl border-2 hover:bg-muted font-bold text-base hover:cursor-pointer"
+							className="w-full py-6 rounded-xl border hover:bg-muted font-bold text-base hover:cursor-pointer"
 							onClick={onGuest}
 							disabled={guestMutation.isPending}
 						>

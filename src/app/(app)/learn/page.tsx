@@ -31,10 +31,10 @@ export default function LearnPage() {
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto animate-pulse">
-        <div className="h-24 bg-muted rounded-3xl" />
+        <div className="h-24 bg-muted rounded-xl" />
         <div className="grid md:grid-cols-2 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-32 bg-muted rounded-2xl" />
+            <div key={i} className="h-32 bg-muted rounded-lg" />
           ))}
         </div>
       </div>
@@ -43,7 +43,7 @@ export default function LearnPage() {
 
   if (isError || !lessons) {
     return (
-      <Card className="max-w-5xl mx-auto border-2 border-destructive/20 bg-destructive/5">
+      <Card className="max-w-5xl mx-auto border border-destructive/20 bg-destructive/5">
         <CardContent className="pt-6">
           <p className="text-destructive font-medium text-center">Failed to load lessons.</p>
         </CardContent>
@@ -66,9 +66,9 @@ export default function LearnPage() {
           const isWip = lesson.vector !== "email";
 
           const card = (
-            <Card className={`group border-2 shadow-sm h-full overflow-hidden flex flex-col ${isWip ? "opacity-60 cursor-not-allowed" : "hover:shadow-md hover:border-primary transition-all cursor-pointer"}`} style={{ animationDelay: `${idx * 50}ms` }}>
+            <Card className={`group border shadow-sm h-full overflow-hidden flex flex-col ${isWip ? "opacity-60 cursor-not-allowed" : "hover:shadow-md hover:border-primary transition-all cursor-pointer"}`} style={{ animationDelay: `${idx * 50}ms` }}>
               <div className="flex flex-row h-full">
-                <div className={`w-24 shrink-0 flex items-center justify-center border-r-2 transition-colors ${getColorsForVector(lesson.vector)} ${isWip ? "" : "group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary"}`}>
+                <div className={`w-24 shrink-0 flex items-center justify-center border-r transition-colors ${getColorsForVector(lesson.vector)} ${isWip ? "" : "group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary"}`}>
                   {getIconForVector(lesson.vector)}
                 </div>
                 <div className="flex-1 p-5">

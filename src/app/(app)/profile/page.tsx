@@ -34,10 +34,10 @@ export default function ProfilePage() {
 	if (isLoading) {
 		return (
 			<div className="space-y-6 max-w-5xl mx-auto animate-pulse">
-				<div className="h-32 bg-muted rounded-3xl" />
+				<div className="h-32 bg-muted rounded-xl" />
 				<div className="grid md:grid-cols-2 gap-6">
-					<div className="h-64 bg-muted rounded-2xl" />
-					<div className="h-64 bg-muted rounded-2xl" />
+					<div className="h-64 bg-muted rounded-lg" />
+					<div className="h-64 bg-muted rounded-lg" />
 				</div>
 			</div>
 		);
@@ -45,7 +45,7 @@ export default function ProfilePage() {
 
 	if (isError || !analytics) {
 		return (
-			<Card className="max-w-5xl mx-auto border-2 border-destructive/20 bg-destructive/5">
+			<Card className="max-w-5xl mx-auto border border-destructive/20 bg-destructive/5">
 				<CardContent className="pt-6">
 					<p className="text-destructive font-medium text-center">
 						Failed to load analytics.
@@ -79,10 +79,10 @@ export default function ProfilePage() {
 		<div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 			{/* Header overview */}
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-				<Card className="border-2 shadow-none border-b-4 md:col-span-2">
+				<Card className="border shadow-none md:col-span-2">
 					<CardContent className="pt-6 flex items-center justify-between">
 						<div className="space-y-2">
-							<p className="text-muted-foreground font-bold uppercase tracking-wider text-xs flex items-center gap-2">
+							<p className="text-muted-foreground font-semibold uppercase tracking-wider text-xs flex items-center gap-2">
 								<Target className="w-4 h-4" /> Calibration Score
 							</p>
 							<h2 className="text-4xl font-display font-bold">
@@ -90,8 +90,8 @@ export default function ProfilePage() {
 								<span className="text-xl text-muted-foreground">/100</span>
 							</h2>
 							<p className="text-sm text-muted-foreground font-medium max-w-sm">
-								This shows how well your confidence matches your actual
-								accuracy. A high score means you know exactly when you're right!
+								Measures how well your confidence matches your actual
+								accuracy. A higher score means better-calibrated judgment.
 							</p>
 						</div>
 						<div className="w-24 h-24 rounded-full border-8 border-primary/20 flex items-center justify-center relative overflow-hidden shrink-0">
@@ -106,9 +106,9 @@ export default function ProfilePage() {
 					</CardContent>
 				</Card>
 
-				<Card className="border-2 shadow-none border-b-4">
+				<Card className="border shadow-none">
 					<CardContent className="pt-6 flex flex-col justify-center h-full">
-						<p className="text-muted-foreground font-bold uppercase tracking-wider text-xs flex items-center gap-2 mb-2">
+						<p className="text-muted-foreground font-semibold uppercase tracking-wider text-xs flex items-center gap-2 mb-2">
 							<Activity className="w-4 h-4" /> Practice Volume
 						</p>
 						<h2 className="text-4xl font-display font-bold">{totalAttempts}</h2>
@@ -121,8 +121,8 @@ export default function ProfilePage() {
 
 			<div className="grid md:grid-cols-2 gap-6">
 				{/* Progress Chart */}
-				<Card className="border-2 shadow-sm">
-					<CardHeader className="bg-muted/30 border-b-2 pb-4">
+				<Card className="border shadow-sm">
+					<CardHeader className="bg-muted/30 border-b pb-4">
 						<CardTitle className="text-lg flex items-center gap-2">
 							<TrendingUp className="w-5 h-5 text-primary" />
 							Accuracy Over Time
@@ -163,11 +163,11 @@ export default function ProfilePage() {
 										/>
 										<Tooltip
 											contentStyle={{
-												borderRadius: "12px",
-												border: "2px solid hsl(var(--border))",
-												boxShadow: "none",
+												borderRadius: "8px",
+												border: "1px solid hsl(var(--border))",
+												boxShadow: "var(--shadow-md)",
 											}}
-											itemStyle={{ fontWeight: "bold" }}
+											itemStyle={{ fontWeight: 600 }}
 											formatter={(value: number) => [`${value}%`, "Accuracy"]}
 										/>
 										<Line
@@ -186,7 +186,7 @@ export default function ProfilePage() {
 								</ResponsiveContainer>
 							) : (
 								<div className="h-full flex items-center justify-center text-muted-foreground font-medium">
-									Not enough data yet. Keep practicing!
+									Not enough data yet.
 								</div>
 							)}
 						</div>
@@ -194,8 +194,8 @@ export default function ProfilePage() {
 				</Card>
 
 				{/* Vector Breakdown */}
-				<Card className="border-2 shadow-sm">
-					<CardHeader className="bg-muted/30 border-b-2 pb-4">
+				<Card className="border shadow-sm">
+					<CardHeader className="bg-muted/30 border-b pb-4">
 						<CardTitle className="text-lg flex items-center gap-2">
 							<AlertTriangle className="w-5 h-5 text-secondary" />
 							Performance by Vector
@@ -231,8 +231,8 @@ export default function ProfilePage() {
 			</div>
 
 			{/* Cue Breakdown Grid */}
-			<Card className="border-2 shadow-sm">
-				<CardHeader className="bg-muted/30 border-b-2 pb-4">
+			<Card className="border shadow-sm">
+				<CardHeader className="bg-muted/30 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<CheckCircle2 className="w-5 h-5 text-success" />
 						Detailed Cue Recognition
@@ -247,10 +247,10 @@ export default function ProfilePage() {
 							sortedCues.map((cue) => (
 								<div
 									key={cue.cueId}
-									className="p-4 rounded-2xl bg-muted/30 border-2 border-transparent hover:border-border transition-colors"
+									className="p-4 rounded-lg bg-muted/30 border border-transparent hover:border-border transition-colors"
 								>
 									<div className="flex justify-between items-start mb-3">
-										<span className="font-bold text-sm leading-tight">
+										<span className="font-semibold text-sm leading-tight">
 											{cue.label}
 										</span>
 										<span
@@ -275,7 +275,7 @@ export default function ProfilePage() {
 													: "[&>div]:bg-destructive"
 										}`}
 									/>
-									<p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mt-3">
+									<p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-3">
 										{cue.attempts} ATTEMPTS
 									</p>
 								</div>

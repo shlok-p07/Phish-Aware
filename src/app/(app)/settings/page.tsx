@@ -50,9 +50,9 @@ function ToggleRow({
   onCheckedChange: (value: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl bg-muted/30 border-2 border-transparent p-4">
+    <div className="flex items-center justify-between gap-4 rounded-lg bg-muted/30 border border-transparent p-4">
       <div className="space-y-1">
-        <Label htmlFor={id} className="text-sm font-bold">
+        <Label htmlFor={id} className="text-sm font-semibold">
           {label}
         </Label>
         <p className="text-xs text-muted-foreground font-medium">{description}</p>
@@ -123,8 +123,8 @@ export default function SettingsPage() {
 			</div>
 
 			{/* Appearance / Theme */}
-			<Card className="border-2 shadow-sm">
-				<CardHeader className="bg-muted/30 border-b-2 pb-4">
+			<Card className="border shadow-sm">
+				<CardHeader className="bg-muted/30 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<Sun className="w-5 h-5 text-secondary" />
 						Appearance
@@ -143,7 +143,7 @@ export default function SettingsPage() {
 									onClick={() => setTheme(option.value)}
 									aria-pressed={active}
 									className={cn(
-										"flex flex-col items-center gap-2 rounded-2xl border-2 p-4 font-semibold transition-all hover:cursor-pointer",
+										"flex flex-col items-center gap-2 rounded-lg border p-4 font-semibold transition-all hover:cursor-pointer",
 										active
 											? "border-primary bg-primary/10 text-primary"
 											: "border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground",
@@ -159,8 +159,8 @@ export default function SettingsPage() {
 			</Card>
 
 			{/* Text size */}
-			<Card className="border-2 shadow-sm">
-				<CardHeader className="bg-muted/30 border-b-2 pb-4">
+			<Card className="border shadow-sm">
+				<CardHeader className="bg-muted/30 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<Type className="w-5 h-5 text-primary" />
 						Text Size
@@ -179,7 +179,7 @@ export default function SettingsPage() {
 									onClick={() => setTextSize(option.value)}
 									aria-pressed={active}
 									className={cn(
-										"flex flex-col items-center gap-2 rounded-2xl border-2 p-4 font-semibold transition-all hover:cursor-pointer",
+										"flex flex-col items-center gap-2 rounded-lg border p-4 font-semibold transition-all hover:cursor-pointer",
 										active
 											? "border-primary bg-primary/10 text-primary"
 											: "border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground",
@@ -197,8 +197,8 @@ export default function SettingsPage() {
 			</Card>
 
 			{/* Reading */}
-			<Card className="border-2 shadow-sm">
-				<CardHeader className="bg-muted/30 border-b-2 pb-4">
+			<Card className="border shadow-sm">
+				<CardHeader className="bg-muted/30 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<BookOpenText className="w-5 h-5 text-primary" />
 						Reading
@@ -219,8 +219,8 @@ export default function SettingsPage() {
 			</Card>
 
 			{/* Contrast */}
-			<Card className="border-2 shadow-sm">
-				<CardHeader className="bg-muted/30 border-b-2 pb-4">
+			<Card className="border shadow-sm">
+				<CardHeader className="bg-muted/30 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<Contrast className="w-5 h-5 text-primary" />
 						Contrast
@@ -241,8 +241,8 @@ export default function SettingsPage() {
 			</Card>
 
 			{/* Interaction */}
-			<Card className="border-2 shadow-sm">
-				<CardHeader className="bg-muted/30 border-b-2 pb-4">
+			<Card className="border shadow-sm">
+				<CardHeader className="bg-muted/30 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<MousePointerClick className="w-5 h-5 text-secondary" />
 						Interaction
@@ -263,8 +263,8 @@ export default function SettingsPage() {
 			</Card>
 
 			{/* Motion */}
-			<Card className="border-2 shadow-sm">
-				<CardHeader className="bg-muted/30 border-b-2 pb-4">
+			<Card className="border shadow-sm">
+				<CardHeader className="bg-muted/30 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<Zap className="w-5 h-5 text-secondary" />
 						Motion
@@ -285,8 +285,8 @@ export default function SettingsPage() {
 			</Card>
 
 			{/* Danger zone — delete account */}
-			<Card className="border-2 border-destructive/40 shadow-sm">
-				<CardHeader className="bg-destructive/5 border-b-2 border-destructive/20 pb-4">
+			<Card className="border border-destructive/40 shadow-sm">
+				<CardHeader className="bg-destructive/5 border-b border-destructive/20 pb-4">
 					<CardTitle className="text-lg flex items-center gap-2 text-destructive">
 						<AlertTriangle className="w-5 h-5" />
 						Danger Zone
@@ -296,9 +296,9 @@ export default function SettingsPage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="pt-6">
-					<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl bg-destructive/5 border-2 border-destructive/20 p-4">
+					<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg bg-destructive/5 border border-destructive/20 p-4">
 						<div className="space-y-1">
-							<p className="text-sm font-bold">Delete account</p>
+							<p className="text-sm font-semibold">Delete account</p>
 							<p className="text-xs text-muted-foreground font-medium">
 								Removes your profile, progress, XP, streak, and every practice
 								attempt for good.

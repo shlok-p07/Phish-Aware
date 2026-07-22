@@ -19,7 +19,7 @@ export default function LessonPage() {
 	if (isLoading) {
 		return (
 			<div className="max-w-2xl mx-auto h-[60vh] animate-pulse flex items-center justify-center">
-				<div className="w-full h-96 bg-muted rounded-3xl" />
+				<div className="w-full h-96 bg-muted rounded-xl" />
 			</div>
 		);
 	}
@@ -76,7 +76,7 @@ export default function LessonPage() {
 					</Link>
 				</Button>
 				<div className="flex-1 space-y-2">
-					<div className="flex justify-between text-xs font-bold uppercase tracking-wider text-muted-foreground">
+					<div className="flex justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
 						<span>{lesson.title}</span>
 						<span>
 							{currentStep + 1} / {totalSteps}
@@ -90,7 +90,7 @@ export default function LessonPage() {
 			</div>
 
 			{/* Main Content Area */}
-			<Card className="border-2 shadow-md overflow-hidden min-h-100 flex flex-col animate-in fade-in zoom-in-95 duration-300">
+			<Card className="border shadow-md overflow-hidden min-h-100 flex flex-col animate-in fade-in zoom-in-95 duration-300">
 				<CardContent className="flex-1 p-8 sm:p-12 flex flex-col justify-center">
 					{!isLastStep && (
 						<div className="space-y-6">
@@ -106,7 +106,7 @@ export default function LessonPage() {
 					{isLastStep && (
 						<div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
 							<div className="space-y-3">
-								<div className="inline-flex bg-destructive/10 p-3 rounded-2xl mb-2 text-destructive">
+								<div className="inline-flex bg-destructive/10 p-3 rounded-lg mb-2 text-destructive">
 									<ShieldAlert className="w-8 h-8" />
 								</div>
 								<h2 className="text-3xl font-display font-bold">
@@ -121,7 +121,7 @@ export default function LessonPage() {
 								{lesson.redFlags.map((flag, idx) => (
 									<li
 										key={idx}
-										className="flex items-start gap-3 p-4 bg-muted/30 rounded-2xl border-2 border-transparent hover:border-border transition-colors"
+										className="flex items-start gap-3 p-4 bg-muted/30 rounded-lg border border-transparent hover:border-border transition-colors"
 									>
 										<CheckCircle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
 										<span className="font-semibold text-foreground text-lg leading-snug">
@@ -134,13 +134,13 @@ export default function LessonPage() {
 					)}
 				</CardContent>
 
-				<CardFooter className="p-6 bg-muted/20 border-t-2 border-border flex justify-between gap-4">
+				<CardFooter className="p-6 bg-muted/20 border-t border-border flex justify-between gap-4">
 					<Button
 						variant="outline"
 						size="lg"
 						onClick={prevStep}
 						disabled={currentStep === 0}
-						className="rounded-xl border-2 font-bold w-1/3 shadow-sm"
+						className="rounded-xl border font-bold w-1/3 shadow-sm"
 					>
 						Back
 					</Button>

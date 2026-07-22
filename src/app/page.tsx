@@ -110,7 +110,7 @@ export default async function LandingPage() {
             <Button asChild variant="ghost" className="font-semibold">
               <Link href="/auth">Log in</Link>
             </Button>
-            <Button asChild className="font-bold rounded-xl">
+            <Button asChild className="font-semibold rounded-xl">
               <Link href="/auth">Get started</Link>
             </Button>
           </nav>
@@ -125,18 +125,18 @@ export default async function LandingPage() {
             No real emails, links, or credentials — ever
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold tracking-tight max-w-4xl mx-auto leading-[1.1]">
-            Train yourself to spot phishing before it costs you
+            Train your instincts to stop phishing before it lands
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground font-medium max-w-2xl mx-auto mt-6">
-            PhishAware turns security awareness into a game. Practice against
-            realistic scams in a safe, simulated environment and build instincts
-            that stick.
+            PhishAware is hands-on security awareness training. Practice against
+            realistic, simulated attacks across every channel and build detection
+            skills that hold up under pressure.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-9">
             <Button
               asChild
               size="lg"
-              className="font-bold rounded-xl text-lg py-6 px-8 group w-full sm:w-auto"
+              className="font-semibold rounded-xl text-lg py-6 px-8 group w-full sm:w-auto"
             >
               <Link href="/auth">
                 Start training free
@@ -147,7 +147,7 @@ export default async function LandingPage() {
               asChild
               size="lg"
               variant="outline"
-              className="font-bold rounded-xl text-lg py-6 px-8 border-2 w-full sm:w-auto"
+              className="font-semibold rounded-xl text-lg py-6 px-8 border w-full sm:w-auto"
             >
               <Link href="/auth">Try as a guest</Link>
             </Button>
@@ -159,14 +159,14 @@ export default async function LandingPage() {
 
         {/* Vectors */}
         <section className="max-w-6xl mx-auto px-4 md:px-8 pb-16">
-          <p className="text-center text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">
+          <p className="text-center text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-6">
             Covering every angle attackers use
           </p>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
             {VECTORS.map((v) => (
               <div
                 key={v.label}
-                className="flex flex-col items-center gap-2 bg-card border-2 border-border rounded-2xl py-5 px-2"
+                className="flex flex-col items-center gap-2 bg-card border border-border rounded-lg py-5 px-2"
               >
                 <v.icon className="w-7 h-7 text-primary" />
                 <span className="text-sm font-semibold">{v.label}</span>
@@ -176,7 +176,7 @@ export default async function LandingPage() {
         </section>
 
         {/* Features */}
-        <section className="bg-muted/40 border-y-2 border-border">
+        <section className="bg-muted/40 border-y border-border">
           <div className="max-w-6xl mx-auto px-4 md:px-8 py-16 md:py-20">
             <div className="text-center max-w-2xl mx-auto mb-12">
               <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
@@ -190,9 +190,9 @@ export default async function LandingPage() {
               {FEATURES.map((f) => (
                 <div
                   key={f.title}
-                  className="bg-card border-2 border-border rounded-3xl p-6 md:p-8"
+                  className="bg-card border border-border rounded-xl p-6 md:p-8"
                 >
-                  <div className="inline-flex bg-primary/10 text-primary p-3 rounded-2xl mb-4">
+                  <div className="inline-flex bg-primary/10 text-primary p-3 rounded-lg mb-4">
                     <f.icon className="w-7 h-7" />
                   </div>
                   <h3 className="text-xl font-display font-bold mb-2">
@@ -217,7 +217,7 @@ export default async function LandingPage() {
           <div className="grid md:grid-cols-3 gap-6">
             {STEPS.map((s) => (
               <div key={s.step} className="text-center px-4">
-                <div className="w-14 h-14 rounded-2xl bg-primary text-primary-foreground font-display font-bold text-2xl flex items-center justify-center mx-auto mb-5 shadow-sm">
+                <div className="w-14 h-14 rounded-lg bg-primary text-primary-foreground font-display font-bold text-2xl flex items-center justify-center mx-auto mb-5 shadow-sm">
                   {s.step}
                 </div>
                 <h3 className="text-xl font-bold mb-2">{s.title}</h3>
@@ -231,9 +231,9 @@ export default async function LandingPage() {
 
         {/* Trust / safety */}
         <section className="max-w-4xl mx-auto px-4 md:px-8 pb-16">
-          <div className="bg-primary/5 border-2 border-primary/20 rounded-3xl p-8 md:p-10">
+          <div className="bg-primary/5 border border-primary/20 rounded-xl p-8 md:p-10">
             <div className="flex flex-col sm:flex-row items-start gap-5">
-              <div className="bg-primary text-primary-foreground p-3 rounded-2xl shrink-0">
+              <div className="bg-primary text-primary-foreground p-3 rounded-lg shrink-0">
                 <Shield className="w-7 h-7" />
               </div>
               <div className="space-y-3">
@@ -261,22 +261,22 @@ export default async function LandingPage() {
 
         {/* Final CTA */}
         <section className="max-w-6xl mx-auto px-4 md:px-8 pb-20">
-          <div className="bg-primary text-primary-foreground rounded-3xl px-6 py-14 md:py-16 text-center shadow-lg">
+          <div className="bg-primary text-primary-foreground rounded-lg px-6 py-14 md:py-16 text-center shadow-md">
             <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight max-w-2xl mx-auto">
-              Ready to outsmart the scammers?
+              Ready to build a phishing-resistant team?
             </h2>
             <p className="text-primary-foreground/90 text-lg font-medium mt-4 max-w-xl mx-auto">
-              Join PhishAware and turn security awareness into a habit you
-              actually enjoy.
+              Give your people realistic, measurable practice against the
+              attacks they actually face.
             </p>
             <Button
               asChild
               size="lg"
               variant="secondary"
-              className="font-bold rounded-xl text-lg py-6 px-8 mt-8 group"
+              className="font-semibold rounded-md text-lg py-6 px-8 mt-8 group"
             >
               <Link href="/auth">
-                Start training free
+                Get started
                 <ArrowRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>

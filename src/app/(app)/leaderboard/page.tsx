@@ -10,10 +10,10 @@ export default function LeaderboardPage() {
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-3xl mx-auto animate-pulse">
-        <div className="h-24 bg-muted rounded-3xl" />
+        <div className="h-24 bg-muted rounded-xl" />
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-20 bg-muted rounded-2xl" />
+            <div key={i} className="h-20 bg-muted rounded-lg" />
           ))}
         </div>
       </div>
@@ -22,7 +22,7 @@ export default function LeaderboardPage() {
 
   if (isError || !leaderboard) {
     return (
-      <Card className="max-w-3xl mx-auto border-2 border-destructive/20 bg-destructive/5">
+      <Card className="max-w-3xl mx-auto border border-destructive/20 bg-destructive/5">
         <CardContent className="pt-6">
           <p className="text-destructive font-medium text-center">Failed to load rankings.</p>
         </CardContent>
@@ -46,14 +46,14 @@ export default function LeaderboardPage() {
           <Trophy className="w-10 h-10 text-primary" />
         </div>
         <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight">Leaderboard</h1>
-        <p className="text-muted-foreground text-lg font-medium">See how your scam-spotting skills stack up.</p>
+        <p className="text-muted-foreground text-lg font-medium">See how your detection skills compare.</p>
       </div>
 
       <div className="space-y-3 mt-8">
         {leaderboard.map((entry) => (
           <Card 
             key={entry.rank + entry.name} 
-            className={`border-2 shadow-sm transition-all overflow-hidden ${
+            className={`border shadow-sm transition-all overflow-hidden ${
               entry.isCurrentUser 
                 ? "border-primary bg-primary/5 shadow-md scale-[1.02]" 
                 : "border-border hover:border-primary/30"
@@ -64,7 +64,7 @@ export default function LeaderboardPage() {
                 {getRankIcon(entry.rank)}
               </div>
               
-              <div className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-2xl bg-muted border-2 flex items-center justify-center text-xl font-bold text-muted-foreground uppercase shadow-sm">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-lg bg-muted border flex items-center justify-center text-xl font-semibold text-muted-foreground uppercase shadow-sm">
                 {entry.name.substring(0, 2)}
               </div>
               
@@ -80,7 +80,7 @@ export default function LeaderboardPage() {
               </div>
 
               <div className="shrink-0 text-right">
-                <Badge variant={entry.isCurrentUser ? "default" : "secondary"} className="text-sm px-3 py-1 font-bold">
+                <Badge variant={entry.isCurrentUser ? "default" : "secondary"} className="text-sm px-3 py-1 font-semibold">
                   {entry.xp} XP
                 </Badge>
               </div>
