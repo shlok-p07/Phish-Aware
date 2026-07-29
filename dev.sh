@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# Local dev launcher for PhishAware (Next.js + Postgres).
+# Local dev launcher for PhishAware (Next.js + MongoDB).
 #
 # Usage:
-#   ./dev.sh          # start Postgres (if needed), push schema, seed, run Next
+#   ./dev.sh          # verify Mongo connectivity, init schema, seed, run Next
 #   ./dev.sh stop     # stop the Next dev server started by this script
+#
+# MONGODB_URI must already be set in .env -- either a MongoDB Atlas
+# connection string, or a local instance started with `docker compose up -d
+# mongo` (see docker-compose.yml).
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
-
-DB_NAME="phishaware"
-export DATABASE_URL="${DATABASE_URL:-postgresql://localhost:5432/${DB_NAME}}"
 
 LOG_DIR="$ROOT/.dev-logs"
 mkdir -p "$LOG_DIR"
@@ -36,22 +37,26 @@ if [ "${1:-}" = "stop" ]; then
 fi
 stop 2>/dev/null || true
 
-# --- Postgres (Homebrew) ---------------------------------------------------
-PG_BIN="/opt/homebrew/opt/postgresql@16/bin"
-export PATH="$PG_BIN:$PATH"
-if ! pg_isready -q 2>/dev/null; then
-  echo "Starting postgresql@16..."
-  brew services start postgresql@16 >/dev/null
-  for _ in $(seq 1 15); do pg_isready -q && break; sleep 1; done
+# --- MongoDB connectivity ---------------------------------------------------
+if [ ! -f .env ] || ! grep -q "^MONGODB_URI=" .env; then
+  echo "MONGODB_URI is not set in .env." >&2
+  echo "Point it at a MongoDB Atlas cluster, or run: docker compose up -d mongo" >&2
+  exit 1
 fi
-if ! psql -lqt 2>/dev/null | cut -d '|' -f1 | grep -qw "$DB_NAME"; then
-  echo "Creating database $DB_NAME..."
-  createdb "$DB_NAME"
+set -a
+# shellcheck disable=SC1091
+. ./.env
+set +a
+if command -v mongosh >/dev/null 2>&1; then
+  if ! mongosh "$MONGODB_URI" --quiet --eval "db.runCommand({ ping: 1 })" >/dev/null 2>&1; then
+    echo "Could not reach MongoDB at MONGODB_URI. Is it running/reachable?" >&2
+    exit 1
+  fi
 fi
 
 # --- Schema + seed (idempotent) --------------------------------------------
-echo "Pushing DB schema..."
-bun run db:push >/dev/null
+echo "Applying schema validators/indexes..."
+bun run db:init >/dev/null
 echo "Seeding (if empty)..."
 bun run db:seed
 
@@ -61,8 +66,7 @@ bun run dev > "$LOG_DIR/next.log" 2>&1 &
 echo $! > "$PID_FILE"
 
 for _ in $(seq 1 30); do
-  grep -qE "Ready in" "$LOG_DIR/next.log" && break
-  sleep 1
+  grep -qE "Ready in" "$LOG_DIR/next.log" && break; sleep 1
 done
 
 echo ""
