@@ -87,5 +87,8 @@
     "eslint-config-next": "16.2.10",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3"
-  }
+  },
+  "trustedDependencies": [
+    "unrs-resolver"
+  ]
 }
