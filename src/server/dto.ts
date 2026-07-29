@@ -1,8 +1,8 @@
-import type { User } from "@/db";
+import type { UserDoc } from "@/db";
 
-export function toUserDto(user: User) {
+export function toUserDto(user: UserDoc) {
   return {
-    id: user.id,
+    id: user._id.toString(),
     name: user.name,
     email: user.email ?? null,
     isGuest: user.isGuest,

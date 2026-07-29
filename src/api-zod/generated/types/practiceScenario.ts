@@ -8,7 +8,7 @@
 import type { Vector } from './vector';
 
 export interface PracticeScenario {
-  id: number;
+  id: string;
   vector: Vector;
   sender: string;
   subject: string;

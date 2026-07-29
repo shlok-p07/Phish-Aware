@@ -1,4 +1,5 @@
-import { db, scenariosTable, usersTable, lessonsTable } from "@/db";
+import { ObjectId } from "mongodb";
+import { scenariosCollection, usersCollection, lessonsCollection } from "@/db";
 import { hashPassword } from "./password";
 import { SEED_SCENARIOS } from "./seedScenarios";
 import { LESSONS } from "./lessons";
@@ -13,17 +14,21 @@ const SAMPLE_LEADERBOARD_USERS = [
 ];
 
 export async function seedIfEmpty(): Promise<void> {
-  const existingScenarios = await db.select().from(scenariosTable).limit(1);
-  if (existingScenarios.length === 0) {
-    await db.insert(scenariosTable).values(SEED_SCENARIOS);
+  const scenarios = await scenariosCollection();
+  const existingScenarios = await scenarios.countDocuments({}, { limit: 1 });
+  if (existingScenarios === 0) {
+    await scenarios.insertMany(
+      SEED_SCENARIOS.map((s) => ({ ...s, _id: new ObjectId(), orgId: s.orgId ?? null })),
+    );
     console.log(`Seeded ${SEED_SCENARIOS.length} practice scenarios`);
   }
 
-  const existingLessons = await db.select().from(lessonsTable).limit(1);
-  if (existingLessons.length === 0) {
-    await db.insert(lessonsTable).values(
+  const lessons = await lessonsCollection();
+  const existingLessons = await lessons.countDocuments({}, { limit: 1 });
+  if (existingLessons === 0) {
+    await lessons.insertMany(
       LESSONS.map((lesson, index) => ({
-        id: lesson.id,
+        _id: lesson.id,
         vector: lesson.vector,
         title: lesson.title,
         summary: lesson.summary,
@@ -35,10 +40,13 @@ export async function seedIfEmpty(): Promise<void> {
     console.log(`Seeded ${LESSONS.length} lessons`);
   }
 
-  const existingUsers = await db.select().from(usersTable).limit(1);
-  if (existingUsers.length === 0) {
-    await db.insert(usersTable).values(
+  const users = await usersCollection();
+  const existingUsers = await users.countDocuments({}, { limit: 1 });
+  if (existingUsers === 0) {
+    await users.insertMany(
       SAMPLE_LEADERBOARD_USERS.map((u) => ({
+        _id: new ObjectId(),
+        orgId: null,
         name: u.name,
         email: `${u.name.toLowerCase().replace(/\s+/g, ".")}@example.com`,
         passwordHash: hashPassword("samplepass123"),
@@ -46,8 +54,13 @@ export async function seedIfEmpty(): Promise<void> {
         level: u.level,
         xp: u.xp,
         streak: u.streak,
+        lastActiveDate: null,
         badges: [],
         calibrationScore: 0.7,
+        onboardingCompleted: true,
+        role: "employee" as const,
+        status: "active" as const,
+        createdAt: new Date(),
       })),
     );
     console.log(`Seeded ${SAMPLE_LEADERBOARD_USERS.length} sample leaderboard users`);

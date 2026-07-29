@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import type { ObjectId } from "mongodb";
 import { getUserIdFromRequest } from "./session";
 
 /** Thrown by requireUserId; caught by withErrorHandling to produce a 401. */
@@ -13,7 +14,7 @@ export class HttpError extends Error {
 }
 
 /** Resolve the current user id or throw a 401. */
-export async function requireUserId(): Promise<number> {
+export async function requireUserId(): Promise<ObjectId> {
   const userId = await getUserIdFromRequest();
   if (userId === null) {
     throw new HttpError(401, "Not authenticated");

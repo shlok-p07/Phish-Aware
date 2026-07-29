@@ -8,7 +8,7 @@
 import type { CueId } from './cueId';
 
 export interface SubmitAttemptInput {
-  scenarioId: number;
+  scenarioId: string;
   /** true if the user judged it phishing */
   verdict: boolean;
   selectedCues: CueId[];

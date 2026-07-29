@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { db, scenariosTable, attemptsTable, usersTable } from "@/db";
-import { eq } from "drizzle-orm";
+import { ObjectId } from "mongodb";
+import { scenariosCollection, attemptsCollection, usersCollection, toObjectId } from "@/db";
 import { SubmitAttemptBody, SubmitAttemptResponse } from "@/api-zod";
 import { type CueId } from "@/server/cues";
 import { gradeAttempt } from "@/server/grading";
@@ -14,24 +14,30 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const userId = await requireUserId();
   const body = SubmitAttemptBody.parse(await req.json());
 
-  const [scenario] = await db
-    .select()
-    .from(scenariosTable)
-    .where(eq(scenariosTable.id, body.scenarioId))
-    .limit(1);
+  const scenarioId = toObjectId(body.scenarioId);
+  if (!scenarioId) {
+    return error(400, "Invalid scenario id");
+  }
+
+  const scenarios = await scenariosCollection();
+  const scenario = await scenarios.findOne({ _id: scenarioId });
   if (!scenario) {
     return error(404, "Scenario not found");
   }
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  const users = await usersCollection();
+  const user = await users.findOne({ _id: userId });
   if (!user) {
     return error(401, "Not authenticated");
   }
 
   const graded = gradeAttempt(scenario, body.verdict, body.selectedCues as CueId[], body.confidence);
 
-  await db.insert(attemptsTable).values({
-    userId: user.id,
-    scenarioId: scenario.id,
+  const attempts = await attemptsCollection();
+  await attempts.insertOne({
+    _id: new ObjectId(),
+    userId: user._id,
+    orgId: user.orgId ?? null,
+    scenarioId: scenario._id,
     userVerdict: body.verdict,
     selectedCues: body.selectedCues,
     confidence: body.confidence,
@@ -42,6 +48,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     explanation: graded.explanation,
     calibrationNote: graded.calibrationNote,
     xpAwarded: graded.xpAwarded,
+    createdAt: new Date(),
   });
 
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -53,7 +60,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   const badgesEarned: string[] = [];
   const existingBadges = new Set(user.badges);
-  const priorAttempts = await db.select().from(attemptsTable).where(eq(attemptsTable.userId, user.id));
+  const priorAttempts = await attempts.find({ userId: user._id }).toArray();
   const priorCorrectCount = priorAttempts.filter((a) => a.correct).length;
   if (graded.correct && priorCorrectCount === 0 && !existingBadges.has("first_catch")) {
     badgesEarned.push("first_catch");
@@ -66,16 +73,18 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   }
   const updatedBadges = [...user.badges, ...badgesEarned.filter((b) => !existingBadges.has(b))];
 
-  await db
-    .update(usersTable)
-    .set({
-      xp: newXp,
-      level: newLevel,
-      streak: newStreak,
-      lastActiveDate: todayIso,
-      badges: updatedBadges,
-    })
-    .where(eq(usersTable.id, user.id));
+  await users.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        xp: newXp,
+        level: newLevel,
+        streak: newStreak,
+        lastActiveDate: todayIso,
+        badges: updatedBadges,
+      },
+    },
+  );
 
   return json(
     SubmitAttemptResponse.parse({

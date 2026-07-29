@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
-import { db, sessionsTable, usersTable, attemptsTable } from "@/db";
-import { and, eq, inArray, lt } from "drizzle-orm";
+import { ObjectId } from "mongodb";
+import { sessionsCollection, usersCollection, attemptsCollection } from "@/db";
 
 export const SESSION_COOKIE = "phishaware_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -10,12 +10,14 @@ export const GUEST_SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 /** Create a session row + set the httpOnly cookie. Returns the token. */
 export async function createSession(
-  userId: number,
+  userId: ObjectId,
   ttlMs: number = SESSION_TTL_MS,
 ): Promise<string> {
   const token = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + ttlMs);
-  await db.insert(sessionsTable).values({ token, userId, expiresAt });
+  const createdAt = new Date();
+  const expiresAt = new Date(createdAt.getTime() + ttlMs);
+  const sessions = await sessionsCollection();
+  await sessions.insertOne({ _id: new ObjectId(), token, userId, createdAt, expiresAt });
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -32,28 +34,26 @@ export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (token) {
-    await db.delete(sessionsTable).where(eq(sessionsTable.token, token));
+    const sessions = await sessionsCollection();
+    await sessions.deleteOne({ token });
   }
   cookieStore.delete(SESSION_COOKIE);
 }
 
 /** Resolve the authenticated user id from the session cookie, or null. */
-export async function getUserIdFromRequest(): Promise<number | null> {
+export async function getUserIdFromRequest(): Promise<ObjectId | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) {
     return null;
   }
-  const [session] = await db
-    .select()
-    .from(sessionsTable)
-    .where(eq(sessionsTable.token, token))
-    .limit(1);
+  const sessions = await sessionsCollection();
+  const session = await sessions.findOne({ token });
   if (!session) {
     return null;
   }
   if (session.expiresAt.getTime() < Date.now()) {
-    await db.delete(sessionsTable).where(eq(sessionsTable.token, token));
+    await sessions.deleteOne({ token });
     // A guest's window has closed — purge their account and all their data.
     await purgeGuestUser(session.userId);
     return null;
@@ -65,28 +65,30 @@ export async function getUserIdFromRequest(): Promise<number | null> {
  * If the given user is a guest, delete their account, sessions, and every
  * attempt they recorded. No-op for real (signed-up) accounts.
  */
-export async function purgeGuestUser(userId: number): Promise<void> {
-  const [user] = await db
-    .select({ isGuest: usersTable.isGuest })
-    .from(usersTable)
-    .where(eq(usersTable.id, userId))
-    .limit(1);
+export async function purgeGuestUser(userId: ObjectId): Promise<void> {
+  const users = await usersCollection();
+  const user = await users.findOne({ _id: userId }, { projection: { isGuest: 1 } });
   if (!user?.isGuest) {
     return;
   }
-  await db.delete(attemptsTable).where(eq(attemptsTable.userId, userId));
-  await db.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
-  await db.delete(usersTable).where(eq(usersTable.id, userId));
+  const attempts = await attemptsCollection();
+  const sessions = await sessionsCollection();
+  await attempts.deleteMany({ userId });
+  await sessions.deleteMany({ userId });
+  await users.deleteOne({ _id: userId });
 }
 
 /**
  * Permanently delete a user account and everything attached to it — all
  * attempts, every session, and the user row — then clear the session cookie.
  */
-export async function deleteAccount(userId: number): Promise<void> {
-  await db.delete(attemptsTable).where(eq(attemptsTable.userId, userId));
-  await db.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
-  await db.delete(usersTable).where(eq(usersTable.id, userId));
+export async function deleteAccount(userId: ObjectId): Promise<void> {
+  const users = await usersCollection();
+  const attempts = await attemptsCollection();
+  const sessions = await sessionsCollection();
+  await attempts.deleteMany({ userId });
+  await sessions.deleteMany({ userId });
+  await users.deleteOne({ _id: userId });
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE);
 }
@@ -98,15 +100,17 @@ export async function deleteAccount(userId: number): Promise<void> {
  */
 export async function purgeExpiredGuests(): Promise<void> {
   const cutoff = new Date(Date.now() - GUEST_SESSION_TTL_MS);
-  const stale = await db
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(and(eq(usersTable.isGuest, true), lt(usersTable.createdAt, cutoff)));
+  const users = await usersCollection();
+  const stale = await users
+    .find({ isGuest: true, createdAt: { $lt: cutoff } }, { projection: { _id: 1 } })
+    .toArray();
   if (stale.length === 0) {
     return;
   }
-  const ids = stale.map((u) => u.id);
-  await db.delete(attemptsTable).where(inArray(attemptsTable.userId, ids));
-  await db.delete(sessionsTable).where(inArray(sessionsTable.userId, ids));
-  await db.delete(usersTable).where(inArray(usersTable.id, ids));
+  const ids = stale.map((u) => u._id);
+  const attempts = await attemptsCollection();
+  const sessions = await sessionsCollection();
+  await attempts.deleteMany({ userId: { $in: ids } });
+  await sessions.deleteMany({ userId: { $in: ids } });
+  await users.deleteMany({ _id: { $in: ids } });
 }

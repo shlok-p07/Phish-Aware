@@ -1,5 +1,4 @@
-import { db, usersTable, attemptsTable } from "@/db";
-import { eq } from "drizzle-orm";
+import { usersCollection, attemptsCollection } from "@/db";
 import { GetDashboardResponse } from "@/api-zod";
 import { xpProgress } from "@/server/leveling";
 import { CUE_LABELS, type CueId } from "@/server/cues";
@@ -9,11 +8,12 @@ export const dynamic = "force-dynamic";
 
 export const GET = withErrorHandling(async () => {
   const userId = await requireUserId();
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  const users = await usersCollection();
+  const user = await users.findOne({ _id: userId });
   if (!user) {
     return error(401, "Not authenticated");
   }
-  const attempts = await db.select().from(attemptsTable).where(eq(attemptsTable.userId, user.id));
+  const attempts = await (await attemptsCollection()).find({ userId: user._id }).toArray();
 
   const cueStats = new Map<string, { caught: number; missed: number }>();
   for (const a of attempts) {

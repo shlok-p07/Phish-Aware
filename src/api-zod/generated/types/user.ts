@@ -8,7 +8,7 @@
 import type { Level } from './level';
 
 export interface User {
-  id: number;
+  id: string;
   name: string;
   /** @nullable */
   email?: string | null;

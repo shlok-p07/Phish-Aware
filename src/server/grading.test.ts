@@ -1,11 +1,12 @@
 import { describe, it, expect } from "bun:test";
-import type { Scenario } from "@/db";
-import type { ScenarioCue } from "@/db";
+import { ObjectId } from "mongodb";
+import type { ScenarioDoc, ScenarioCue } from "@/db";
 import { gradeAttempt } from "./grading";
 
-function makeScenario(overrides: Partial<Scenario> = {}): Scenario {
+function makeScenario(overrides: Partial<ScenarioDoc> = {}): ScenarioDoc {
   return {
-    id: 1,
+    _id: new ObjectId(),
+    orgId: null,
     vector: "email",
     isPhish: true,
     sender: "security@paypa1.com",

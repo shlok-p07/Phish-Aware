@@ -1,4 +1,5 @@
-import { db, usersTable } from "@/db";
+import { ObjectId } from "mongodb";
+import { usersCollection } from "@/db";
 import { ContinueAsGuestResponse } from "@/api-zod";
 import {
   createSession,
@@ -13,13 +14,26 @@ export const dynamic = "force-dynamic";
 export const POST = withErrorHandling(async () => {
   // Clean up any guest accounts whose hour has elapsed before creating a new one.
   await purgeExpiredGuests();
-  const [user] = await db
-    .insert(usersTable)
-    .values({
-      name: "Guest",
-      isGuest: true,
-    })
-    .returning();
-  await createSession(user!.id, GUEST_SESSION_TTL_MS);
-  return json(ContinueAsGuestResponse.parse(toUserDto(user!)), { status: 201 });
+  const users = await usersCollection();
+  const user = {
+    _id: new ObjectId(),
+    orgId: null,
+    name: "Guest",
+    email: null,
+    passwordHash: null,
+    isGuest: true,
+    level: "beginner",
+    xp: 0,
+    streak: 0,
+    lastActiveDate: null,
+    badges: [],
+    calibrationScore: 0,
+    onboardingCompleted: false,
+    role: "employee" as const,
+    status: "active" as const,
+    createdAt: new Date(),
+  };
+  await users.insertOne(user);
+  await createSession(user._id, GUEST_SESSION_TTL_MS);
+  return json(ContinueAsGuestResponse.parse(toUserDto(user)), { status: 201 });
 });

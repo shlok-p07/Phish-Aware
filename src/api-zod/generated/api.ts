@@ -21,7 +21,7 @@ export const HealthCheckResponse = zod.object({
  * @summary Get the current authenticated user
  */
 export const GetCurrentUserResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "email": zod.string().nullish(),
   "isGuest": zod.boolean(),
@@ -52,7 +52,7 @@ export const SignupBody = zod.object({
 })
 
 export const SignupResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "email": zod.string().nullish(),
   "isGuest": zod.boolean(),
@@ -75,7 +75,7 @@ export const LoginBody = zod.object({
 })
 
 export const LoginResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "email": zod.string().nullish(),
   "isGuest": zod.boolean(),
@@ -93,7 +93,7 @@ export const LoginResponse = zod.object({
  * @summary Start a guest session
  */
 export const ContinueAsGuestResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "email": zod.string().nullish(),
   "isGuest": zod.boolean(),
@@ -190,7 +190,7 @@ export const ListCueOptionsResponse = zod.array(ListCueOptionsResponseItem)
  * @summary Get the next recommended practice scenario for the current user
  */
 export const GetNextPracticeScenarioResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "vector": zod.enum(['email', 'sms', 'voice', 'qr', 'social', 'website']),
   "sender": zod.string(),
   "subject": zod.string(),
@@ -210,7 +210,7 @@ export const submitAttemptBodyConfidenceMax = 100;
 
 
 export const SubmitAttemptBody = zod.object({
-  "scenarioId": zod.number(),
+  "scenarioId": zod.string(),
   "verdict": zod.boolean().describe('true if the user judged it phishing'),
   "selectedCues": zod.array(zod.enum(['mismatched_domain', 'urgency', 'generic_greeting', 'suspicious_link', 'credential_request', 'spelling_errors', 'too_good_to_be_true', 'unexpected_attachment', 'impersonal_tone', 'threat_language', 'unusual_request', 'mismatched_display_name'])),
   "confidence": zod.number().min(submitAttemptBodyConfidenceMin).max(submitAttemptBodyConfidenceMax)

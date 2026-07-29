@@ -63,7 +63,7 @@ export interface CueOption {
 }
 
 export interface User {
-  id: number;
+  id: string;
   name: string;
   /** @nullable */
   email?: string | null;
@@ -138,7 +138,7 @@ export interface Lesson {
 }
 
 export interface PracticeScenario {
-  id: number;
+  id: string;
   vector: Vector;
   sender: string;
   subject: string;
@@ -150,7 +150,7 @@ export interface PracticeScenario {
 }
 
 export interface SubmitAttemptInput {
-  scenarioId: number;
+  scenarioId: string;
   /** true if the user judged it phishing */
   verdict: boolean;
   selectedCues: CueId[];

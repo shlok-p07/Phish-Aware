@@ -129,7 +129,7 @@ export default function PracticePage() {
 
   const { name: senderName, email: senderEmail } = parseSender(scenario.sender);
   const initial = (senderName || "?").charAt(0).toUpperCase();
-  const timestamp = TIMES[scenario.id % TIMES.length];
+  const timestamp = TIMES[parseInt(scenario.id.slice(-6), 16) % TIMES.length];
   const snippet = scenario.body.replace(/\s+/g, " ").trim().slice(0, 64);
 
   // Toolbar shown at the top of the reading pane (decorative mail actions).
