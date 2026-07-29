@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 
 export default function DashboardPage() {
   const { data: summary, isLoading, isError } = useGetDashboard();
@@ -37,7 +36,7 @@ export default function DashboardPage() {
   const progressPercent = summary.xpToNextLevel === 0 ? 100 : Math.round((summary.xpIntoLevel / (summary.xpIntoLevel + summary.xpToNextLevel)) * 100);
 
   return (
-		<div className="space-y-6 animate-in fade-in duration-300">
+		<div className="space-y-6 animate-in fade-in duration-300 md:flex md:flex-col md:min-h-full">
 			{/* Header */}
 			<div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-border">
 				<div className="space-y-1">
@@ -125,54 +124,58 @@ export default function DashboardPage() {
 				</Card>
 			</div>
 
-			<div className="grid md:grid-cols-2 gap-6">
+			<div className="grid md:grid-cols-2 gap-6 md:flex-1">
 				{/* Strong/Weak Cues */}
-				<Card className="shadow-sm">
+				<Card className="shadow-sm flex flex-col">
 					<CardHeader className="bg-muted/30 border-b border-border pb-4">
 						<CardTitle className="text-lg flex items-center gap-2">
 							<Star className="w-5 h-5 text-primary" />
 							Strengths
 						</CardTitle>
 					</CardHeader>
-					<CardContent className="pt-4 space-y-2">
+					<CardContent className="pt-4 flex-1 flex flex-col">
 						{summary.strongCues.length > 0 ? (
-							summary.strongCues.map((cue) => (
-								<div
-									key={cue.id}
-									className="flex items-center gap-3 p-2 rounded-lg bg-success/10 border border-success/20 text-success-foreground"
-								>
-									<ShieldCheck className="w-5 h-5" />
-									<span className="font-semibold text-sm">{cue.label}</span>
-								</div>
-							))
+							<div className="space-y-2">
+								{summary.strongCues.map((cue) => (
+									<div
+										key={cue.id}
+										className="flex items-center gap-3 p-2 rounded-lg bg-success/10 border border-success/20 text-success-foreground"
+									>
+										<ShieldCheck className="w-5 h-5" />
+										<span className="font-semibold text-sm">{cue.label}</span>
+									</div>
+								))}
+							</div>
 						) : (
-							<p className="text-sm text-muted-foreground p-2">
+							<p className="text-sm text-muted-foreground text-center flex-1 flex items-center justify-center py-6">
 								Complete more scenarios to surface your strengths.
 							</p>
 						)}
 					</CardContent>
 				</Card>
 
-				<Card className="shadow-sm">
+				<Card className="shadow-sm flex flex-col">
 					<CardHeader className="bg-muted/30 border-b border-border pb-4">
 						<CardTitle className="text-lg flex items-center gap-2">
 							<ShieldAlert className="w-5 h-5 text-destructive" />
 							Focus Areas
 						</CardTitle>
 					</CardHeader>
-					<CardContent className="pt-4 space-y-2">
+					<CardContent className="pt-4 flex-1 flex flex-col">
 						{summary.weakCues.length > 0 ? (
-							summary.weakCues.map((cue) => (
-								<div
-									key={cue.id}
-									className="flex items-center gap-3 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive-foreground"
-								>
-									<ShieldAlert className="w-5 h-5" />
-									<span className="font-semibold text-sm">{cue.label}</span>
-								</div>
-							))
+							<div className="space-y-2">
+								{summary.weakCues.map((cue) => (
+									<div
+										key={cue.id}
+										className="flex items-center gap-3 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive-foreground"
+									>
+										<ShieldAlert className="w-5 h-5" />
+										<span className="font-semibold text-sm">{cue.label}</span>
+									</div>
+								))}
+							</div>
 						) : (
-							<p className="text-sm text-muted-foreground p-2">
+							<p className="text-sm text-muted-foreground text-center flex-1 flex items-center justify-center py-6">
 								No significant weak areas detected.
 							</p>
 						)}

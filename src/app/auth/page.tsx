@@ -221,7 +221,8 @@ export default function AuthPage() {
 
 	const onGuest = () => {
 		guestMutation.mutate(undefined, {
-			onSuccess: () => {
+			onSuccess: (guest) => {
+				queryClient.setQueryData(getGetCurrentUserQueryKey(), guest);
 				queryClient.invalidateQueries({
 					queryKey: getGetCurrentUserQueryKey(),
 				});
@@ -229,6 +230,9 @@ export default function AuthPage() {
 					title: "Guest session started",
 					description: "Your progress is saved temporarily for this session.",
 				});
+				// Guests aren't redirected by the effect above (it deliberately keeps
+				// real guests on /auth so they can convert), so send them in here.
+				router.push(guest?.onboardingCompleted ? "/dashboard" : "/onboarding");
 			},
 			onError: () => {
 				toast({
