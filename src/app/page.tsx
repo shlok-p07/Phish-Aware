@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Lock,
 } from "lucide-react";
+import { AntigravityBackground } from "@/components/antigravity-background";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getUserIdFromRequest } from "@/server/session";
@@ -94,8 +95,12 @@ export default async function LandingPage() {
     redirect("/dashboard");
   }
 
+  // Note: no `bg-background` on the wrapper below — <body> already supplies it,
+  // and an opaque background here would paint over the fixed particle canvas.
   return (
-    <div className="min-h-dvh bg-background flex flex-col">
+    <div className="min-h-dvh flex flex-col">
+      <AntigravityBackground />
+
       {/* Nav */}
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
