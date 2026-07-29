@@ -19,7 +19,14 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useOrg, type OrgRole } from "@/lib/org-store";
+import {
+  useOrgQuery,
+  useOrgMembersQuery,
+  useInviteMemberMutation,
+  useRemoveMemberMutation,
+  useUpdateMemberRoleMutation,
+  type OrgRole,
+} from "@/lib/admin-api";
 import { useToast } from "@/hooks/use-toast";
 
 const riskStyles: Record<string, string> = {
@@ -29,23 +36,37 @@ const riskStyles: Record<string, string> = {
 };
 
 export default function AdminMembersPage() {
-  const { members, settings, inviteMember, removeMember, setMemberRole } = useOrg();
+  const { data: org } = useOrgQuery();
+  const { data: members = [] } = useOrgMembersQuery();
+  const inviteMemberMutation = useInviteMemberMutation();
+  const removeMemberMutation = useRemoveMemberMutation();
+  const setMemberRoleMutation = useUpdateMemberRoleMutation();
   const { toast } = useToast();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<OrgRole>("member");
+  const [role, setRole] = useState<OrgRole>("employee");
 
   const activeSeats = members.filter((m) => m.status === "active").length;
 
   const submitInvite = () => {
     if (!email.trim()) return;
-    inviteMember(name, email, role);
-    toast({ title: "Invitation sent", description: `${email} was invited as ${role}.` });
+    inviteMemberMutation.mutate(
+      { name, email, role },
+      {
+        onSuccess: () => toast({ title: "Invitation sent", description: `${email} was invited as ${role}.` }),
+        onError: (err) =>
+          toast({ title: "Couldn't invite member", description: err.message, variant: "destructive" }),
+      },
+    );
     setName("");
     setEmail("");
-    setRole("member");
+    setRole("employee");
   };
+
+  const removeMember = (id: string) => removeMemberMutation.mutate(id);
+  const setMemberRole = (id: string, newRole: OrgRole) =>
+    setMemberRoleMutation.mutate({ id, role: newRole });
 
   return (
     <div className="space-y-6">
@@ -53,7 +74,7 @@ export default function AdminMembersPage() {
         <div>
           <h2 className="text-lg font-display font-bold">Members</h2>
           <p className="text-sm text-muted-foreground font-medium">
-            {activeSeats} of {settings.seatLimit} seats used
+            {activeSeats} of {org?.seatLimit ?? 0} seats used
           </p>
         </div>
         <Dialog>
@@ -83,7 +104,7 @@ export default function AdminMembersPage() {
                 <Select value={role} onValueChange={(v) => setRole(v as OrgRole)}>
                   <SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="employee">Member</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
@@ -132,7 +153,7 @@ export default function AdminMembersPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="member">Member</SelectItem>
+                        <SelectItem value="employee">Member</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>

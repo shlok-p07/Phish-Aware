@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Building2, Users, BarChart3, ClipboardList, Settings2 } from "lucide-react";
-import { useOrg } from "@/lib/org-store";
+import { useOrgQuery } from "@/lib/admin-api";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -14,18 +14,18 @@ const TABS = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { hasOrg, settings } = useOrg();
+  const { data: org, isLoading } = useOrgQuery();
   const pathname = usePathname();
   const router = useRouter();
 
   // No org yet — send the user to the create flow.
   useEffect(() => {
-    if (!hasOrg) router.replace("/admin/create");
-  }, [hasOrg, router]);
+    if (!isLoading && !org && pathname !== "/admin/create") router.replace("/admin/create");
+  }, [isLoading, org, pathname, router]);
 
   // The create page renders outside the tabbed chrome.
   if (pathname === "/admin/create") return <>{children}</>;
-  if (!hasOrg) return null;
+  if (isLoading || !org) return null;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -35,7 +35,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <div>
           <h1 className="text-2xl md:text-3xl font-display font-bold leading-tight">
-            {settings.name}
+            {org.name}
           </h1>
           <p className="text-sm text-muted-foreground font-medium">
             Organization administration

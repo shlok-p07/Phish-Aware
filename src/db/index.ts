@@ -5,3 +5,6 @@ export * from "./models/scenarios";
 export * from "./models/attempts";
 export * from "./models/lessons";
 export * from "./models/sessions";
+export * from "./models/organizations";
+export * from "./models/campaigns";
+export * from "./models/assignments";

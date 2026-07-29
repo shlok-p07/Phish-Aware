@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { GuestBanner } from "@/components/guest-banner";
 import { useQueryClient } from "@tanstack/react-query";
-import { useOrg } from "@/lib/org-store";
+import { useOrgQuery } from "@/lib/admin-api";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -30,7 +30,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading, isError } = useGetCurrentUser({
     query: { retry: false, queryKey: getGetCurrentUserQueryKey() },
   });
-  const { hasOrg } = useOrg();
+  const { data: org } = useOrgQuery();
+  const hasOrg = Boolean(org);
   const logout = useLogout();
 
   useEffect(() => {
