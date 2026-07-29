@@ -1,0 +1,688 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: PhishAware API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: onboarding
+    description: Onboarding diagnostic quiz
+  - name: lessons
+    description: Learn library
+  - name: practice
+    description: Practice loop
+  - name: dashboard
+    description: Dashboard summary
+  - name: profile
+    description: Analytics / susceptibility profile
+  - name: leaderboard
+    description: Leaderboard
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+
+  /auth/signup:
+    post:
+      operationId: signup
+      tags: [auth]
+      summary: Create an account with email + password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthSignupInput"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid input or email already in use
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in with email + password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthLoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Invalid credentials
+
+  /auth/guest:
+    post:
+      operationId: continueAsGuest
+      tags: [auth]
+      summary: Start a guest session
+      responses:
+        "201":
+          description: Guest session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Log out and clear the session
+      responses:
+        "204":
+          description: Logged out
+
+  /onboarding/quiz:
+    get:
+      operationId: getOnboardingQuiz
+      tags: [onboarding]
+      summary: Get the 5-question onboarding diagnostic quiz
+      responses:
+        "200":
+          description: Onboarding quiz questions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OnboardingQuestion"
+
+  /onboarding/submit:
+    post:
+      operationId: submitOnboardingQuiz
+      tags: [onboarding]
+      summary: Submit onboarding quiz answers and receive a starting level
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingSubmitInput"
+      responses:
+        "200":
+          description: Onboarding result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingResult"
+
+  /lessons:
+    get:
+      operationId: listLessons
+      tags: [lessons]
+      summary: List all lessons in the learn library
+      responses:
+        "200":
+          description: Lessons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LessonSummary"
+
+  /lessons/{id}:
+    get:
+      operationId: getLesson
+      tags: [lessons]
+      summary: Get a single lesson with its screens
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lesson
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+        "404":
+          description: Lesson not found
+
+  /practice/cue-options:
+    get:
+      operationId: listCueOptions
+      tags: [practice]
+      summary: List the canonical set of selectable red-flag cues
+      responses:
+        "200":
+          description: Cue options
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CueOption"
+
+  /practice/next:
+    get:
+      operationId: getNextPracticeScenario
+      tags: [practice]
+      summary: Get the next recommended practice scenario for the current user
+      responses:
+        "200":
+          description: Next practice scenario (answer withheld)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PracticeScenario"
+        "401":
+          description: Not authenticated
+
+  /practice/attempts:
+    post:
+      operationId: submitAttempt
+      tags: [practice]
+      summary: Submit a verdict, selected cues, and confidence for a scenario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitAttemptInput"
+      responses:
+        "200":
+          description: Graded attempt result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttemptResult"
+        "401":
+          description: Not authenticated
+        "404":
+          description: Scenario not found
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get the current user's dashboard summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          description: Not authenticated
+
+  /profile/analytics:
+    get:
+      operationId: getAnalytics
+      tags: [profile]
+      summary: Get the current user's susceptibility profile / analytics
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+        "401":
+          description: Not authenticated
+
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Get the XP leaderboard (seeded sample users + current user)
+      responses:
+        "200":
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    Level:
+      type: string
+      enum: [beginner, intermediate, advanced]
+
+    Vector:
+      type: string
+      enum: [email, sms, voice, qr, social, website]
+
+    Severity:
+      type: string
+      enum: [low, medium, high]
+
+    CueId:
+      type: string
+      enum:
+        - mismatched_domain
+        - urgency
+        - generic_greeting
+        - suspicious_link
+        - credential_request
+        - spelling_errors
+        - too_good_to_be_true
+        - unexpected_attachment
+        - impersonal_tone
+        - threat_language
+        - unusual_request
+        - mismatched_display_name
+
+    CueOption:
+      type: object
+      required: [id, label]
+      properties:
+        id:
+          $ref: "#/components/schemas/CueId"
+        label:
+          type: string
+
+    User:
+      type: object
+      required:
+        [id, name, isGuest, level, xp, streak, badges, calibrationScore, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: ["string", "null"]
+        isGuest:
+          type: boolean
+        level:
+          $ref: "#/components/schemas/Level"
+        xp:
+          type: integer
+        streak:
+          type: integer
+        badges:
+          type: array
+          items:
+            type: string
+        calibrationScore:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+
+    AuthSignupInput:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          minLength: 3
+        password:
+          type: string
+          minLength: 6
+
+    AuthLoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    OnboardingQuestion:
+      type: object
+      required: [id, vector, sender, subject, body, links]
+      properties:
+        id:
+          type: string
+        vector:
+          $ref: "#/components/schemas/Vector"
+        sender:
+          type: string
+        subject:
+          type: string
+        body:
+          type: string
+        links:
+          type: array
+          items:
+            type: string
+
+    OnboardingAnswer:
+      type: object
+      required: [scenarioId, verdict]
+      properties:
+        scenarioId:
+          type: string
+        verdict:
+          type: boolean
+          description: true if the user judged it phishing
+
+    OnboardingSubmitInput:
+      type: object
+      required: [answers]
+      properties:
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/OnboardingAnswer"
+
+    OnboardingResult:
+      type: object
+      required: [level, correctCount, totalCount]
+      properties:
+        level:
+          $ref: "#/components/schemas/Level"
+        correctCount:
+          type: integer
+        totalCount:
+          type: integer
+
+    LessonScreen:
+      type: object
+      required: [heading, body]
+      properties:
+        heading:
+          type: string
+        body:
+          type: string
+
+    LessonSummary:
+      type: object
+      required: [id, vector, title, summary]
+      properties:
+        id:
+          type: string
+        vector:
+          $ref: "#/components/schemas/Vector"
+        title:
+          type: string
+        summary:
+          type: string
+
+    Lesson:
+      type: object
+      required: [id, vector, title, summary, screens, redFlags]
+      properties:
+        id:
+          type: string
+        vector:
+          $ref: "#/components/schemas/Vector"
+        title:
+          type: string
+        summary:
+          type: string
+        screens:
+          type: array
+          items:
+            $ref: "#/components/schemas/LessonScreen"
+        redFlags:
+          type: array
+          items:
+            type: string
+
+    PracticeScenario:
+      type: object
+      required: [id, vector, sender, subject, body, links, difficulty]
+      properties:
+        id:
+          type: integer
+        vector:
+          $ref: "#/components/schemas/Vector"
+        sender:
+          type: string
+        subject:
+          type: string
+        body:
+          type: string
+        links:
+          type: array
+          items:
+            type: string
+        attachmentName:
+          type: ["string", "null"]
+        difficulty:
+          type: string
+
+    SubmitAttemptInput:
+      type: object
+      required: [scenarioId, verdict, selectedCues, confidence]
+      properties:
+        scenarioId:
+          type: integer
+        verdict:
+          type: boolean
+          description: true if the user judged it phishing
+        selectedCues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueId"
+        confidence:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    AttemptResult:
+      type: object
+      required:
+        - correct
+        - correctVerdict
+        - missedCues
+        - falseCues
+        - caughtCues
+        - explanation
+        - calibrationNote
+        - xpAwarded
+        - totalXp
+        - level
+        - leveledUp
+        - streak
+        - badgesEarned
+      properties:
+        correct:
+          type: boolean
+        correctVerdict:
+          type: boolean
+        caughtCues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueId"
+        missedCues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueId"
+        falseCues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueId"
+        explanation:
+          type: string
+        calibrationNote:
+          type: string
+        xpAwarded:
+          type: integer
+        totalXp:
+          type: integer
+        level:
+          $ref: "#/components/schemas/Level"
+        leveledUp:
+          type: boolean
+        streak:
+          type: integer
+        badgesEarned:
+          type: array
+          items:
+            type: string
+
+    DashboardSummary:
+      type: object
+      required:
+        - name
+        - level
+        - xp
+        - xpToNextLevel
+        - xpIntoLevel
+        - streak
+        - strongCues
+        - weakCues
+        - badges
+        - totalAttempts
+        - accuracyRate
+      properties:
+        name:
+          type: string
+        level:
+          $ref: "#/components/schemas/Level"
+        xp:
+          type: integer
+        xpToNextLevel:
+          type: integer
+        xpIntoLevel:
+          type: integer
+        streak:
+          type: integer
+        strongCues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueOption"
+        weakCues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueOption"
+        badges:
+          type: array
+          items:
+            type: string
+        totalAttempts:
+          type: integer
+        accuracyRate:
+          type: number
+
+    CueAccuracy:
+      type: object
+      required: [cueId, label, attempts, rate]
+      properties:
+        cueId:
+          $ref: "#/components/schemas/CueId"
+        label:
+          type: string
+        attempts:
+          type: integer
+        rate:
+          type: number
+
+    VectorAccuracy:
+      type: object
+      required: [vector, attempts, rate]
+      properties:
+        vector:
+          $ref: "#/components/schemas/Vector"
+        attempts:
+          type: integer
+        rate:
+          type: number
+
+    ProgressPoint:
+      type: object
+      required: [date, accuracyRate, attempts]
+      properties:
+        date:
+          type: string
+          format: date
+        accuracyRate:
+          type: number
+        attempts:
+          type: integer
+
+    AnalyticsSummary:
+      type: object
+      required:
+        [cueAccuracy, vectorAccuracy, calibrationScore, progressOverTime, totalAttempts]
+      properties:
+        cueAccuracy:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueAccuracy"
+        vectorAccuracy:
+          type: array
+          items:
+            $ref: "#/components/schemas/VectorAccuracy"
+        calibrationScore:
+          type: number
+        progressOverTime:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProgressPoint"
+        totalAttempts:
+          type: integer
+
+    LeaderboardEntry:
+      type: object
+      required: [rank, name, xp, level, isCurrentUser]
+      properties:
+        rank:
+          type: integer
+        name:
+          type: string
+        xp:
+          type: integer
+        level:
+          $ref: "#/components/schemas/Level"
+        isCurrentUser:
+          type: boolean
