@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useOrgAnalyticsQuery } from "@/lib/admin-api";
+import { useGetOrgAnalytics } from "@/api-client";
 
 const riskColor: Record<string, string> = {
   low: "hsl(var(--success))",
@@ -13,7 +13,7 @@ const riskColor: Record<string, string> = {
 };
 
 export default function AdminAnalyticsPage() {
-  const { data: a } = useOrgAnalyticsQuery();
+  const { data: a } = useGetOrgAnalytics();
 
   const kpis = [
     { label: "Average accuracy", value: `${a?.avgAccuracy ?? 0}%`, icon: TrendingUp, tint: "text-primary" },

@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type Severity = typeof Severity[keyof typeof Severity];
+export type RiskLevel = typeof RiskLevel[keyof typeof RiskLevel];
 
 
-export const Severity = {
+export const RiskLevel = {
   low: 'low',
   medium: 'medium',
   high: 'high',

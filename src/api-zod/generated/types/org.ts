@@ -6,11 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AuthSignupInput {
-  /** @minLength 1 */
+export interface Org {
+  id: string;
   name: string;
-  /** @minLength 3 */
-  email: string;
-  /** @minLength 6 */
-  password: string;
+  /** Empty string means invite-only (no auto-join domain) */
+  ssoDomain: string;
+  seatLimit: number;
 }

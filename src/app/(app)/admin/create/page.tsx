@@ -6,12 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useOrgQuery, useCreateOrgMutation } from "@/lib/admin-api";
+import { useQueryClient } from "@tanstack/react-query";
+import { useGetOrg, useCreateOrg, getGetOrgQueryKey } from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CreateOrgPage() {
-  const { data: org } = useOrgQuery();
-  const createOrg = useCreateOrgMutation();
+  const { data: org } = useGetOrg({ query: { retry: false } });
+  const createOrg = useCreateOrg();
+  const queryClient = useQueryClient();
   const router = useRouter();
   const { toast } = useToast();
   const [name, setName] = useState("");
@@ -20,9 +22,10 @@ export default function CreateOrgPage() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     createOrg.mutate(
-      { name, ssoDomain: domain },
+      { data: { name, ssoDomain: domain } },
       {
         onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetOrgQueryKey() });
           toast({
             title: "Organization created",
             description: `You're now the admin of ${name.trim() || "your organization"}.`,

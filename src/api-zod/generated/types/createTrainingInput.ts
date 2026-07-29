@@ -5,11 +5,11 @@
  * PhishAware API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { Vector } from './vector';
 
-export interface LessonSummary {
-  id: string;
-  vector: Vector;
+export interface CreateTrainingInput {
   title: string;
-  summary: string;
+  /** "all" or a specific member's user id */
+  target: string;
+  dueDate: Date;
+  requiredScenarios?: number;
 }

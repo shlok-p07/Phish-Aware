@@ -5,9 +5,10 @@
  * PhishAware API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CueId } from './cueId';
+import type { OrgRole } from './orgRole';
 
-export interface CueOption {
-  id: CueId;
-  label: string;
+export interface InviteMemberInput {
+  name?: string;
+  email: string;
+  role?: OrgRole;
 }

@@ -5,9 +5,9 @@
  * PhishAware API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CueId } from './cueId';
 
-export interface CueOption {
-  id: CueId;
-  label: string;
+export interface UpdateOrgSettingsInput {
+  name?: string;
+  ssoDomain?: string;
+  seatLimit?: number;
 }

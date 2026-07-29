@@ -19,14 +19,16 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  useOrgQuery,
-  useOrgMembersQuery,
-  useInviteMemberMutation,
-  useRemoveMemberMutation,
-  useUpdateMemberRoleMutation,
+  useGetOrg,
+  useListOrgMembers,
+  useInviteOrgMember,
+  useRemoveOrgMember,
+  useUpdateOrgMemberRole,
+  getListOrgMembersQueryKey,
   type OrgRole,
-} from "@/lib/admin-api";
+} from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
 
 const riskStyles: Record<string, string> = {
@@ -36,11 +38,13 @@ const riskStyles: Record<string, string> = {
 };
 
 export default function AdminMembersPage() {
-  const { data: org } = useOrgQuery();
-  const { data: members = [] } = useOrgMembersQuery();
-  const inviteMemberMutation = useInviteMemberMutation();
-  const removeMemberMutation = useRemoveMemberMutation();
-  const setMemberRoleMutation = useUpdateMemberRoleMutation();
+  const { data: org } = useGetOrg({ query: { retry: false } });
+  const { data: members = [] } = useListOrgMembers();
+  const queryClient = useQueryClient();
+  const invalidateMembers = () => queryClient.invalidateQueries({ queryKey: getListOrgMembersQueryKey() });
+  const inviteMemberMutation = useInviteOrgMember();
+  const removeMemberMutation = useRemoveOrgMember();
+  const setMemberRoleMutation = useUpdateOrgMemberRole();
   const { toast } = useToast();
 
   const [name, setName] = useState("");
@@ -52,9 +56,12 @@ export default function AdminMembersPage() {
   const submitInvite = () => {
     if (!email.trim()) return;
     inviteMemberMutation.mutate(
-      { name, email, role },
+      { data: { name, email, role } },
       {
-        onSuccess: () => toast({ title: "Invitation sent", description: `${email} was invited as ${role}.` }),
+        onSuccess: () => {
+          invalidateMembers();
+          toast({ title: "Invitation sent", description: `${email} was invited as ${role}.` });
+        },
         onError: (err) =>
           toast({ title: "Couldn't invite member", description: err.message, variant: "destructive" }),
       },
@@ -64,9 +71,9 @@ export default function AdminMembersPage() {
     setRole("employee");
   };
 
-  const removeMember = (id: string) => removeMemberMutation.mutate(id);
+  const removeMember = (id: string) => removeMemberMutation.mutate({ id }, { onSuccess: invalidateMembers });
   const setMemberRole = (id: string, newRole: OrgRole) =>
-    setMemberRoleMutation.mutate({ id, role: newRole });
+    setMemberRoleMutation.mutate({ id, data: { role: newRole } }, { onSuccess: invalidateMembers });
 
   return (
     <div className="space-y-6">

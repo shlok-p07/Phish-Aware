@@ -10,14 +10,22 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useOrgQuery, useOrgMembersQuery, useUpdateOrgSettingsMutation, useDeleteOrgMutation } from "@/lib/admin-api";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useGetOrg,
+  useListOrgMembers,
+  useUpdateOrgSettings,
+  useDeleteOrg,
+  getGetOrgQueryKey,
+} from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminSettingsPage() {
-  const { data: org } = useOrgQuery();
-  const { data: members = [] } = useOrgMembersQuery();
-  const updateSettingsMutation = useUpdateOrgSettingsMutation();
-  const deleteOrgMutation = useDeleteOrgMutation();
+  const { data: org } = useGetOrg({ query: { retry: false } });
+  const { data: members = [] } = useListOrgMembers();
+  const queryClient = useQueryClient();
+  const updateSettingsMutation = useUpdateOrgSettings();
+  const deleteOrgMutation = useDeleteOrg();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -37,9 +45,12 @@ export default function AdminSettingsPage() {
 
   const save = () => {
     updateSettingsMutation.mutate(
-      { name: name.trim(), ssoDomain: domain.trim(), seatLimit: Number(seats) || 0 },
+      { data: { name: name.trim(), ssoDomain: domain.trim(), seatLimit: Number(seats) || 0 } },
       {
-        onSuccess: () => toast({ title: "Settings saved" }),
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetOrgQueryKey() });
+          toast({ title: "Settings saved" });
+        },
         onError: (err) => toast({ title: "Couldn't save settings", description: err.message, variant: "destructive" }),
       },
     );
@@ -48,6 +59,7 @@ export default function AdminSettingsPage() {
   const resetOrg = () =>
     deleteOrgMutation.mutate(undefined, {
       onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetOrgQueryKey() });
         toast({ title: "Organization deleted" });
         router.push("/dashboard");
       },

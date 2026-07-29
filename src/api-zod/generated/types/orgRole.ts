@@ -6,11 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type Severity = typeof Severity[keyof typeof Severity];
+export type OrgRole = typeof OrgRole[keyof typeof OrgRole];
 
 
-export const Severity = {
-  low: 'low',
-  medium: 'medium',
-  high: 'high',
+export const OrgRole = {
+  admin: 'admin',
+  employee: 'employee',
 } as const;

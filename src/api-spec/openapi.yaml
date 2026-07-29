@@ -24,6 +24,8 @@ tags:
     description: Analytics / susceptibility profile
   - name: leaderboard
     description: Leaderboard
+  - name: org
+    description: Organization admin (members, training campaigns, analytics)
 paths:
   /healthz:
     get:
@@ -286,6 +288,228 @@ paths:
                 items:
                   $ref: "#/components/schemas/LeaderboardEntry"
 
+  /org:
+    get:
+      operationId: getOrg
+      tags: [org]
+      summary: Get the current user's organization
+      responses:
+        "200":
+          description: Organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Org"
+        "401":
+          description: Not authenticated
+        "404":
+          description: The current user doesn't belong to an organization yet
+    post:
+      operationId: createOrg
+      tags: [org]
+      summary: Create an organization and become its admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrgInput"
+      responses:
+        "201":
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Org"
+        "401":
+          description: Not authenticated
+        "409":
+          description: The current user already belongs to an organization
+    delete:
+      operationId: deleteOrg
+      tags: [org]
+      summary: Delete the organization (unassigns members, removes training data)
+      responses:
+        "204":
+          description: Organization deleted
+        "403":
+          description: Admin access required
+
+  /org/settings:
+    patch:
+      operationId: updateOrgSettings
+      tags: [org]
+      summary: Update organization name, SSO domain, or seat limit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrgSettingsInput"
+      responses:
+        "200":
+          description: Updated organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Org"
+        "403":
+          description: Admin access required
+
+  /org/members:
+    get:
+      operationId: listOrgMembers
+      tags: [org]
+      summary: List the organization's members with real accuracy/risk stats
+      responses:
+        "200":
+          description: Members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrgMember"
+        "403":
+          description: Admin access required
+    post:
+      operationId: inviteOrgMember
+      tags: [org]
+      summary: Invite a member (creates their account with status "invited")
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteMemberInput"
+      responses:
+        "201":
+          description: Member invited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgMember"
+        "403":
+          description: Admin access required
+        "409":
+          description: A member with this email already exists
+
+  /org/members/{id}:
+    patch:
+      operationId: updateOrgMemberRole
+      tags: [org]
+      summary: Change a member's role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberRoleInput"
+      responses:
+        "200":
+          description: Updated member role
+        "403":
+          description: Admin access required
+        "404":
+          description: Member not found
+    delete:
+      operationId: removeOrgMember
+      tags: [org]
+      summary: Remove a member from the organization
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Member removed
+        "403":
+          description: Admin access required
+        "404":
+          description: Member not found
+
+  /org/training:
+    get:
+      operationId: listOrgTraining
+      tags: [org]
+      summary: List the organization's training campaigns
+      responses:
+        "200":
+          description: Training campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrainingAssignment"
+        "403":
+          description: Admin access required
+    post:
+      operationId: createOrgTraining
+      tags: [org]
+      summary: Create a training campaign and assign it to members
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTrainingInput"
+      responses:
+        "201":
+          description: Training campaign created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrainingAssignment"
+        "400":
+          description: Invalid input
+        "403":
+          description: Admin access required
+        "404":
+          description: Target member not found
+
+  /org/training/{id}:
+    delete:
+      operationId: deleteOrgTraining
+      tags: [org]
+      summary: Remove a training campaign and its assignments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Training campaign removed
+        "403":
+          description: Admin access required
+        "404":
+          description: Training campaign not found
+
+  /org/analytics:
+    get:
+      operationId: getOrgAnalytics
+      tags: [org]
+      summary: Get organization-wide training analytics
+      responses:
+        "200":
+          description: Organization analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgAnalytics"
+        "403":
+          description: Admin access required
+
 components:
   schemas:
     HealthStatus:
@@ -336,10 +560,21 @@ components:
     User:
       type: object
       required:
-        [id, name, isGuest, level, xp, streak, badges, calibrationScore, createdAt]
+        [
+          id,
+          name,
+          isGuest,
+          level,
+          xp,
+          streak,
+          badges,
+          calibrationScore,
+          onboardingCompleted,
+          createdAt,
+        ]
       properties:
         id:
-          type: integer
+          type: string
         name:
           type: string
         email:
@@ -358,6 +593,8 @@ components:
             type: string
         calibrationScore:
           type: number
+        onboardingCompleted:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -482,7 +719,7 @@ components:
       required: [id, vector, sender, subject, body, links, difficulty]
       properties:
         id:
-          type: integer
+          type: string
         vector:
           $ref: "#/components/schemas/Vector"
         sender:
@@ -505,7 +742,7 @@ components:
       required: [scenarioId, verdict, selectedCues, confidence]
       properties:
         scenarioId:
-          type: integer
+          type: string
         verdict:
           type: boolean
           description: true if the user judged it phishing
@@ -686,3 +923,161 @@ components:
           $ref: "#/components/schemas/Level"
         isCurrentUser:
           type: boolean
+
+    OrgRole:
+      type: string
+      enum: [admin, employee]
+
+    RiskLevel:
+      type: string
+      enum: [low, medium, high]
+
+    Org:
+      type: object
+      required: [id, name, ssoDomain, seatLimit]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        ssoDomain:
+          type: string
+          description: Empty string means invite-only (no auto-join domain)
+        seatLimit:
+          type: integer
+
+    CreateOrgInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        ssoDomain:
+          type: string
+
+    UpdateOrgSettingsInput:
+      type: object
+      properties:
+        name:
+          type: string
+        ssoDomain:
+          type: string
+        seatLimit:
+          type: integer
+
+    OrgMember:
+      type: object
+      required: [id, name, email, role, status, joinedAt, accuracy, riskLevel]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: ["string", "null"]
+        role:
+          $ref: "#/components/schemas/OrgRole"
+        status:
+          type: string
+          enum: [invited, active, disabled]
+        joinedAt:
+          type: ["string", "null"]
+          format: date-time
+        accuracy:
+          type: integer
+          description: 0-100, computed from real practice attempts
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+
+    InviteMemberInput:
+      type: object
+      required: [email]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/OrgRole"
+
+    UpdateMemberRoleInput:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: "#/components/schemas/OrgRole"
+
+    TrainingAssignment:
+      type: object
+      required: [id, title, target, dueDate, requiredScenarios, createdAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        target:
+          type: string
+          description: '"all" or a specific member''s user id'
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        requiredScenarios:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateTrainingInput:
+      type: object
+      required: [title, target, dueDate]
+      properties:
+        title:
+          type: string
+        target:
+          type: string
+          description: '"all" or a specific member''s user id'
+        dueDate:
+          type: string
+          format: date
+        requiredScenarios:
+          type: integer
+
+    OrgMemberAccuracy:
+      type: object
+      required: [name, accuracy, risk]
+      properties:
+        name:
+          type: string
+        accuracy:
+          type: integer
+        risk:
+          $ref: "#/components/schemas/RiskLevel"
+
+    OrgAnalytics:
+      type: object
+      required:
+        [avgAccuracy, activeCount, atRisk, riskBands, participationRate, perMember]
+      properties:
+        avgAccuracy:
+          type: integer
+        activeCount:
+          type: integer
+        atRisk:
+          type: integer
+        riskBands:
+          type: object
+          required: [low, medium, high]
+          properties:
+            low:
+              type: integer
+            medium:
+              type: integer
+            high:
+              type: integer
+        participationRate:
+          type: integer
+          description: "% of active members with at least one practice attempt"
+        perMember:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrgMemberAccuracy"

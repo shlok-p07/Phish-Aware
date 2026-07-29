@@ -81,6 +81,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@types/three": "^0.185.1",
+    "ajv": "^8.17.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "orval": "^8.20.0",

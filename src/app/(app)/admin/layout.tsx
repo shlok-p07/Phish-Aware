@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Building2, Users, BarChart3, ClipboardList, Settings2 } from "lucide-react";
-import { useOrgQuery } from "@/lib/admin-api";
+import { useGetOrg } from "@/api-client";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -14,7 +14,7 @@ const TABS = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { data: org, isLoading } = useOrgQuery();
+  const { data: org, isLoading } = useGetOrg({ query: { retry: false } });
   const pathname = usePathname();
   const router = useRouter();
 

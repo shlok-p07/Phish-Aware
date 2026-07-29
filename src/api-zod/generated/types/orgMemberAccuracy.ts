@@ -5,9 +5,10 @@
  * PhishAware API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CueId } from './cueId';
+import type { RiskLevel } from './riskLevel';
 
-export interface CueOption {
-  id: CueId;
-  label: string;
+export interface OrgMemberAccuracy {
+  name: string;
+  accuracy: number;
+  risk: RiskLevel;
 }
