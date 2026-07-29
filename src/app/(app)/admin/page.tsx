@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { UserPlus, Trash2, ShieldCheck, Clock } from "lucide-react";
+import { UserPlus, Trash2, ShieldCheck, Clock, Search, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,8 +35,19 @@ export default function AdminMembersPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<OrgRole>("member");
+  const [query, setQuery] = useState("");
 
   const activeSeats = members.filter((m) => m.status === "active").length;
+
+  const q = query.trim().toLowerCase();
+  const visibleMembers = q
+    ? members.filter(
+        (m) =>
+          m.name.toLowerCase().includes(q) ||
+          m.email.toLowerCase().includes(q) ||
+          m.role.toLowerCase().includes(q),
+      )
+    : members;
 
   const submitInvite = () => {
     if (!email.trim()) return;
@@ -99,6 +110,28 @@ export default function AdminMembersPage() {
         </Dialog>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <Input
+          type="search"
+          placeholder="Search members by name, email, or role"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search members"
+          className="rounded-lg pl-9 pr-9"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery("")}
+            aria-label="Clear search"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
       <Card className="border shadow-sm overflow-hidden">
         <CardContent className="p-0">
           <Table>
@@ -113,7 +146,14 @@ export default function AdminMembersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {members.map((m) => (
+              {visibleMembers.length === 0 && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground font-medium">
+                    No members match &ldquo;{query}&rdquo;.
+                  </TableCell>
+                </TableRow>
+              )}
+              {visibleMembers.map((m) => (
                 <TableRow key={m.id}>
                   <TableCell className="pl-4 py-3">
                     <div className="flex items-center gap-3">
