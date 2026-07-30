@@ -1,7 +1,8 @@
 /**
  * 02-indexes.js
  * Every foreign key used in a query is indexed, plus the unique constraints
- * that keep data honest (one profile per user, one email per org, etc.).
+ * that keep data honest (one profile per user, one email per org, etc.), and
+ * a unique index on each collection's named primary key (mirrors _id).
  * createIndex is idempotent — safe to re-run.
  */
 db = db.getSiblingDB("phishaware");
@@ -24,8 +25,7 @@ db.departments.createIndex({ orgId: 1 });
 // FIRST guest or orgless signup would succeed and every subsequent one would
 // throw a duplicate-key error. Two partial indexes instead:
 //  - real org members: unique email per org
-//  - orgless signed-up users: unique email globally (mirrors the app's
-//    original single-tenant Postgres unique(email) constraint)
+//  - orgless signed-up users: unique email globally
 // Guests (email: null) match neither filter, so unlimited guests can coexist.
 db.users.createIndex(
   { orgId: 1, email: 1 },
@@ -77,17 +77,31 @@ db.notifications.createIndex({ userId: 1, read: 1, createdAt: -1 });
 // auditLogs
 db.auditLogs.createIndex({ orgId: 1, createdAt: -1 });
 
-// surveys (new)
+// surveys
 db.surveys.createIndex({ orgId: 1, purpose: 1, isActive: 1 });
 
-// surveyResponses (new) — one response per user per survey
+// surveyResponses — one response per user per survey
 db.surveyResponses.createIndex({ userId: 1, surveyId: 1 }, { unique: true });
 db.surveyResponses.createIndex({ orgId: 1, surveyId: 1 });
 
-// sessions (new) — token lookup, cascade-by-user, and a native TTL backstop
-// alongside the app's own lazy-expire check.
+// sessions — token lookup, cascade-by-user, native TTL backstop alongside
+// the app's own lazy-expire logic
 db.sessions.createIndex({ token: 1 }, { unique: true });
 db.sessions.createIndex({ userId: 1 });
 db.sessions.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 print("[02-indexes] all indexes created.");
+
+// unique index on each collection's PARTICULAR primary key (mirrors _id)
+const PK = {
+  organizations: "orgId", departments: "departmentId", users: "userId",
+  profiles: "profileId", scenarios: "scenarioId", lessons: "lessonId",
+  attempts: "attemptId", reviews: "reviewId", campaigns: "campaignId",
+  assignments: "assignmentId", deliveries: "deliveryId", invitations: "invitationId",
+  consents: "consentId", notifications: "notificationId", auditLogs: "auditLogId",
+  surveys: "surveyId", surveyResponses: "surveyResponseId",
+};
+Object.entries(PK).forEach(function (e) {
+  db[e[0]].createIndex({ [e[1]]: 1 }, { unique: true, name: e[1] + "_pk" });
+});
+print("[02-indexes] primary-key unique indexes created.");
