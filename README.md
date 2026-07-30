@@ -51,6 +51,21 @@ emails, links, or credential prompts anywhere in the app.
   disposable local instance
 - [`mongosh`](https://www.mongodb.com/docs/mongodb-shell/) for `db:init`
 
+**Docker is optional, not required.** Pick one path per teammate:
+
+- **Shared Atlas cluster** (no Docker needed) — get the `MONGODB_URI` from
+  whoever provisioned the cluster (share it out-of-band, e.g. a password
+  manager or a DM — never commit it) and paste it into your own `.env`.
+  Everyone using the same URI shares the same data.
+- **Local Docker Mongo** (no shared secret needed) — each teammate runs
+  `docker compose up -d --build` and gets their own disposable local
+  database (see below). Nobody needs Atlas credentials, but nobody's data is
+  shared either — good for isolated feature work, not for looking at the
+  same seeded/live data as someone else.
+
+Docker Desktop (or another Docker engine) is only required for the second
+path.
+
 ### Setup (Atlas or an existing Mongo instance)
 
 ```bash
