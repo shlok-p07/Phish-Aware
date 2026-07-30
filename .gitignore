@@ -43,5 +43,4 @@ Thumbs.db
 # local dev
 /.dev-logs/
 
-.env
 .vercel
