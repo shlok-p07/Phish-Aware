@@ -147,6 +147,11 @@ src/
 phishaware-db/init/     # $jsonSchema validators + indexes (source of truth for
                            the Mongo schema; also mounted into the local Docker
                            Mongo container's auto-init)
+
+backend/                # Separate FastAPI service for ML model/dataset work
+                           (phishing-likelihood scoring, etc.) -- its own
+                           deploy, its own dependencies, not part of the
+                           Next.js app. See backend/README.md.
 ```
 
 ## Admin / organizations
