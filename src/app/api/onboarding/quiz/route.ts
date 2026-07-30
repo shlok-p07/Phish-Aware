@@ -9,7 +9,7 @@ export const GET = withErrorHandling(async () => {
   const scenarios = await (await scenariosCollection()).find({ isOnboarding: true }).toArray();
   const questions = scenarios.map((s) => ({
     id: s._id.toString(),
-    vector: s.vector as "email" | "sms" | "voice" | "qr" | "social" | "website",
+    vector: s.vector as "email" | "sms" | "voice" | "qr" | "social" | "web",
     sender: s.sender,
     subject: s.subject,
     body: s.body,

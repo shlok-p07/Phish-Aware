@@ -1,11 +1,13 @@
 import { ObjectId } from "mongodb";
 import { getCollection } from "../client";
+import type { SpecConventions } from "./specConventions";
 
 export type OrgRole = "admin" | "manager" | "employee";
 export type UserStatus = "invited" | "active" | "disabled";
 
-export interface UserDoc {
+export interface UserDoc extends SpecConventions {
   _id: ObjectId;
+  userId: ObjectId; // named PK per the shared spec -- mirrors _id
   orgId: ObjectId | null;
   name: string;
   email: string | null;
@@ -20,7 +22,6 @@ export interface UserDoc {
   onboardingCompleted: boolean;
   role: OrgRole;
   status: UserStatus;
-  createdAt: Date;
 }
 
 export type InsertUser = Omit<UserDoc, "_id">;

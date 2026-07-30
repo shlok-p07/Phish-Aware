@@ -37,6 +37,8 @@ export * from './orgRole';
 export * from './practiceScenario';
 export * from './progressPoint';
 export * from './riskLevel';
+export * from './scenarioAttachment';
+export * from './scenarioLink';
 export * from './severity';
 export * from './submitAttemptInput';
 export * from './trainingAssignment';

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { ObjectId, MongoServerError } from "mongodb";
-import { usersCollection, type OrgRole } from "@/db";
+import { usersCollection, specDefaults, type OrgRole } from "@/db";
 import { computeMemberStats, riskLevelForAccuracy } from "@/server/orgAnalytics";
 import { json, error, requireOrgAdmin, withErrorHandling } from "@/server/http";
 
@@ -41,8 +41,10 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const role: OrgRole = body.role === "admin" ? "admin" : "employee";
 
   const users = await usersCollection();
+  const id = new ObjectId();
   const member = {
-    _id: new ObjectId(),
+    _id: id,
+    userId: id,
     orgId: admin.orgId,
     name,
     email,
@@ -57,7 +59,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     onboardingCompleted: false,
     role,
     status: "invited" as const,
-    createdAt: new Date(),
+    ...specDefaults(),
   };
   try {
     await users.insertOne(member);

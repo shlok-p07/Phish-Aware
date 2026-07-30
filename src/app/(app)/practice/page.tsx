@@ -195,9 +195,9 @@ export default function PracticePage() {
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Links in this message</p>
             {scenario.links.map((link, idx) => (
               <div key={idx} className="bg-muted/30 border border-border p-2 rounded-lg text-primary text-xs break-all relative group cursor-help transition-colors hover:bg-muted/50">
-                <span className="underline decoration-dashed decoration-primary/50">{link}</span>
+                <span className="underline decoration-dashed decoration-primary/50">{link.text}</span>
                 <div className="absolute hidden group-hover:block bottom-full left-0 mb-2 bg-foreground text-background text-xs p-2 rounded-md z-10 break-all w-full shadow-lg">
-                  Destination URL: {link}
+                  Destination URL: {link.text}
                 </div>
               </div>
             ))}
@@ -206,12 +206,14 @@ export default function PracticePage() {
       </CardContent>
 
       {/* Attachment footer */}
-      {scenario.attachmentName && (
-        <div className="px-5 md:px-6 py-3 border-t border-border bg-muted/20 shrink-0">
-          <div className="inline-flex items-center gap-2 text-sm font-semibold bg-background border border-border px-3 py-2 rounded-lg text-foreground max-w-full">
-            <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
-            <span className="truncate">{scenario.attachmentName}</span>
-          </div>
+      {scenario.attachments.length > 0 && (
+        <div className="px-5 md:px-6 py-3 border-t border-border bg-muted/20 shrink-0 space-y-2">
+          {scenario.attachments.map((attachment, idx) => (
+            <div key={idx} className="inline-flex items-center gap-2 text-sm font-semibold bg-background border border-border px-3 py-2 rounded-lg text-foreground max-w-full">
+              <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
+              <span className="truncate">{attachment.name}</span>
+            </div>
+          ))}
         </div>
       )}
     </Card>

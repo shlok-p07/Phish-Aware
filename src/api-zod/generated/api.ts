@@ -118,11 +118,14 @@ export const LogoutResponse = zod.void()
  */
 export const GetOnboardingQuizResponseItem = zod.object({
   "id": zod.string(),
-  "vector": zod.enum(['email', 'sms', 'voice', 'qr', 'social', 'website']),
+  "vector": zod.enum(['email', 'sms', 'voice', 'qr', 'social', 'web']),
   "sender": zod.string(),
   "subject": zod.string(),
   "body": zod.string(),
-  "links": zod.array(zod.string())
+  "links": zod.array(zod.object({
+  "text": zod.string(),
+  "isSuspicious": zod.boolean()
+}))
 })
 export const GetOnboardingQuizResponse = zod.array(GetOnboardingQuizResponseItem)
 
@@ -149,7 +152,7 @@ export const SubmitOnboardingQuizResponse = zod.object({
  */
 export const ListLessonsResponseItem = zod.object({
   "id": zod.string(),
-  "vector": zod.enum(['email', 'sms', 'voice', 'qr', 'social', 'website']),
+  "vector": zod.enum(['email', 'sms', 'voice', 'qr', 'social', 'web']),
   "title": zod.string(),
   "summary": zod.string()
 })
@@ -165,7 +168,7 @@ export const GetLessonParams = zod.object({
 
 export const GetLessonResponse = zod.object({
   "id": zod.string(),
-  "vector": zod.enum(['email', 'sms', 'voice', 'qr', 'social', 'website']),
+  "vector": zod.enum(['email', 'sms', 'voice', 'qr', 'social', 'web']),
   "title": zod.string(),
   "summary": zod.string(),
   "screens": zod.array(zod.object({
@@ -180,7 +183,7 @@ export const GetLessonResponse = zod.object({
  * @summary List the canonical set of selectable red-flag cues
  */
 export const ListCueOptionsResponseItem = zod.object({
-  "id": zod.enum(['mismatched_domain', 'urgency', 'generic_greeting', 'suspicious_link', 'credential_request', 'spelling_errors', 'too_good_to_be_true', 'unexpected_attachment', 'impersonal_tone', 'threat_language', 'unusual_request', 'mismatched_display_name']),
+  "id": zod.enum(['sender_domain', 'mismatched_link', 'urgency_language', 'generic_greeting', 'credential_request', 'spelling_grammar', 'unexpected_attachment', 'suspicious_qr']),
   "label": zod.string()
 })
 export const ListCueOptionsResponse = zod.array(ListCueOptionsResponseItem)
@@ -189,15 +192,25 @@ export const ListCueOptionsResponse = zod.array(ListCueOptionsResponseItem)
 /**
  * @summary Get the next recommended practice scenario for the current user
  */
+export const getNextPracticeScenarioResponseDifficultyMax = 5;
+
+
+
 export const GetNextPracticeScenarioResponse = zod.object({
   "id": zod.string(),
-  "vector": zod.enum(['email', 'sms', 'voice', 'qr', 'social', 'website']),
+  "vector": zod.enum(['email', 'sms', 'voice', 'qr', 'social', 'web']),
   "sender": zod.string(),
   "subject": zod.string(),
   "body": zod.string(),
-  "links": zod.array(zod.string()),
-  "attachmentName": zod.string().nullish(),
-  "difficulty": zod.string()
+  "links": zod.array(zod.object({
+  "text": zod.string(),
+  "isSuspicious": zod.boolean()
+})),
+  "attachments": zod.array(zod.object({
+  "name": zod.string(),
+  "isSuspicious": zod.boolean()
+})),
+  "difficulty": zod.number().int().min(1).max(getNextPracticeScenarioResponseDifficultyMax)
 })
 
 
@@ -212,16 +225,16 @@ export const submitAttemptBodyConfidenceMax = 100;
 export const SubmitAttemptBody = zod.object({
   "scenarioId": zod.string(),
   "verdict": zod.boolean().describe('true if the user judged it phishing'),
-  "selectedCues": zod.array(zod.enum(['mismatched_domain', 'urgency', 'generic_greeting', 'suspicious_link', 'credential_request', 'spelling_errors', 'too_good_to_be_true', 'unexpected_attachment', 'impersonal_tone', 'threat_language', 'unusual_request', 'mismatched_display_name'])),
+  "selectedCues": zod.array(zod.enum(['sender_domain', 'mismatched_link', 'urgency_language', 'generic_greeting', 'credential_request', 'spelling_grammar', 'unexpected_attachment', 'suspicious_qr'])),
   "confidence": zod.number().int().min(submitAttemptBodyConfidenceMin).max(submitAttemptBodyConfidenceMax)
 })
 
 export const SubmitAttemptResponse = zod.object({
   "correct": zod.boolean(),
   "correctVerdict": zod.boolean(),
-  "caughtCues": zod.array(zod.enum(['mismatched_domain', 'urgency', 'generic_greeting', 'suspicious_link', 'credential_request', 'spelling_errors', 'too_good_to_be_true', 'unexpected_attachment', 'impersonal_tone', 'threat_language', 'unusual_request', 'mismatched_display_name'])),
-  "missedCues": zod.array(zod.enum(['mismatched_domain', 'urgency', 'generic_greeting', 'suspicious_link', 'credential_request', 'spelling_errors', 'too_good_to_be_true', 'unexpected_attachment', 'impersonal_tone', 'threat_language', 'unusual_request', 'mismatched_display_name'])),
-  "falseCues": zod.array(zod.enum(['mismatched_domain', 'urgency', 'generic_greeting', 'suspicious_link', 'credential_request', 'spelling_errors', 'too_good_to_be_true', 'unexpected_attachment', 'impersonal_tone', 'threat_language', 'unusual_request', 'mismatched_display_name'])),
+  "caughtCues": zod.array(zod.enum(['sender_domain', 'mismatched_link', 'urgency_language', 'generic_greeting', 'credential_request', 'spelling_grammar', 'unexpected_attachment', 'suspicious_qr'])),
+  "missedCues": zod.array(zod.enum(['sender_domain', 'mismatched_link', 'urgency_language', 'generic_greeting', 'credential_request', 'spelling_grammar', 'unexpected_attachment', 'suspicious_qr'])),
+  "falseCues": zod.array(zod.enum(['sender_domain', 'mismatched_link', 'urgency_language', 'generic_greeting', 'credential_request', 'spelling_grammar', 'unexpected_attachment', 'suspicious_qr'])),
   "explanation": zod.string(),
   "calibrationNote": zod.string(),
   "xpAwarded": zod.number().int(),
@@ -244,11 +257,11 @@ export const GetDashboardResponse = zod.object({
   "xpIntoLevel": zod.number().int(),
   "streak": zod.number().int(),
   "strongCues": zod.array(zod.object({
-  "id": zod.enum(['mismatched_domain', 'urgency', 'generic_greeting', 'suspicious_link', 'credential_request', 'spelling_errors', 'too_good_to_be_true', 'unexpected_attachment', 'impersonal_tone', 'threat_language', 'unusual_request', 'mismatched_display_name']),
+  "id": zod.enum(['sender_domain', 'mismatched_link', 'urgency_language', 'generic_greeting', 'credential_request', 'spelling_grammar', 'unexpected_attachment', 'suspicious_qr']),
   "label": zod.string()
 })),
   "weakCues": zod.array(zod.object({
-  "id": zod.enum(['mismatched_domain', 'urgency', 'generic_greeting', 'suspicious_link', 'credential_request', 'spelling_errors', 'too_good_to_be_true', 'unexpected_attachment', 'impersonal_tone', 'threat_language', 'unusual_request', 'mismatched_display_name']),
+  "id": zod.enum(['sender_domain', 'mismatched_link', 'urgency_language', 'generic_greeting', 'credential_request', 'spelling_grammar', 'unexpected_attachment', 'suspicious_qr']),
   "label": zod.string()
 })),
   "badges": zod.array(zod.string()),
@@ -262,13 +275,13 @@ export const GetDashboardResponse = zod.object({
  */
 export const GetAnalyticsResponse = zod.object({
   "cueAccuracy": zod.array(zod.object({
-  "cueId": zod.enum(['mismatched_domain', 'urgency', 'generic_greeting', 'suspicious_link', 'credential_request', 'spelling_errors', 'too_good_to_be_true', 'unexpected_attachment', 'impersonal_tone', 'threat_language', 'unusual_request', 'mismatched_display_name']),
+  "cueId": zod.enum(['sender_domain', 'mismatched_link', 'urgency_language', 'generic_greeting', 'credential_request', 'spelling_grammar', 'unexpected_attachment', 'suspicious_qr']),
   "label": zod.string(),
   "attempts": zod.number().int(),
   "rate": zod.number()
 })),
   "vectorAccuracy": zod.array(zod.object({
-  "vector": zod.enum(['email', 'sms', 'voice', 'qr', 'social', 'website']),
+  "vector": zod.enum(['email', 'sms', 'voice', 'qr', 'social', 'web']),
   "attempts": zod.number().int(),
   "rate": zod.number()
 })),

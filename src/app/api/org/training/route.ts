@@ -5,6 +5,7 @@ import {
   assignmentsCollection,
   usersCollection,
   toObjectId,
+  specDefaults,
 } from "@/db";
 import { json, error, requireOrgAdmin, withErrorHandling } from "@/server/http";
 
@@ -59,35 +60,42 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   }
 
   const campaigns = await campaignsCollection();
+  const campaignId = new ObjectId();
   const campaign = {
-    _id: new ObjectId(),
+    _id: campaignId,
+    campaignId,
     orgId: admin.orgId,
     type: "training" as const,
     name: title,
     scenarioIds: [],
     lessonIds: [],
+    audience: {},
     dueDate: new Date(body.dueDate),
     status: "active" as const,
     createdBy: admin._id,
     target: body.target,
     requiredScenarios: Number(body.requiredScenarios) || 0,
-    createdAt: new Date(),
+    ...specDefaults(),
   };
   await campaigns.insertOne(campaign);
 
   const assignments = await assignmentsCollection();
   if (targetUserIds.length > 0) {
     await assignments.insertMany(
-      targetUserIds.map((userId) => ({
-        _id: new ObjectId(),
-        campaignId: campaign._id,
-        userId,
-        orgId: admin.orgId,
-        status: "assigned" as const,
-        progress: 0,
-        completedAt: null,
-        createdAt: new Date(),
-      })),
+      targetUserIds.map((userId) => {
+        const id = new ObjectId();
+        return {
+          _id: id,
+          assignmentId: id,
+          campaignId: campaign._id,
+          userId,
+          orgId: admin.orgId,
+          status: "assigned" as const,
+          progress: 0,
+          completedAt: null,
+          ...specDefaults(),
+        };
+      }),
     );
   }
 

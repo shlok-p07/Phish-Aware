@@ -10,16 +10,12 @@ export type CueId = typeof CueId[keyof typeof CueId];
 
 
 export const CueId = {
-  mismatched_domain: 'mismatched_domain',
-  urgency: 'urgency',
+  sender_domain: 'sender_domain',
+  mismatched_link: 'mismatched_link',
+  urgency_language: 'urgency_language',
   generic_greeting: 'generic_greeting',
-  suspicious_link: 'suspicious_link',
   credential_request: 'credential_request',
-  spelling_errors: 'spelling_errors',
-  too_good_to_be_true: 'too_good_to_be_true',
+  spelling_grammar: 'spelling_grammar',
   unexpected_attachment: 'unexpected_attachment',
-  impersonal_tone: 'impersonal_tone',
-  threat_language: 'threat_language',
-  unusual_request: 'unusual_request',
-  mismatched_display_name: 'mismatched_display_name',
+  suspicious_qr: 'suspicious_qr',
 } as const;

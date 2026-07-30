@@ -526,7 +526,7 @@ components:
 
     Vector:
       type: string
-      enum: [email, sms, voice, qr, social, website]
+      enum: [email, sms, voice, qr, social, web]
 
     Severity:
       type: string
@@ -535,18 +535,14 @@ components:
     CueId:
       type: string
       enum:
-        - mismatched_domain
-        - urgency
+        - sender_domain
+        - mismatched_link
+        - urgency_language
         - generic_greeting
-        - suspicious_link
         - credential_request
-        - spelling_errors
-        - too_good_to_be_true
+        - spelling_grammar
         - unexpected_attachment
-        - impersonal_tone
-        - threat_language
-        - unusual_request
-        - mismatched_display_name
+        - suspicious_qr
 
     CueOption:
       type: object
@@ -622,6 +618,24 @@ components:
         password:
           type: string
 
+    ScenarioLink:
+      type: object
+      required: [text, isSuspicious]
+      properties:
+        text:
+          type: string
+        isSuspicious:
+          type: boolean
+
+    ScenarioAttachment:
+      type: object
+      required: [name, isSuspicious]
+      properties:
+        name:
+          type: string
+        isSuspicious:
+          type: boolean
+
     OnboardingQuestion:
       type: object
       required: [id, vector, sender, subject, body, links]
@@ -639,7 +653,7 @@ components:
         links:
           type: array
           items:
-            type: string
+            $ref: "#/components/schemas/ScenarioLink"
 
     OnboardingAnswer:
       type: object
@@ -716,7 +730,7 @@ components:
 
     PracticeScenario:
       type: object
-      required: [id, vector, sender, subject, body, links, difficulty]
+      required: [id, vector, sender, subject, body, links, attachments, difficulty]
       properties:
         id:
           type: string
@@ -731,11 +745,15 @@ components:
         links:
           type: array
           items:
-            type: string
-        attachmentName:
-          type: ["string", "null"]
+            $ref: "#/components/schemas/ScenarioLink"
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScenarioAttachment"
         difficulty:
-          type: string
+          type: integer
+          minimum: 1
+          maximum: 5
 
     SubmitAttemptInput:
       type: object

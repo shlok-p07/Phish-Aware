@@ -5,6 +5,8 @@
  * PhishAware API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ScenarioAttachment } from './scenarioAttachment';
+import type { ScenarioLink } from './scenarioLink';
 import type { Vector } from './vector';
 
 export interface PracticeScenario {
@@ -13,8 +15,11 @@ export interface PracticeScenario {
   sender: string;
   subject: string;
   body: string;
-  links: string[];
-  /** @nullable */
-  attachmentName?: string | null;
-  difficulty: string;
+  links: ScenarioLink[];
+  attachments: ScenarioAttachment[];
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  difficulty: number;
 }

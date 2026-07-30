@@ -5,6 +5,7 @@ import {
   usersCollection,
   campaignsCollection,
   assignmentsCollection,
+  specDefaults,
   type OrganizationDoc,
 } from "@/db";
 import { json, error, requireUserId, requireOrgAdmin, withErrorHandling } from "@/server/http";
@@ -53,16 +54,21 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   }
 
   const orgs = await organizationsCollection();
+  const id = new ObjectId();
   const org: OrganizationDoc = {
-    _id: new ObjectId(),
+    _id: id,
+    orgId: id,
     name,
     domain,
     ssoProvider: null,
     settings: { seatLimit: 50 },
-    createdAt: new Date(),
+    ...specDefaults(),
   };
   await orgs.insertOne(org);
-  await users.updateOne({ _id: userId }, { $set: { orgId: org._id, role: "admin" } });
+  await users.updateOne(
+    { _id: userId },
+    { $set: { orgId: org._id, role: "admin", updatedAt: new Date() } },
+  );
 
   return json(toOrgDto(org), { status: 201 });
 });
@@ -77,7 +83,10 @@ export const DELETE = withErrorHandling(async () => {
 
   await assignments.deleteMany({ orgId: admin.orgId });
   await campaigns.deleteMany({ orgId: admin.orgId });
-  await users.updateMany({ orgId: admin.orgId }, { $set: { orgId: null, role: "employee" } });
+  await users.updateMany(
+    { orgId: admin.orgId },
+    { $set: { orgId: null, role: "employee", updatedAt: new Date() } },
+  );
   await orgs.deleteOne({ _id: admin.orgId });
 
   return new Response(null, { status: 204 });

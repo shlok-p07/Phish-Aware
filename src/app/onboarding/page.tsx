@@ -146,9 +146,9 @@ export default function OnboardingPage() {
                 <p className="text-xs font-semibold text-muted-foreground uppercase">Links in message (hover to inspect):</p>
                 {currentQ.links.map((link, idx) => (
                   <div key={idx} className="bg-background border p-2 rounded-lg text-primary text-xs break-all cursor-help relative group">
-                    <span className="underline decoration-dashed decoration-primary/50">{link}</span>
+                    <span className="underline decoration-dashed decoration-primary/50">{link.text}</span>
                     <div className="absolute hidden group-hover:block bottom-full left-0 mb-2 bg-foreground text-background text-xs p-2 rounded-md z-10 break-all w-full shadow-lg">
-                      Destination: {link}
+                      Destination: {link.text}
                     </div>
                   </div>
                 ))}

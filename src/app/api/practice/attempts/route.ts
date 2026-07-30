@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { ObjectId } from "mongodb";
-import { scenariosCollection, attemptsCollection, usersCollection, toObjectId } from "@/db";
+import { scenariosCollection, attemptsCollection, usersCollection, toObjectId, specDefaults } from "@/db";
 import { SubmitAttemptBody, SubmitAttemptResponse } from "@/api-zod";
 import { type CueId } from "@/server/cues";
 import { gradeAttempt } from "@/server/grading";
@@ -33,12 +33,17 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const graded = gradeAttempt(scenario, body.verdict, body.selectedCues as CueId[], body.confidence);
 
   const attempts = await attemptsCollection();
+  const id = new ObjectId();
   await attempts.insertOne({
-    _id: new ObjectId(),
+    _id: id,
+    attemptId: id,
     userId: user._id,
     orgId: user.orgId ?? null,
     scenarioId: scenario._id,
-    userVerdict: body.verdict,
+    campaignId: null,
+    // Persisted as the shared spec's "phish"/"legit" string enum; the wire-level
+    // SubmitAttemptInput.verdict stays boolean -- simplest for a 2-choice UI.
+    verdict: body.verdict ? "phish" : "legit",
     selectedCues: body.selectedCues,
     confidence: body.confidence,
     correct: graded.correct,
@@ -48,7 +53,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     explanation: graded.explanation,
     calibrationNote: graded.calibrationNote,
     xpAwarded: graded.xpAwarded,
-    createdAt: new Date(),
+    ...specDefaults(),
   });
 
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -68,7 +73,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   if (newStreak >= 7 && !existingBadges.has("week_streak")) {
     badgesEarned.push("week_streak");
   }
-  if (graded.caughtCues.includes("mismatched_domain") && !existingBadges.has("domain_detective")) {
+  if (graded.caughtCues.includes("sender_domain") && !existingBadges.has("domain_detective")) {
     badgesEarned.push("domain_detective");
   }
   const updatedBadges = [...user.badges, ...badgesEarned.filter((b) => !existingBadges.has(b))];
@@ -82,6 +87,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
         streak: newStreak,
         lastActiveDate: todayIso,
         badges: updatedBadges,
+        updatedAt: new Date(),
       },
     },
   );

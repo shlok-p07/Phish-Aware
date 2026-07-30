@@ -71,6 +71,11 @@ const numR = (min, max) => ({ bsonType: ["int", "long", "double"], minimum: min,
 // metadata/createdAt/updatedAt/deletedAt on every collection. Uses collMod
 // for collections that already exist (safe to re-run against a live,
 // already-provisioned cluster) and createCollection otherwise.
+// lessons keep a string slug as _id (e.g. "email-phishing") for pretty
+// /learn/[id] URLs, so their named PK mirrors that type instead of ObjectId
+// -- everything else's PK is an ObjectId mirroring _id as normal.
+const PK_TYPE = { lessons: str };
+
 function make(name, required, props) {
   const pk = PK[name];
   const properties = Object.assign(
@@ -84,7 +89,7 @@ function make(name, required, props) {
   );
   const req = required.slice();
   if (pk) {
-    properties[pk] = oid;
+    properties[pk] = PK_TYPE[name] || oid;
     req.unshift(pk);
   }
   const validator = { $jsonSchema: { bsonType: "object", required: req, properties } };

@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import { usersCollection } from "@/db";
+import { usersCollection, specDefaults } from "@/db";
 import { ContinueAsGuestResponse } from "@/api-zod";
 import {
   createSession,
@@ -15,8 +15,10 @@ export const POST = withErrorHandling(async () => {
   // Clean up any guest accounts whose hour has elapsed before creating a new one.
   await purgeExpiredGuests();
   const users = await usersCollection();
+  const id = new ObjectId();
   const user = {
-    _id: new ObjectId(),
+    _id: id,
+    userId: id,
     orgId: null,
     name: "Guest",
     email: null,
@@ -31,7 +33,7 @@ export const POST = withErrorHandling(async () => {
     onboardingCompleted: false,
     role: "employee" as const,
     status: "active" as const,
-    createdAt: new Date(),
+    ...specDefaults(),
   };
   await users.insertOne(user);
   await createSession(user._id, GUEST_SESSION_TTL_MS);

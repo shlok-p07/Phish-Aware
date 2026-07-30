@@ -15,5 +15,5 @@ export const Vector = {
   voice: 'voice',
   qr: 'qr',
   social: 'social',
-  website: 'website',
+  web: 'web',
 } as const;

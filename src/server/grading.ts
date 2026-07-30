@@ -18,7 +18,7 @@ export function gradeAttempt(
   selectedCues: CueId[],
   confidence: number,
 ): GradedAttempt {
-  const actualCueIds = scenario.cues.map((c) => c.label as CueId);
+  const actualCueIds = scenario.cues.map((c) => c.type);
   const correctVerdict = userVerdict === scenario.isPhish;
 
   const caughtCues = selectedCues.filter((c) => actualCueIds.includes(c));

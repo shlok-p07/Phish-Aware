@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import { scenariosCollection, usersCollection, lessonsCollection } from "@/db";
+import { scenariosCollection, usersCollection, lessonsCollection, specDefaults } from "@/db";
 import { hashPassword } from "./password";
 import { SEED_SCENARIOS } from "./seedScenarios";
 import { LESSONS } from "./lessons";
@@ -18,7 +18,10 @@ export async function seedIfEmpty(): Promise<void> {
   const existingScenarios = await scenarios.countDocuments({}, { limit: 1 });
   if (existingScenarios === 0) {
     await scenarios.insertMany(
-      SEED_SCENARIOS.map((s) => ({ ...s, _id: new ObjectId(), orgId: s.orgId ?? null })),
+      SEED_SCENARIOS.map((s) => {
+        const id = new ObjectId();
+        return { ...s, _id: id, scenarioId: id, orgId: s.orgId ?? null, ...specDefaults() };
+      }),
     );
     console.log(`Seeded ${SEED_SCENARIOS.length} practice scenarios`);
   }
@@ -29,12 +32,15 @@ export async function seedIfEmpty(): Promise<void> {
     await lessons.insertMany(
       LESSONS.map((lesson, index) => ({
         _id: lesson.id,
+        lessonId: lesson.id,
         vector: lesson.vector,
         title: lesson.title,
         summary: lesson.summary,
         screens: lesson.screens,
         redFlags: lesson.redFlags,
-        sortOrder: index,
+        difficulty: 1,
+        order: index,
+        ...specDefaults(),
       })),
     );
     console.log(`Seeded ${LESSONS.length} lessons`);
@@ -44,24 +50,28 @@ export async function seedIfEmpty(): Promise<void> {
   const existingUsers = await users.countDocuments({}, { limit: 1 });
   if (existingUsers === 0) {
     await users.insertMany(
-      SAMPLE_LEADERBOARD_USERS.map((u) => ({
-        _id: new ObjectId(),
-        orgId: null,
-        name: u.name,
-        email: `${u.name.toLowerCase().replace(/\s+/g, ".")}@example.com`,
-        passwordHash: hashPassword("samplepass123"),
-        isGuest: false,
-        level: u.level,
-        xp: u.xp,
-        streak: u.streak,
-        lastActiveDate: null,
-        badges: [],
-        calibrationScore: 0.7,
-        onboardingCompleted: true,
-        role: "employee" as const,
-        status: "active" as const,
-        createdAt: new Date(),
-      })),
+      SAMPLE_LEADERBOARD_USERS.map((u) => {
+        const id = new ObjectId();
+        return {
+          _id: id,
+          userId: id,
+          orgId: null,
+          name: u.name,
+          email: `${u.name.toLowerCase().replace(/\s+/g, ".")}@example.com`,
+          passwordHash: hashPassword("samplepass123"),
+          isGuest: false,
+          level: u.level,
+          xp: u.xp,
+          streak: u.streak,
+          lastActiveDate: null,
+          badges: [],
+          calibrationScore: 0.7,
+          onboardingCompleted: true,
+          role: "employee" as const,
+          status: "active" as const,
+          ...specDefaults(),
+        };
+      }),
     );
     console.log(`Seeded ${SAMPLE_LEADERBOARD_USERS.length} sample leaderboard users`);
   }

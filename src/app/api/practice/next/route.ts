@@ -32,7 +32,7 @@ export const GET = withErrorHandling(async () => {
   }
 
   const weighted = candidates.flatMap((s) => {
-    const overlap = s.cues.reduce((acc, c) => acc + (weakCueCounts.get(c.label) ?? 0), 0);
+    const overlap = s.cues.reduce((acc, c) => acc + (weakCueCounts.get(c.type) ?? 0), 0);
     const weight = 1 + overlap;
     return Array(weight).fill(s);
   });
@@ -47,7 +47,7 @@ export const GET = withErrorHandling(async () => {
       subject: chosen.subject,
       body: chosen.body,
       links: chosen.links,
-      attachmentName: chosen.attachmentName,
+      attachments: chosen.attachments,
       difficulty: chosen.difficulty,
     }),
   );

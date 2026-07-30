@@ -5,6 +5,7 @@
  * PhishAware API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ScenarioLink } from './scenarioLink';
 import type { Vector } from './vector';
 
 export interface OnboardingQuestion {
@@ -13,5 +14,5 @@ export interface OnboardingQuestion {
   sender: string;
   subject: string;
   body: string;
-  links: string[];
+  links: ScenarioLink[];
 }

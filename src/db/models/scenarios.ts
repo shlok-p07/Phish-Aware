@@ -1,25 +1,38 @@
 import { ObjectId } from "mongodb";
 import { getCollection } from "../client";
+import type { SpecConventions } from "./specConventions";
+import type { CueId } from "@/server/cues";
+
+export interface ScenarioLink {
+  text: string;
+  isSuspicious: boolean;
+}
+
+export interface ScenarioAttachment {
+  name: string;
+  isSuspicious: boolean;
+}
 
 export interface ScenarioCue {
-  label: string; // CueId
-  severity: "low" | "medium" | "high";
+  type: CueId;
+  severity: number;
   explanation: string;
 }
 
-export interface ScenarioDoc {
+export interface ScenarioDoc extends SpecConventions {
   _id: ObjectId;
+  scenarioId: ObjectId; // named PK per the shared spec -- mirrors _id
   orgId: ObjectId | null;
   vector: string;
   isPhish: boolean;
   sender: string;
   subject: string;
   body: string;
-  links: string[];
-  attachmentName: string | null;
+  links: ScenarioLink[];
+  attachments: ScenarioAttachment[];
   cues: ScenarioCue[];
-  difficulty: string;
-  isOnboarding: boolean;
+  difficulty: number; // 1-5, per the shared spec
+  isOnboarding: boolean; // app-specific, spec-unlisted -- see 01-validators.js header
 }
 
 // orgId defaults to null (global library scenario) when omitted by callers.

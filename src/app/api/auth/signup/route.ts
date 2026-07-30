@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { ObjectId, MongoServerError } from "mongodb";
-import { usersCollection } from "@/db";
+import { usersCollection, specDefaults } from "@/db";
 import { SignupBody, SignupResponse } from "@/api-zod";
 import { hashPassword } from "@/server/password";
 import {
@@ -35,6 +35,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
             email: body.email,
             passwordHash: hashPassword(body.password),
             isGuest: false,
+            updatedAt: new Date(),
           },
         },
         { returnDocument: "after" },
@@ -46,9 +47,10 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     }
   }
 
-  const now = new Date();
+  const id = new ObjectId();
   const user = {
-    _id: new ObjectId(),
+    _id: id,
+    userId: id,
     orgId: null,
     name: body.name,
     email: body.email,
@@ -63,7 +65,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     onboardingCompleted: false,
     role: "employee" as const,
     status: "active" as const,
-    createdAt: now,
+    ...specDefaults(),
   };
   try {
     await users.insertOne(user);

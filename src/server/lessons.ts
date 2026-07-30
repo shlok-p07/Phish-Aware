@@ -5,7 +5,7 @@ export interface LessonScreen {
 
 export interface Lesson {
   id: string;
-  vector: "email" | "sms" | "voice" | "qr" | "social" | "website";
+  vector: "email" | "sms" | "voice" | "qr" | "social" | "web";
   title: string;
   summary: string;
   screens: LessonScreen[];
@@ -32,7 +32,7 @@ export const LESSONS: Lesson[] = [
         body: "Hover over (don't click) links to preview the real destination. Check that the sender's domain exactly matches the company it claims to be from -- 'paypa1.com' is not 'paypal.com'.",
       },
     ],
-    redFlags: ["mismatched_domain", "urgency", "credential_request", "generic_greeting"],
+    redFlags: ["sender_domain", "urgency_language", "credential_request", "generic_greeting"],
   },
   {
     id: "smishing",
@@ -53,7 +53,7 @@ export const LESSONS: Lesson[] = [
         body: "Never tap a link in an unexpected text. Go directly to the carrier or company's official app or website instead.",
       },
     ],
-    redFlags: ["urgency", "suspicious_link", "unexpected_attachment"],
+    redFlags: ["urgency_language", "mismatched_link", "unexpected_attachment"],
   },
   {
     id: "vishing",
@@ -74,7 +74,7 @@ export const LESSONS: Lesson[] = [
         body: "Hang up and call back using a number you look up yourself -- never one the caller gives you. Legitimate institutions won't ask for your password over the phone.",
       },
     ],
-    redFlags: ["urgency", "threat_language", "credential_request", "unusual_request"],
+    redFlags: ["urgency_language", "credential_request"],
   },
   {
     id: "quishing",
@@ -95,7 +95,7 @@ export const LESSONS: Lesson[] = [
         body: "After scanning, check the preview URL before opening it. Be wary of QR codes in unexpected places or ones stuck over an original code.",
       },
     ],
-    redFlags: ["suspicious_link", "unusual_request", "too_good_to_be_true"],
+    redFlags: ["mismatched_link", "suspicious_qr"],
   },
   {
     id: "social-media-scams",
@@ -116,11 +116,14 @@ export const LESSONS: Lesson[] = [
         body: "Verify unusual requests from friends through another channel. Be skeptical of giveaways that ask you to pay a 'fee' or share a login code.",
       },
     ],
-    redFlags: ["too_good_to_be_true", "unusual_request", "impersonal_tone"],
+    // No direct equivalent in the shared 8-cue vocabulary for social-engineering
+    // lures like fake giveaways/cloned profiles -- left empty rather than forcing
+    // an inaccurate mapping.
+    redFlags: [],
   },
   {
     id: "fake-websites",
-    vector: "website",
+    vector: "web",
     title: "Fake Websites",
     summary: "Lookalike sites built to harvest logins or payment details.",
     screens: [
@@ -137,6 +140,6 @@ export const LESSONS: Lesson[] = [
         body: "Check the full domain carefully, look for HTTPS, and type known URLs directly rather than following a link. When unsure, navigate to the site from a bookmark or search instead.",
       },
     ],
-    redFlags: ["mismatched_domain", "credential_request", "spelling_errors"],
+    redFlags: ["sender_domain", "credential_request", "spelling_grammar"],
   },
 ];

@@ -41,7 +41,7 @@ export const GET = withErrorHandling(async () => {
     vectorStats.set(scenario.vector, s);
   }
   const vectorAccuracy = Array.from(vectorStats.entries()).map(([vector, s]) => ({
-    vector: vector as "email" | "sms" | "voice" | "qr" | "social" | "website",
+    vector: vector as "email" | "sms" | "voice" | "qr" | "social" | "web",
     attempts: s.total,
     rate: s.correct / s.total,
   }));
