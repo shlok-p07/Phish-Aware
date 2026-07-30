@@ -3,12 +3,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useGetOnboardingQuiz, useSubmitOnboardingQuiz, useGetCurrentUser, getGetCurrentUserQueryKey } from "@/api-client";
 import type { OnboardingResult } from "@/api-client";
-import { Shield, ArrowRight, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Shield, ArrowRight, ShieldCheck, ShieldAlert, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { OnboardingSurvey } from "@/components/onboarding-survey";
+import type { OnboardingSurveyAnswerMap } from "@/lib/onboarding-survey";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -24,6 +26,10 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<{scenarioId: string, verdict: boolean}[]>([]);
   const [result, setResult] = useState<OnboardingResult | null>(null);
+  // Survey answers gate the diagnostic: null means the survey is still open.
+  // TODO: nothing persists these yet — hook up an API call when the questions
+  // are final.
+  const [surveyAnswers, setSurveyAnswers] = useState<OnboardingSurveyAnswerMap | null>(null);
 
   // If already onboarded, send away.
   useEffect(() => {
@@ -31,6 +37,41 @@ export default function OnboardingPage() {
       router.push("/dashboard");
     }
   }, [user, router]);
+
+  const handleSurveyComplete = (answers: OnboardingSurveyAnswerMap) => {
+    setSurveyAnswers(answers);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Step 1: the intro survey. The diagnostic keeps loading in the background
+  // while they fill it in.
+  if (!surveyAnswers) {
+    return (
+      <div className="min-h-dvh flex flex-col bg-muted/30">
+        <div className="max-w-3xl w-full mx-auto px-4 py-8 flex-1 flex flex-col">
+
+          <div className="mb-8 text-center space-y-3">
+            <div className="flex justify-center mb-2">
+              <div className="bg-primary/10 p-3 rounded-lg text-primary">
+                <ClipboardList className="w-8 h-8" />
+              </div>
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Step 1 of 2
+            </p>
+            <h1 className="text-2xl md:text-3xl font-display font-bold">Tell us about you</h1>
+            <p className="text-muted-foreground font-medium max-w-lg mx-auto">
+              Six quick questions. Your answers help us pitch the training at the
+              right level—then we'll run a short diagnostic.
+            </p>
+          </div>
+
+          <OnboardingSurvey onComplete={handleSurveyComplete} />
+
+        </div>
+      </div>
+    );
+  }
 
   if (isQuizLoading) {
     return <div className="min-h-screen flex items-center justify-center"><div className="animate-pulse bg-muted w-96 h-64 rounded-lg" /></div>;
@@ -115,6 +156,9 @@ export default function OnboardingPage() {
                <Shield className="w-8 h-8" />
              </div>
           </div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Step 2 of 2
+          </p>
           <h1 className="text-2xl md:text-3xl font-display font-bold">Quick Diagnostic</h1>
           <p className="text-muted-foreground font-medium max-w-lg mx-auto">
             Take a guess at these 5 messages. This helps us set your starting difficulty.
