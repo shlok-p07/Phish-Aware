@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { db, scenariosTable, usersTable } from "@/db";
-import { eq } from "drizzle-orm";
+import { scenariosCollection, usersCollection } from "@/db";
 import { SubmitOnboardingQuizBody, SubmitOnboardingQuizResponse } from "@/api-zod";
 import { levelForXp } from "@/server/leveling";
 import { json, requireUserId, withErrorHandling } from "@/server/http";
@@ -10,12 +9,12 @@ export const dynamic = "force-dynamic";
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const userId = await requireUserId();
   const body = SubmitOnboardingQuizBody.parse(await req.json());
-  const scenarios = await db.select().from(scenariosTable);
-  const scenarioMap = new Map(scenarios.map((s) => [s.id, s]));
+  const scenarios = await (await scenariosCollection()).find().toArray();
+  const scenarioMap = new Map(scenarios.map((s) => [s._id.toString(), s]));
 
   let correctCount = 0;
   for (const answer of body.answers) {
-    const scenario = scenarioMap.get(Number(answer.scenarioId));
+    const scenario = scenarioMap.get(answer.scenarioId);
     if (scenario && scenario.isPhish === answer.verdict) {
       correctCount++;
     }
@@ -27,10 +26,11 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const startingXp = Math.round(accuracy * 120);
   const level = levelForXp(startingXp);
 
-  await db
-    .update(usersTable)
-    .set({ xp: startingXp, level, onboardingCompleted: true })
-    .where(eq(usersTable.id, userId));
+  const users = await usersCollection();
+  await users.updateOne(
+    { _id: userId },
+    { $set: { xp: startingXp, level, onboardingCompleted: true } },
+  );
 
   return json(
     SubmitOnboardingQuizResponse.parse({

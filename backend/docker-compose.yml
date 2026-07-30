@@ -1,0 +1,11 @@
+services:
+  ml-service:
+    build: .
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: development
+    volumes:
+      - ./models_store:/app/models_store
+      - ./data:/app/data
+    ports:
+      - "8001:8001"

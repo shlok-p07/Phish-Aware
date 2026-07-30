@@ -19,7 +19,16 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useOrg, type OrgRole } from "@/lib/org-store";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useGetOrg,
+  useListOrgMembers,
+  useInviteOrgMember,
+  useRemoveOrgMember,
+  useUpdateOrgMemberRole,
+  getListOrgMembersQueryKey,
+  type OrgRole,
+} from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
 
 const riskStyles: Record<string, string> = {
@@ -29,12 +38,18 @@ const riskStyles: Record<string, string> = {
 };
 
 export default function AdminMembersPage() {
-  const { members, settings, inviteMember, removeMember, setMemberRole } = useOrg();
+  const { data: org } = useGetOrg({ query: { retry: false } });
+  const { data: members = [] } = useListOrgMembers();
+  const queryClient = useQueryClient();
+  const invalidateMembers = () => queryClient.invalidateQueries({ queryKey: getListOrgMembersQueryKey() });
+  const inviteMemberMutation = useInviteOrgMember();
+  const removeMemberMutation = useRemoveOrgMember();
+  const setMemberRoleMutation = useUpdateOrgMemberRole();
   const { toast } = useToast();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<OrgRole>("member");
+  const [role, setRole] = useState<OrgRole>("employee");
   const [query, setQuery] = useState("");
 
   const activeSeats = members.filter((m) => m.status === "active").length;
@@ -44,19 +59,32 @@ export default function AdminMembersPage() {
     ? members.filter(
         (m) =>
           m.name.toLowerCase().includes(q) ||
-          m.email.toLowerCase().includes(q) ||
+          (m.email ?? "").toLowerCase().includes(q) ||
           m.role.toLowerCase().includes(q),
       )
     : members;
 
   const submitInvite = () => {
     if (!email.trim()) return;
-    inviteMember(name, email, role);
-    toast({ title: "Invitation sent", description: `${email} was invited as ${role}.` });
+    inviteMemberMutation.mutate(
+      { data: { name, email, role } },
+      {
+        onSuccess: () => {
+          invalidateMembers();
+          toast({ title: "Invitation sent", description: `${email} was invited as ${role}.` });
+        },
+        onError: (err) =>
+          toast({ title: "Couldn't invite member", description: err.message, variant: "destructive" }),
+      },
+    );
     setName("");
     setEmail("");
-    setRole("member");
+    setRole("employee");
   };
+
+  const removeMember = (id: string) => removeMemberMutation.mutate({ id }, { onSuccess: invalidateMembers });
+  const setMemberRole = (id: string, newRole: OrgRole) =>
+    setMemberRoleMutation.mutate({ id, data: { role: newRole } }, { onSuccess: invalidateMembers });
 
   return (
     <div className="space-y-6">
@@ -64,7 +92,7 @@ export default function AdminMembersPage() {
         <div>
           <h2 className="text-lg font-display font-bold">Members</h2>
           <p className="text-sm text-muted-foreground font-medium">
-            {activeSeats} of {settings.seatLimit} seats used
+            {activeSeats} of {org?.seatLimit ?? 0} seats used
           </p>
         </div>
         <Dialog>
@@ -94,7 +122,7 @@ export default function AdminMembersPage() {
                 <Select value={role} onValueChange={(v) => setRole(v as OrgRole)}>
                   <SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="employee">Member</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
@@ -172,7 +200,7 @@ export default function AdminMembersPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="member">Member</SelectItem>
+                        <SelectItem value="employee">Member</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>

@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useOrg, computeAnalytics } from "@/lib/org-store";
+import { useGetOrgAnalytics } from "@/api-client";
 
 const riskColor: Record<string, string> = {
   low: "hsl(var(--success))",
@@ -13,19 +13,20 @@ const riskColor: Record<string, string> = {
 };
 
 export default function AdminAnalyticsPage() {
-  const { members } = useOrg();
-  const a = computeAnalytics(members);
+  const { data: a } = useGetOrgAnalytics();
 
   const kpis = [
-    { label: "Average accuracy", value: `${a.avgAccuracy}%`, icon: TrendingUp, tint: "text-primary" },
-    { label: "Active members", value: a.activeCount, icon: Users, tint: "text-primary" },
-    { label: "Lesson completion", value: `${a.completionRate}%`, icon: CheckCircle2, tint: "text-success" },
-    { label: "At-risk members", value: a.atRisk, icon: ShieldAlert, tint: "text-destructive" },
+    { label: "Average accuracy", value: `${a?.avgAccuracy ?? 0}%`, icon: TrendingUp, tint: "text-primary" },
+    { label: "Active members", value: a?.activeCount ?? 0, icon: Users, tint: "text-primary" },
+    { label: "Participation rate", value: `${a?.participationRate ?? 0}%`, icon: CheckCircle2, tint: "text-success" },
+    { label: "At-risk members", value: a?.atRisk ?? 0, icon: ShieldAlert, tint: "text-destructive" },
   ];
 
-  const perMember = members
-    .filter((m) => m.status === "active")
-    .map((m) => ({ name: m.name.split(" ")[0], accuracy: m.accuracy, risk: m.riskLevel }));
+  const perMember = (a?.perMember ?? []).map((m) => ({
+    name: m.name.split(" ")[0],
+    accuracy: m.accuracy,
+    risk: m.risk,
+  }));
 
   return (
     <div className="space-y-6">
@@ -94,8 +95,8 @@ export default function AdminAnalyticsPage() {
         </CardHeader>
         <CardContent className="pt-6 space-y-4">
           {(["low", "medium", "high"] as const).map((band) => {
-            const count = a.riskBands[band];
-            const pct = a.activeCount ? Math.round((count / a.activeCount) * 100) : 0;
+            const count = a?.riskBands[band] ?? 0;
+            const pct = a?.activeCount ? Math.round((count / a.activeCount) * 100) : 0;
             return (
               <div key={band} className="space-y-1.5">
                 <div className="flex items-center justify-between text-sm">

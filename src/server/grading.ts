@@ -1,4 +1,4 @@
-import type { Scenario } from "@/db";
+import type { ScenarioDoc } from "@/db";
 import { CUE_LABELS, type CueId } from "./cues";
 
 export interface GradedAttempt {
@@ -13,12 +13,12 @@ export interface GradedAttempt {
 }
 
 export function gradeAttempt(
-  scenario: Scenario,
+  scenario: ScenarioDoc,
   userVerdict: boolean,
   selectedCues: CueId[],
   confidence: number,
 ): GradedAttempt {
-  const actualCueIds = scenario.cues.map((c) => c.label as CueId);
+  const actualCueIds = scenario.cues.map((c) => c.type);
   const correctVerdict = userVerdict === scenario.isPhish;
 
   const caughtCues = selectedCues.filter((c) => actualCueIds.includes(c));
@@ -51,7 +51,7 @@ export function gradeAttempt(
 }
 
 function buildExplanation(
-  scenario: Scenario,
+  scenario: ScenarioDoc,
   correctVerdict: boolean,
   caughtCues: CueId[],
   missedCues: CueId[],

@@ -1,6 +1,15 @@
-import type { InsertScenario } from "@/db";
+import type { InsertScenario, SpecConventions } from "@/db";
 
-export const SEED_SCENARIOS: InsertScenario[] = [
+// Raw seed content -- scenarioId and the spec-convention fields (metadata/
+// timestamps) are generated per-document in src/server/seed.ts at insert
+// time, not part of this static data.
+type SeedScenario = Omit<InsertScenario, "scenarioId" | keyof SpecConventions>;
+
+// Cue ids and severity match the shared phishaware-db schema spec's 8-value
+// `cueType` enum + numeric severity (see src/server/cues.ts). Severity scale:
+// 1 = low, 2 = medium, 3 = high. Difficulty is 1-5 per the spec (mapped from
+// the old easy/medium/hard labels: easy=1, medium=3, hard=5).
+export const SEED_SCENARIOS: SeedScenario[] = [
   // Onboarding pool (5)
   {
     vector: "email",
@@ -8,15 +17,15 @@ export const SEED_SCENARIOS: InsertScenario[] = [
     sender: "IT Support <helpdesk@corp-secure-mail.net>",
     subject: "Action Required: Your password expires today",
     body: "Dear user,\n\nOur records show your account password expires in a few hours. To avoid losing access, verify your credentials immediately using the link below.\n\nThank you,\nIT Support Team",
-    links: ["http://corp-secure-mail.net/reset?id=88213"],
-    attachmentName: null,
+    links: [{ text: "http://corp-secure-mail.net/reset?id=88213", isSuspicious: true }],
+    attachments: [],
     cues: [
-      { label: "mismatched_domain", severity: "high", explanation: "The company's real domain doesn't match 'corp-secure-mail.net'." },
-      { label: "urgency", severity: "medium", explanation: "Claims your password expires 'today' to rush you." },
-      { label: "credential_request", severity: "high", explanation: "Asks you to 'verify your credentials' via a link." },
-      { label: "generic_greeting", severity: "low", explanation: "Addresses you as 'Dear user' instead of your name." },
+      { type: "sender_domain", severity: 3, explanation: "The company's real domain doesn't match 'corp-secure-mail.net'." },
+      { type: "urgency_language", severity: 2, explanation: "Claims your password expires 'today' to rush you." },
+      { type: "credential_request", severity: 3, explanation: "Asks you to 'verify your credentials' via a link." },
+      { type: "generic_greeting", severity: 1, explanation: "Addresses you as 'Dear user' instead of your name." },
     ],
-    difficulty: "easy",
+    difficulty: 1,
     isOnboarding: true,
   },
   {
@@ -25,10 +34,10 @@ export const SEED_SCENARIOS: InsertScenario[] = [
     sender: "The Daily Brew <news@dailybrew.com>",
     subject: "You're subscribed! Here's what to expect",
     body: "Hi there,\n\nThanks for subscribing to The Daily Brew. Every Monday you'll get a short roundup of the week's top stories in your inbox. You can update your preferences or unsubscribe any time from the link in the footer.\n\nSee you Monday,\nThe Daily Brew Team",
-    links: ["https://dailybrew.com/preferences"],
-    attachmentName: null,
+    links: [{ text: "https://dailybrew.com/preferences", isSuspicious: false }],
+    attachments: [],
     cues: [],
-    difficulty: "easy",
+    difficulty: 1,
     isOnboarding: true,
   },
   {
@@ -38,13 +47,11 @@ export const SEED_SCENARIOS: InsertScenario[] = [
     subject: "Quick favor - need this handled discreetly",
     body: "Hey,\n\nI'm stuck in back-to-back meetings and need you to pick up $500 in gift cards for a client gift before 3pm. I'll pay you back. Please keep this between us for now, and reply once it's done.\n\nThanks,\nAlex",
     links: [],
-    attachmentName: null,
+    attachments: [],
     cues: [
-      { label: "urgency", severity: "high", explanation: "Demands action before a hard deadline (3pm)." },
-      { label: "unusual_request", severity: "high", explanation: "Executives don't usually ask employees to personally buy gift cards." },
-      { label: "impersonal_tone", severity: "medium", explanation: "Asks to keep it secret, which real requests rarely do." },
+      { type: "urgency_language", severity: 3, explanation: "Demands action before a hard deadline (3pm)." },
     ],
-    difficulty: "medium",
+    difficulty: 3,
     isOnboarding: true,
   },
   {
@@ -53,10 +60,10 @@ export const SEED_SCENARIOS: InsertScenario[] = [
     sender: "Northline Bank <notifications@northlinebank.com>",
     subject: "Your monthly statement is ready",
     body: "Hello,\n\nYour account statement for last month is now available in your Northline Bank online banking portal. Log in through the app or northlinebank.com as usual to view it.\n\nNorthline Bank",
-    links: ["https://northlinebank.com/login"],
-    attachmentName: null,
+    links: [{ text: "https://northlinebank.com/login", isSuspicious: false }],
+    attachments: [],
     cues: [],
-    difficulty: "easy",
+    difficulty: 1,
     isOnboarding: true,
   },
   {
@@ -65,15 +72,14 @@ export const SEED_SCENARIOS: InsertScenario[] = [
     sender: "Rewards Center <winner@prizes-notify.info>",
     subject: "Congratulations! You've won a $1,000 gift card",
     body: "Dear Winner,\n\nYou have been randomly selected to receive a $1,000 gift card! Claim your prize within 24 hours by confirming your details at the link below.\n\nRewards Center",
-    links: ["http://prizes-notify.info/claim?winner=true"],
-    attachmentName: null,
+    links: [{ text: "http://prizes-notify.info/claim?winner=true", isSuspicious: true }],
+    attachments: [],
     cues: [
-      { label: "too_good_to_be_true", severity: "high", explanation: "Unsolicited prizes you didn't enter for are a classic lure." },
-      { label: "suspicious_link", severity: "medium", explanation: "The domain 'prizes-notify.info' isn't a recognizable retailer." },
-      { label: "generic_greeting", severity: "low", explanation: "Addressed to 'Dear Winner' instead of a real name." },
-      { label: "urgency", severity: "medium", explanation: "24-hour claim deadline pressures quick action." },
+      { type: "mismatched_link", severity: 2, explanation: "The domain 'prizes-notify.info' isn't a recognizable retailer." },
+      { type: "generic_greeting", severity: 1, explanation: "Addressed to 'Dear Winner' instead of a real name." },
+      { type: "urgency_language", severity: 2, explanation: "24-hour claim deadline pressures quick action." },
     ],
-    difficulty: "easy",
+    difficulty: 1,
     isOnboarding: true,
   },
   // General practice pool
@@ -83,15 +89,15 @@ export const SEED_SCENARIOS: InsertScenario[] = [
     sender: "Delivery Notice <tracking@parcel-expresss.com>",
     subject: "Your package could not be delivered",
     body: "Hi,\n\nWe attempted to deliver your package but no one was available. Please confirm your address and pay a small redelivery fee within 48 hours to avoid your parcel being returned.\n\nParcel Express",
-    links: ["http://parcel-expresss.com/redeliver"],
-    attachmentName: null,
+    links: [{ text: "http://parcel-expresss.com/redeliver", isSuspicious: true }],
+    attachments: [],
     cues: [
-      { label: "mismatched_domain", severity: "medium", explanation: "'parcel-expresss.com' (triple s) isn't a real courier domain." },
-      { label: "urgency", severity: "medium", explanation: "48-hour deadline to act." },
-      { label: "credential_request", severity: "medium", explanation: "Asks for a payment/address confirmation through a link." },
-      { label: "spelling_errors", severity: "low", explanation: "Odd extra letter in the domain name." },
+      { type: "sender_domain", severity: 2, explanation: "'parcel-expresss.com' (triple s) isn't a real courier domain." },
+      { type: "urgency_language", severity: 2, explanation: "48-hour deadline to act." },
+      { type: "credential_request", severity: 2, explanation: "Asks for a payment/address confirmation through a link." },
+      { type: "spelling_grammar", severity: 1, explanation: "Odd extra letter in the domain name." },
     ],
-    difficulty: "easy",
+    difficulty: 1,
     isOnboarding: false,
   },
   {
@@ -100,14 +106,14 @@ export const SEED_SCENARIOS: InsertScenario[] = [
     sender: "Document Share <no-reply@docushare-files.co>",
     subject: "A file has been shared with you",
     body: "Hello,\n\nA document titled 'Q3_Contract_Final' has been shared with you. Click below to view and sign.\n\nThank you.",
-    links: ["http://docushare-files.co/view/9931"],
-    attachmentName: null,
+    links: [{ text: "http://docushare-files.co/view/9931", isSuspicious: true }],
+    attachments: [],
     cues: [
-      { label: "generic_greeting", severity: "low", explanation: "No sender name or personal detail." },
-      { label: "suspicious_link", severity: "high", explanation: "Unfamiliar file-sharing domain, not a known provider." },
-      { label: "mismatched_domain", severity: "medium", explanation: "Not a recognized document-sharing service." },
+      { type: "generic_greeting", severity: 1, explanation: "No sender name or personal detail." },
+      { type: "mismatched_link", severity: 3, explanation: "Unfamiliar file-sharing domain, not a known provider." },
+      { type: "sender_domain", severity: 2, explanation: "Not a recognized document-sharing service." },
     ],
-    difficulty: "medium",
+    difficulty: 3,
     isOnboarding: false,
   },
   {
@@ -117,9 +123,9 @@ export const SEED_SCENARIOS: InsertScenario[] = [
     subject: "Team meeting moved to 3pm",
     body: "Hi all,\n\nQuick heads up -- I'm moving our sync from 2pm to 3pm today since I have a conflicting call. Same room. Let me know if that doesn't work for anyone.\n\nThanks,\nPriya",
     links: [],
-    attachmentName: null,
+    attachments: [],
     cues: [],
-    difficulty: "easy",
+    difficulty: 1,
     isOnboarding: false,
   },
   {
@@ -128,15 +134,14 @@ export const SEED_SCENARIOS: InsertScenario[] = [
     sender: "Security Alert <alert@secure-northlinebank.com>",
     subject: "Unusual sign-in detected on your account",
     body: "We noticed a sign-in from an unrecognized device. If this wasn't you, your account may be locked within 24 hours. Verify your identity now to keep your account active.",
-    links: ["http://secure-northlinebank.com/verify"],
-    attachmentName: null,
+    links: [{ text: "http://secure-northlinebank.com/verify", isSuspicious: true }],
+    attachments: [],
     cues: [
-      { label: "mismatched_domain", severity: "high", explanation: "'secure-northlinebank.com' is not the bank's real domain." },
-      { label: "urgency", severity: "high", explanation: "Threatens account lock within 24 hours." },
-      { label: "credential_request", severity: "high", explanation: "Asks you to 'verify your identity' via a link." },
-      { label: "threat_language", severity: "medium", explanation: "Warns of a consequence (account lock) to pressure you." },
+      { type: "sender_domain", severity: 3, explanation: "'secure-northlinebank.com' is not the bank's real domain." },
+      { type: "urgency_language", severity: 3, explanation: "Threatens account lock within 24 hours." },
+      { type: "credential_request", severity: 3, explanation: "Asks you to 'verify your identity' via a link." },
     ],
-    difficulty: "medium",
+    difficulty: 3,
     isOnboarding: false,
   },
   {
@@ -145,10 +150,10 @@ export const SEED_SCENARIOS: InsertScenario[] = [
     sender: "Cloud Editor <updates@cloudeditorapp.com>",
     subject: "New version available with faster load times",
     body: "Hi,\n\nWe've shipped an update that improves load times by 30% and fixes a few sync bugs. Update from within the app whenever you get a chance -- no action needed right now.\n\nThe Cloud Editor Team",
-    links: ["https://cloudeditorapp.com/changelog"],
-    attachmentName: null,
+    links: [{ text: "https://cloudeditorapp.com/changelog", isSuspicious: false }],
+    attachments: [],
     cues: [],
-    difficulty: "easy",
+    difficulty: 1,
     isOnboarding: false,
   },
   {
@@ -157,15 +162,14 @@ export const SEED_SCENARIOS: InsertScenario[] = [
     sender: "HR Benefits <benefits@hr-enroll-portal.com>",
     subject: "Confirm your 2026 benefits enrollment now",
     body: "Your open enrollment window closes tonight. Log in immediately with your employee ID and password to keep your current benefits, or they will be automatically dropped.",
-    links: ["http://hr-enroll-portal.com/login"],
-    attachmentName: null,
+    links: [{ text: "http://hr-enroll-portal.com/login", isSuspicious: true }],
+    attachments: [],
     cues: [
-      { label: "unusual_request", severity: "medium", explanation: "HR enrollment doesn't usually route through a third-party domain like this." },
-      { label: "credential_request", severity: "high", explanation: "Asks for employee ID and password directly." },
-      { label: "urgency", severity: "high", explanation: "'Closes tonight' pressures an immediate login." },
-      { label: "mismatched_domain", severity: "medium", explanation: "Not your company's real HR system domain." },
+      { type: "credential_request", severity: 3, explanation: "Asks for employee ID and password directly." },
+      { type: "urgency_language", severity: 3, explanation: "'Closes tonight' pressures an immediate login." },
+      { type: "sender_domain", severity: 2, explanation: "Not your company's real HR system domain." },
     ],
-    difficulty: "hard",
+    difficulty: 5,
     isOnboarding: false,
   },
   {
@@ -175,14 +179,12 @@ export const SEED_SCENARIOS: InsertScenario[] = [
     subject: "quick favor before you head out",
     body: "hey are you at your desk? need you to send me the wire transfer details for the client asap, kind of urgent. can't talk right now, just reply here",
     links: [],
-    attachmentName: null,
+    attachments: [],
     cues: [
-      { label: "mismatched_display_name", severity: "medium", explanation: "The domain 'yourcompany-corp.com' doesn't match the real company domain." },
-      { label: "urgency", severity: "high", explanation: "'asap' and 'can't talk right now' pressure a fast, unverified reply." },
-      { label: "impersonal_tone", severity: "low", explanation: "Casual, oddly abrupt tone for a sensitive financial request." },
-      { label: "unusual_request", severity: "high", explanation: "Requesting wire transfer details over email/chat is atypical." },
+      { type: "sender_domain", severity: 2, explanation: "The domain 'yourcompany-corp.com' doesn't match the real company domain." },
+      { type: "urgency_language", severity: 3, explanation: "'asap' and 'can't talk right now' pressure a fast, unverified reply." },
     ],
-    difficulty: "hard",
+    difficulty: 5,
     isOnboarding: false,
   },
 ];

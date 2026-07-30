@@ -1,0 +1,1101 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: PhishAware API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: onboarding
+    description: Onboarding diagnostic quiz
+  - name: lessons
+    description: Learn library
+  - name: practice
+    description: Practice loop
+  - name: dashboard
+    description: Dashboard summary
+  - name: profile
+    description: Analytics / susceptibility profile
+  - name: leaderboard
+    description: Leaderboard
+  - name: org
+    description: Organization admin (members, training campaigns, analytics)
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+
+  /auth/signup:
+    post:
+      operationId: signup
+      tags: [auth]
+      summary: Create an account with email + password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthSignupInput"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid input or email already in use
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in with email + password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthLoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Invalid credentials
+
+  /auth/guest:
+    post:
+      operationId: continueAsGuest
+      tags: [auth]
+      summary: Start a guest session
+      responses:
+        "201":
+          description: Guest session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Log out and clear the session
+      responses:
+        "204":
+          description: Logged out
+
+  /onboarding/quiz:
+    get:
+      operationId: getOnboardingQuiz
+      tags: [onboarding]
+      summary: Get the 5-question onboarding diagnostic quiz
+      responses:
+        "200":
+          description: Onboarding quiz questions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OnboardingQuestion"
+
+  /onboarding/submit:
+    post:
+      operationId: submitOnboardingQuiz
+      tags: [onboarding]
+      summary: Submit onboarding quiz answers and receive a starting level
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingSubmitInput"
+      responses:
+        "200":
+          description: Onboarding result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingResult"
+
+  /lessons:
+    get:
+      operationId: listLessons
+      tags: [lessons]
+      summary: List all lessons in the learn library
+      responses:
+        "200":
+          description: Lessons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LessonSummary"
+
+  /lessons/{id}:
+    get:
+      operationId: getLesson
+      tags: [lessons]
+      summary: Get a single lesson with its screens
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lesson
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+        "404":
+          description: Lesson not found
+
+  /practice/cue-options:
+    get:
+      operationId: listCueOptions
+      tags: [practice]
+      summary: List the canonical set of selectable red-flag cues
+      responses:
+        "200":
+          description: Cue options
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CueOption"
+
+  /practice/next:
+    get:
+      operationId: getNextPracticeScenario
+      tags: [practice]
+      summary: Get the next recommended practice scenario for the current user
+      responses:
+        "200":
+          description: Next practice scenario (answer withheld)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PracticeScenario"
+        "401":
+          description: Not authenticated
+
+  /practice/attempts:
+    post:
+      operationId: submitAttempt
+      tags: [practice]
+      summary: Submit a verdict, selected cues, and confidence for a scenario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitAttemptInput"
+      responses:
+        "200":
+          description: Graded attempt result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttemptResult"
+        "401":
+          description: Not authenticated
+        "404":
+          description: Scenario not found
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get the current user's dashboard summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          description: Not authenticated
+
+  /profile/analytics:
+    get:
+      operationId: getAnalytics
+      tags: [profile]
+      summary: Get the current user's susceptibility profile / analytics
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+        "401":
+          description: Not authenticated
+
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Get the XP leaderboard (seeded sample users + current user)
+      responses:
+        "200":
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+
+  /org:
+    get:
+      operationId: getOrg
+      tags: [org]
+      summary: Get the current user's organization
+      responses:
+        "200":
+          description: Organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Org"
+        "401":
+          description: Not authenticated
+        "404":
+          description: The current user doesn't belong to an organization yet
+    post:
+      operationId: createOrg
+      tags: [org]
+      summary: Create an organization and become its admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrgInput"
+      responses:
+        "201":
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Org"
+        "401":
+          description: Not authenticated
+        "409":
+          description: The current user already belongs to an organization
+    delete:
+      operationId: deleteOrg
+      tags: [org]
+      summary: Delete the organization (unassigns members, removes training data)
+      responses:
+        "204":
+          description: Organization deleted
+        "403":
+          description: Admin access required
+
+  /org/settings:
+    patch:
+      operationId: updateOrgSettings
+      tags: [org]
+      summary: Update organization name, SSO domain, or seat limit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrgSettingsInput"
+      responses:
+        "200":
+          description: Updated organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Org"
+        "403":
+          description: Admin access required
+
+  /org/members:
+    get:
+      operationId: listOrgMembers
+      tags: [org]
+      summary: List the organization's members with real accuracy/risk stats
+      responses:
+        "200":
+          description: Members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrgMember"
+        "403":
+          description: Admin access required
+    post:
+      operationId: inviteOrgMember
+      tags: [org]
+      summary: Invite a member (creates their account with status "invited")
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteMemberInput"
+      responses:
+        "201":
+          description: Member invited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgMember"
+        "403":
+          description: Admin access required
+        "409":
+          description: A member with this email already exists
+
+  /org/members/{id}:
+    patch:
+      operationId: updateOrgMemberRole
+      tags: [org]
+      summary: Change a member's role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberRoleInput"
+      responses:
+        "200":
+          description: Updated member role
+        "403":
+          description: Admin access required
+        "404":
+          description: Member not found
+    delete:
+      operationId: removeOrgMember
+      tags: [org]
+      summary: Remove a member from the organization
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Member removed
+        "403":
+          description: Admin access required
+        "404":
+          description: Member not found
+
+  /org/training:
+    get:
+      operationId: listOrgTraining
+      tags: [org]
+      summary: List the organization's training campaigns
+      responses:
+        "200":
+          description: Training campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrainingAssignment"
+        "403":
+          description: Admin access required
+    post:
+      operationId: createOrgTraining
+      tags: [org]
+      summary: Create a training campaign and assign it to members
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTrainingInput"
+      responses:
+        "201":
+          description: Training campaign created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrainingAssignment"
+        "400":
+          description: Invalid input
+        "403":
+          description: Admin access required
+        "404":
+          description: Target member not found
+
+  /org/training/{id}:
+    delete:
+      operationId: deleteOrgTraining
+      tags: [org]
+      summary: Remove a training campaign and its assignments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Training campaign removed
+        "403":
+          description: Admin access required
+        "404":
+          description: Training campaign not found
+
+  /org/analytics:
+    get:
+      operationId: getOrgAnalytics
+      tags: [org]
+      summary: Get organization-wide training analytics
+      responses:
+        "200":
+          description: Organization analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgAnalytics"
+        "403":
+          description: Admin access required
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    Level:
+      type: string
+      enum: [beginner, intermediate, advanced]
+
+    Vector:
+      type: string
+      enum: [email, sms, voice, qr, social, web]
+
+    Severity:
+      type: string
+      enum: [low, medium, high]
+
+    CueId:
+      type: string
+      enum:
+        - sender_domain
+        - mismatched_link
+        - urgency_language
+        - generic_greeting
+        - credential_request
+        - spelling_grammar
+        - unexpected_attachment
+        - suspicious_qr
+
+    CueOption:
+      type: object
+      required: [id, label]
+      properties:
+        id:
+          $ref: "#/components/schemas/CueId"
+        label:
+          type: string
+
+    User:
+      type: object
+      required:
+        [
+          id,
+          name,
+          isGuest,
+          level,
+          xp,
+          streak,
+          badges,
+          calibrationScore,
+          onboardingCompleted,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: ["string", "null"]
+        isGuest:
+          type: boolean
+        level:
+          $ref: "#/components/schemas/Level"
+        xp:
+          type: integer
+        streak:
+          type: integer
+        badges:
+          type: array
+          items:
+            type: string
+        calibrationScore:
+          type: number
+        onboardingCompleted:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    AuthSignupInput:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          minLength: 3
+        password:
+          type: string
+          minLength: 6
+
+    AuthLoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    ScenarioLink:
+      type: object
+      required: [text, isSuspicious]
+      properties:
+        text:
+          type: string
+        isSuspicious:
+          type: boolean
+
+    ScenarioAttachment:
+      type: object
+      required: [name, isSuspicious]
+      properties:
+        name:
+          type: string
+        isSuspicious:
+          type: boolean
+
+    OnboardingQuestion:
+      type: object
+      required: [id, vector, sender, subject, body, links]
+      properties:
+        id:
+          type: string
+        vector:
+          $ref: "#/components/schemas/Vector"
+        sender:
+          type: string
+        subject:
+          type: string
+        body:
+          type: string
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScenarioLink"
+
+    OnboardingAnswer:
+      type: object
+      required: [scenarioId, verdict]
+      properties:
+        scenarioId:
+          type: string
+        verdict:
+          type: boolean
+          description: true if the user judged it phishing
+
+    OnboardingSubmitInput:
+      type: object
+      required: [answers]
+      properties:
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/OnboardingAnswer"
+
+    OnboardingResult:
+      type: object
+      required: [level, correctCount, totalCount]
+      properties:
+        level:
+          $ref: "#/components/schemas/Level"
+        correctCount:
+          type: integer
+        totalCount:
+          type: integer
+
+    LessonScreen:
+      type: object
+      required: [heading, body]
+      properties:
+        heading:
+          type: string
+        body:
+          type: string
+
+    LessonSummary:
+      type: object
+      required: [id, vector, title, summary]
+      properties:
+        id:
+          type: string
+        vector:
+          $ref: "#/components/schemas/Vector"
+        title:
+          type: string
+        summary:
+          type: string
+
+    Lesson:
+      type: object
+      required: [id, vector, title, summary, screens, redFlags]
+      properties:
+        id:
+          type: string
+        vector:
+          $ref: "#/components/schemas/Vector"
+        title:
+          type: string
+        summary:
+          type: string
+        screens:
+          type: array
+          items:
+            $ref: "#/components/schemas/LessonScreen"
+        redFlags:
+          type: array
+          items:
+            type: string
+
+    PracticeScenario:
+      type: object
+      required: [id, vector, sender, subject, body, links, attachments, difficulty]
+      properties:
+        id:
+          type: string
+        vector:
+          $ref: "#/components/schemas/Vector"
+        sender:
+          type: string
+        subject:
+          type: string
+        body:
+          type: string
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScenarioLink"
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScenarioAttachment"
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+
+    SubmitAttemptInput:
+      type: object
+      required: [scenarioId, verdict, selectedCues, confidence]
+      properties:
+        scenarioId:
+          type: string
+        verdict:
+          type: boolean
+          description: true if the user judged it phishing
+        selectedCues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueId"
+        confidence:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    AttemptResult:
+      type: object
+      required:
+        - correct
+        - correctVerdict
+        - missedCues
+        - falseCues
+        - caughtCues
+        - explanation
+        - calibrationNote
+        - xpAwarded
+        - totalXp
+        - level
+        - leveledUp
+        - streak
+        - badgesEarned
+      properties:
+        correct:
+          type: boolean
+        correctVerdict:
+          type: boolean
+        caughtCues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueId"
+        missedCues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueId"
+        falseCues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueId"
+        explanation:
+          type: string
+        calibrationNote:
+          type: string
+        xpAwarded:
+          type: integer
+        totalXp:
+          type: integer
+        level:
+          $ref: "#/components/schemas/Level"
+        leveledUp:
+          type: boolean
+        streak:
+          type: integer
+        badgesEarned:
+          type: array
+          items:
+            type: string
+
+    DashboardSummary:
+      type: object
+      required:
+        - name
+        - level
+        - xp
+        - xpToNextLevel
+        - xpIntoLevel
+        - streak
+        - strongCues
+        - weakCues
+        - badges
+        - totalAttempts
+        - accuracyRate
+      properties:
+        name:
+          type: string
+        level:
+          $ref: "#/components/schemas/Level"
+        xp:
+          type: integer
+        xpToNextLevel:
+          type: integer
+        xpIntoLevel:
+          type: integer
+        streak:
+          type: integer
+        strongCues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueOption"
+        weakCues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueOption"
+        badges:
+          type: array
+          items:
+            type: string
+        totalAttempts:
+          type: integer
+        accuracyRate:
+          type: number
+
+    CueAccuracy:
+      type: object
+      required: [cueId, label, attempts, rate]
+      properties:
+        cueId:
+          $ref: "#/components/schemas/CueId"
+        label:
+          type: string
+        attempts:
+          type: integer
+        rate:
+          type: number
+
+    VectorAccuracy:
+      type: object
+      required: [vector, attempts, rate]
+      properties:
+        vector:
+          $ref: "#/components/schemas/Vector"
+        attempts:
+          type: integer
+        rate:
+          type: number
+
+    ProgressPoint:
+      type: object
+      required: [date, accuracyRate, attempts]
+      properties:
+        date:
+          type: string
+          format: date
+        accuracyRate:
+          type: number
+        attempts:
+          type: integer
+
+    AnalyticsSummary:
+      type: object
+      required:
+        [cueAccuracy, vectorAccuracy, calibrationScore, progressOverTime, totalAttempts]
+      properties:
+        cueAccuracy:
+          type: array
+          items:
+            $ref: "#/components/schemas/CueAccuracy"
+        vectorAccuracy:
+          type: array
+          items:
+            $ref: "#/components/schemas/VectorAccuracy"
+        calibrationScore:
+          type: number
+        progressOverTime:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProgressPoint"
+        totalAttempts:
+          type: integer
+
+    LeaderboardEntry:
+      type: object
+      required: [rank, name, xp, level, isCurrentUser]
+      properties:
+        rank:
+          type: integer
+        name:
+          type: string
+        xp:
+          type: integer
+        level:
+          $ref: "#/components/schemas/Level"
+        isCurrentUser:
+          type: boolean
+
+    OrgRole:
+      type: string
+      enum: [admin, employee]
+
+    RiskLevel:
+      type: string
+      enum: [low, medium, high]
+
+    Org:
+      type: object
+      required: [id, name, ssoDomain, seatLimit]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        ssoDomain:
+          type: string
+          description: Empty string means invite-only (no auto-join domain)
+        seatLimit:
+          type: integer
+
+    CreateOrgInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        ssoDomain:
+          type: string
+
+    UpdateOrgSettingsInput:
+      type: object
+      properties:
+        name:
+          type: string
+        ssoDomain:
+          type: string
+        seatLimit:
+          type: integer
+
+    OrgMember:
+      type: object
+      required: [id, name, email, role, status, joinedAt, accuracy, riskLevel]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: ["string", "null"]
+        role:
+          $ref: "#/components/schemas/OrgRole"
+        status:
+          type: string
+          enum: [invited, active, disabled]
+        joinedAt:
+          type: ["string", "null"]
+          format: date-time
+        accuracy:
+          type: integer
+          description: 0-100, computed from real practice attempts
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+
+    InviteMemberInput:
+      type: object
+      required: [email]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/OrgRole"
+
+    UpdateMemberRoleInput:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: "#/components/schemas/OrgRole"
+
+    TrainingAssignment:
+      type: object
+      required: [id, title, target, dueDate, requiredScenarios, createdAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        target:
+          type: string
+          description: '"all" or a specific member''s user id'
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        requiredScenarios:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateTrainingInput:
+      type: object
+      required: [title, target, dueDate]
+      properties:
+        title:
+          type: string
+        target:
+          type: string
+          description: '"all" or a specific member''s user id'
+        dueDate:
+          type: string
+          format: date
+        requiredScenarios:
+          type: integer
+
+    OrgMemberAccuracy:
+      type: object
+      required: [name, accuracy, risk]
+      properties:
+        name:
+          type: string
+        accuracy:
+          type: integer
+        risk:
+          $ref: "#/components/schemas/RiskLevel"
+
+    OrgAnalytics:
+      type: object
+      required:
+        [avgAccuracy, activeCount, atRisk, riskBands, participationRate, perMember]
+      properties:
+        avgAccuracy:
+          type: integer
+        activeCount:
+          type: integer
+        atRisk:
+          type: integer
+        riskBands:
+          type: object
+          required: [low, medium, high]
+          properties:
+            low:
+              type: integer
+            medium:
+              type: integer
+            high:
+              type: integer
+        participationRate:
+          type: integer
+          description: "% of active members with at least one practice attempt"
+        perMember:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrgMemberAccuracy"

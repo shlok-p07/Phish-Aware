@@ -10,7 +10,7 @@ const getIconForVector = (vector: string) => {
     case 'email': return <Mail className="w-8 h-8" />;
     case 'sms': return <Smartphone className="w-8 h-8" />;
     case 'voice': return <MessageSquare className="w-8 h-8" />;
-    case 'website': return <Globe className="w-8 h-8" />;
+    case 'web': return <Globe className="w-8 h-8" />;
     default: return <ShieldAlert className="w-8 h-8" />;
   }
 };
@@ -20,7 +20,7 @@ const getColorsForVector = (vector: string) => {
     case 'email': return "bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-800";
     case 'sms': return "bg-green-100 text-green-600 border-green-200 dark:bg-green-900/40 dark:text-green-400 dark:border-green-800";
     case 'voice': return "bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/40 dark:text-purple-400 dark:border-purple-800";
-    case 'website': return "bg-orange-100 text-orange-600 border-orange-200 dark:bg-orange-900/40 dark:text-orange-400 dark:border-orange-800";
+    case 'web': return "bg-orange-100 text-orange-600 border-orange-200 dark:bg-orange-900/40 dark:text-orange-400 dark:border-orange-800";
     default: return "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-700";
   }
 };

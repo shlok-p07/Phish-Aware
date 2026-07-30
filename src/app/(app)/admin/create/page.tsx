@@ -6,11 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useOrg } from "@/lib/org-store";
+import { useQueryClient } from "@tanstack/react-query";
+import { useGetOrg, useCreateOrg, getGetOrgQueryKey } from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CreateOrgPage() {
-  const { hasOrg, createOrg } = useOrg();
+  const { data: org } = useGetOrg({ query: { retry: false } });
+  const createOrg = useCreateOrg();
+  const queryClient = useQueryClient();
   const router = useRouter();
   const { toast } = useToast();
   const [name, setName] = useState("");
@@ -18,12 +21,20 @@ export default function CreateOrgPage() {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    createOrg(name, domain);
-    toast({
-      title: "Organization created",
-      description: `You're now the admin of ${name.trim() || "your organization"}.`,
-    });
-    router.push("/admin");
+    createOrg.mutate(
+      { data: { name, ssoDomain: domain } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetOrgQueryKey() });
+          toast({
+            title: "Organization created",
+            description: `You're now the admin of ${name.trim() || "your organization"}.`,
+          });
+          router.push("/admin");
+        },
+        onError: () => toast({ title: "Couldn't create organization", variant: "destructive" }),
+      },
+    );
   };
 
   return (
@@ -42,8 +53,8 @@ export default function CreateOrgPage() {
         <CardHeader className="bg-muted/30 border-b pb-4">
           <CardTitle className="text-lg">Organization details</CardTitle>
           <CardDescription className="text-sm font-medium">
-            {hasOrg
-              ? "You already belong to an organization. Creating a new one replaces it in this prototype."
+            {org
+              ? "You already belong to an organization, so this won't go through."
               : "You'll become the admin and can invite your team afterward."}
           </CardDescription>
         </CardHeader>

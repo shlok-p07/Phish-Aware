@@ -10,31 +10,60 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useOrg } from "@/lib/org-store";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useGetOrg,
+  useListOrgMembers,
+  useUpdateOrgSettings,
+  useDeleteOrg,
+  getGetOrgQueryKey,
+} from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminSettingsPage() {
-  const { settings, members, updateSettings, resetOrg } = useOrg();
+  const { data: org } = useGetOrg({ query: { retry: false } });
+  const { data: members = [] } = useListOrgMembers();
+  const queryClient = useQueryClient();
+  const updateSettingsMutation = useUpdateOrgSettings();
+  const deleteOrgMutation = useDeleteOrg();
   const { toast } = useToast();
   const router = useRouter();
 
-  const [name, setName] = useState(settings.name);
-  const [domain, setDomain] = useState(settings.ssoDomain);
-  const [seats, setSeats] = useState(String(settings.seatLimit));
+  const [name, setName] = useState(org?.name ?? "");
+  const [domain, setDomain] = useState(org?.ssoDomain ?? "");
+  const [seats, setSeats] = useState(String(org?.seatLimit ?? 0));
 
-  // Keep local form in sync if the store changes underneath.
+  // Keep local form in sync if the query data changes underneath.
   useEffect(() => {
-    setName(settings.name);
-    setDomain(settings.ssoDomain);
-    setSeats(String(settings.seatLimit));
-  }, [settings.name, settings.ssoDomain, settings.seatLimit]);
+    if (!org) return;
+    setName(org.name);
+    setDomain(org.ssoDomain);
+    setSeats(String(org.seatLimit));
+  }, [org]);
 
   const activeSeats = members.filter((m) => m.status === "active").length;
 
   const save = () => {
-    updateSettings({ name: name.trim(), ssoDomain: domain.trim(), seatLimit: Number(seats) || 0 });
-    toast({ title: "Settings saved" });
+    updateSettingsMutation.mutate(
+      { data: { name: name.trim(), ssoDomain: domain.trim(), seatLimit: Number(seats) || 0 } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetOrgQueryKey() });
+          toast({ title: "Settings saved" });
+        },
+        onError: (err) => toast({ title: "Couldn't save settings", description: err.message, variant: "destructive" }),
+      },
+    );
   };
+
+  const resetOrg = () =>
+    deleteOrgMutation.mutate(undefined, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetOrgQueryKey() });
+        toast({ title: "Organization deleted" });
+        router.push("/dashboard");
+      },
+    });
 
   return (
     <div className="space-y-6">
@@ -117,7 +146,7 @@ export default function AdminSettingsPage() {
             <div className="space-y-1">
               <p className="text-sm font-semibold">Delete organization</p>
               <p className="text-xs text-muted-foreground font-medium">
-                Removes the org, its members, and assignments from this browser.
+                Removes the org, unassigns its members, and deletes its training assignments.
               </p>
             </div>
             <AlertDialog>
@@ -131,14 +160,14 @@ export default function AdminSettingsPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete this organization?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This removes {settings.name} and all its members and assignments from this browser. This can&apos;t be undone.
+                    This removes {org?.name} and all its members and assignments. This can&apos;t be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     className="bg-destructive text-white hover:bg-destructive/90"
-                    onClick={() => { resetOrg(); toast({ title: "Organization deleted" }); router.push("/dashboard"); }}
+                    onClick={resetOrg}
                   >
                     Delete
                   </AlertDialogAction>

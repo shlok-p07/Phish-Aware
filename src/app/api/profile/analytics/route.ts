@@ -1,5 +1,4 @@
-import { db, attemptsTable, scenariosTable } from "@/db";
-import { eq } from "drizzle-orm";
+import { attemptsCollection, scenariosCollection } from "@/db";
 import { GetAnalyticsResponse } from "@/api-zod";
 import { CUE_LABELS, type CueId } from "@/server/cues";
 import { json, requireUserId, withErrorHandling } from "@/server/http";
@@ -8,9 +7,9 @@ export const dynamic = "force-dynamic";
 
 export const GET = withErrorHandling(async () => {
   const userId = await requireUserId();
-  const attempts = await db.select().from(attemptsTable).where(eq(attemptsTable.userId, userId));
-  const scenarios = await db.select().from(scenariosTable);
-  const scenarioMap = new Map(scenarios.map((s) => [s.id, s]));
+  const attempts = await (await attemptsCollection()).find({ userId }).toArray();
+  const scenarios = await (await scenariosCollection()).find().toArray();
+  const scenarioMap = new Map(scenarios.map((s) => [s._id.toString(), s]));
 
   const cueStats = new Map<string, { caught: number; missed: number }>();
   for (const a of attempts) {
@@ -34,7 +33,7 @@ export const GET = withErrorHandling(async () => {
 
   const vectorStats = new Map<string, { correct: number; total: number }>();
   for (const a of attempts) {
-    const scenario = scenarioMap.get(a.scenarioId);
+    const scenario = scenarioMap.get(a.scenarioId.toString());
     if (!scenario) continue;
     const s = vectorStats.get(scenario.vector) ?? { correct: 0, total: 0 };
     s.total++;
@@ -42,7 +41,7 @@ export const GET = withErrorHandling(async () => {
     vectorStats.set(scenario.vector, s);
   }
   const vectorAccuracy = Array.from(vectorStats.entries()).map(([vector, s]) => ({
-    vector: vector as "email" | "sms" | "voice" | "qr" | "social" | "website",
+    vector: vector as "email" | "sms" | "voice" | "qr" | "social" | "web",
     attempts: s.total,
     rate: s.correct / s.total,
   }));

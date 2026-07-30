@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { db, usersTable } from "@/db";
-import { eq } from "drizzle-orm";
+import { usersCollection } from "@/db";
 import { LoginBody, LoginResponse } from "@/api-zod";
 import { verifyPassword } from "@/server/password";
 import { createSession } from "@/server/session";
@@ -11,14 +10,11 @@ export const dynamic = "force-dynamic";
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const body = LoginBody.parse(await req.json());
-  const [user] = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.email, body.email))
-    .limit(1);
+  const users = await usersCollection();
+  const user = await users.findOne({ email: body.email });
   if (!user || !user.passwordHash || !verifyPassword(body.password, user.passwordHash)) {
     return error(401, "Invalid email or password.");
   }
-  await createSession(user.id);
+  await createSession(user._id);
   return json(LoginResponse.parse(toUserDto(user)));
 });
