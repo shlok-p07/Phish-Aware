@@ -1,6 +1,7 @@
 import { usersCollection } from "@/db";
 import { computeMemberStats, riskLevelForAccuracy } from "@/server/orgAnalytics";
 import { json, requireOrgAdmin, withErrorHandling } from "@/server/http";
+import { percent, round2 } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export const GET = withErrorHandling(async () => {
   });
 
   const n = active.length || 1;
-  const avgAccuracy = Math.round(perMember.reduce((sum, m) => sum + m.accuracy, 0) / n);
+  const avgAccuracy = round2(perMember.reduce((sum, m) => sum + m.accuracy, 0) / n);
   const atRisk = perMember.filter((m) => m.risk === "high").length;
   const riskBands = {
     low: perMember.filter((m) => m.risk === "low").length,
@@ -28,8 +29,8 @@ export const GET = withErrorHandling(async () => {
   // attempts are) -- "participation rate" (has this member logged at least
   // one practice attempt?) is the honest real-data proxy for engagement,
   // rather than fabricating a lesson-completion number with no backing data.
-  const participationRate = Math.round(
-    (active.filter((m) => (stats.get(m._id.toString())?.totalAttempts ?? 0) > 0).length / n) * 100,
+  const participationRate = percent(
+    active.filter((m) => (stats.get(m._id.toString())?.totalAttempts ?? 0) > 0).length / n,
   );
 
   return json({

@@ -2,6 +2,7 @@ import { attemptsCollection, scenariosCollection } from "@/db";
 import { GetAnalyticsResponse } from "@/api-zod";
 import { CUE_LABELS, type CueId } from "@/server/cues";
 import { json, requireUserId, withErrorHandling } from "@/server/http";
+import { percent } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export const GET = withErrorHandling(async () => {
     cueId: cueId as CueId,
     label: CUE_LABELS[cueId as CueId],
     attempts: s.caught + s.missed,
-    rate: s.caught / (s.caught + s.missed),
+    rate: percent(s.caught / (s.caught + s.missed)),
   }));
 
   const vectorStats = new Map<string, { correct: number; total: number }>();
@@ -43,7 +44,7 @@ export const GET = withErrorHandling(async () => {
   const vectorAccuracy = Array.from(vectorStats.entries()).map(([vector, s]) => ({
     vector: vector as "email" | "sms" | "voice" | "qr" | "social" | "web",
     attempts: s.total,
-    rate: s.correct / s.total,
+    rate: percent(s.correct / s.total),
   }));
 
   const calibrationScores = attempts.map((a) => {
@@ -52,7 +53,7 @@ export const GET = withErrorHandling(async () => {
   });
   const calibrationScore =
     calibrationScores.length > 0
-      ? calibrationScores.reduce((a, b) => a + b, 0) / calibrationScores.length
+      ? percent(calibrationScores.reduce((a, b) => a + b, 0) / calibrationScores.length)
       : 0;
 
   const dayStats = new Map<string, { correct: number; total: number }>();
@@ -65,7 +66,7 @@ export const GET = withErrorHandling(async () => {
   }
   const progressOverTime = Array.from(dayStats.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([date, s]) => ({ date: new Date(date), accuracyRate: s.correct / s.total, attempts: s.total }));
+    .map(([date, s]) => ({ date: new Date(date), accuracyRate: percent(s.correct / s.total), attempts: s.total }));
 
   return json(
     GetAnalyticsResponse.parse({

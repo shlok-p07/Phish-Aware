@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import { attemptsCollection } from "@/db";
+import { percent } from "@/lib/utils";
 
 export type RiskLevel = "low" | "medium" | "high";
 
@@ -30,7 +31,7 @@ export async function computeMemberStats(
   const result = new Map<string, { accuracy: number; totalAttempts: number }>();
   for (const [key, s] of stats) {
     result.set(key, {
-      accuracy: s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0,
+      accuracy: s.total > 0 ? percent(s.correct / s.total) : 0,
       totalAttempts: s.total,
     });
   }

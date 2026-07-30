@@ -14,6 +14,16 @@ export function initials(name: string) {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
+/** Round to 2 decimal places, e.g. 66.66666 -> 66.67. */
+export function round2(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+/** A 0-1 rate as a 0-100 percentage rounded to 2 decimals, e.g. 0.66666 -> 66.67. */
+export function percent(rate: number) {
+  return round2(rate * 100);
+}
+
 export function titleCase(string: string) {
   const stringList = string.split(" ");
   let finalString = "";

@@ -3,6 +3,7 @@ import { GetDashboardResponse } from "@/api-zod";
 import { xpProgress } from "@/server/leveling";
 import { CUE_LABELS, type CueId } from "@/server/cues";
 import { json, error, requireUserId, withErrorHandling } from "@/server/http";
+import { percent } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export const GET = withErrorHandling(async () => {
   const { xpIntoLevel, xpToNextLevel } = xpProgress(user.xp);
   const totalAttempts = attempts.length;
   const correctAttempts = attempts.filter((a) => a.correct).length;
-  const accuracyRate = totalAttempts > 0 ? correctAttempts / totalAttempts : 0;
+  const accuracyRate = totalAttempts > 0 ? percent(correctAttempts / totalAttempts) : 0;
 
   return json(
     GetDashboardResponse.parse({
