@@ -178,11 +178,13 @@ export default function AuthPage() {
 		loginMutation.mutate(
 			{ data: values },
 			{
-				onSuccess: () => {
+				onSuccess: (user) => {
+					queryClient.setQueryData(getGetCurrentUserQueryKey(), user);
 					queryClient.invalidateQueries({
 						queryKey: getGetCurrentUserQueryKey(),
 					});
 					toast({ title: "Signed in" });
+					router.replace("/dashboard");
 				},
 				onError: (err: any) => {
 					toast({
@@ -199,7 +201,8 @@ export default function AuthPage() {
 		signupMutation.mutate(
 			{ data: values },
 			{
-				onSuccess: () => {
+				onSuccess: (user) => {
+					queryClient.setQueryData(getGetCurrentUserQueryKey(), user);
 					queryClient.invalidateQueries({
 						queryKey: getGetCurrentUserQueryKey(),
 					});
@@ -207,6 +210,7 @@ export default function AuthPage() {
 						title: "Account created",
 						description: "Welcome to PhishAware.",
 					});
+					router.replace("/dashboard");
 				},
 				onError: (err: any) => {
 					toast({

@@ -49,6 +49,23 @@ export function error(status: number, message: string) {
  * Wrap a route handler so thrown HttpErrors and ZodErrors become clean JSON
  * responses (mirrors the Express error behavior).
  */
+function isDatabaseUnavailableError(err: unknown): boolean {
+  if (!(err instanceof Error)) {
+    return false;
+  }
+
+  const message = err.message.toLowerCase();
+  return (
+    message.includes("mongodb_uri") ||
+    message.includes("mongodb") ||
+    message.includes("connect") ||
+    message.includes("topology") ||
+    message.includes("econnrefused") ||
+    message.includes("timed out") ||
+    message.includes("server selection")
+  );
+}
+
 export function withErrorHandling<Args extends unknown[]>(
   handler: (...args: Args) => Promise<Response>,
 ) {
@@ -64,6 +81,10 @@ export function withErrorHandling<Args extends unknown[]>(
           { error: "Invalid request", details: err.issues },
           { status: 400 },
         );
+      }
+      if (isDatabaseUnavailableError(err)) {
+        console.error("Database unavailable during request", err);
+        return error(503, "Database unavailable. Please try again later.");
       }
       console.error(err);
       return error(500, "Internal server error");
