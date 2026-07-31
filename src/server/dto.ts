@@ -11,6 +11,10 @@ export function toUserDto(user: UserDoc) {
     streak: user.streak,
     badges: user.badges,
     calibrationScore: user.calibrationScore,
+    department: user.department,
+    workType: user.workType,
+    ageRange: user.ageRange,
+    phishingAwarenessScore: user.phishingAwarenessScore,
     onboardingCompleted: user.onboardingCompleted,
     createdAt: user.createdAt,
   };

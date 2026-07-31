@@ -36,6 +36,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
             passwordHash: hashPassword(body.password),
             isGuest: false,
             updatedAt: new Date(),
+            lastLoginAt: new Date(),
           },
         },
         { returnDocument: "after" },
@@ -62,9 +63,14 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     lastActiveDate: null,
     badges: [],
     calibrationScore: 0,
+    department: null,
+    workType: null,
+    ageRange: null,
+    phishingAwarenessScore: 0,
     onboardingCompleted: false,
     role: "employee" as const,
     status: "active" as const,
+    lastLoginAt: new Date(),
     ...specDefaults(),
   };
   try {

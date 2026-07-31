@@ -28,7 +28,7 @@ db = db.getSiblingDB("phishaware");
 // ---- shared enums (single source of truth) ----
 const ROLE = ["admin", "manager", "employee"];
 const VECTOR = ["email", "sms", "voice", "qr", "social", "web"];
-const LEVER = ["urgency", "curiosity", "authority", "fear", "reward", "trust"];
+const LEVER = ["urgency", "curiosity", "authority", "fear", "reward", "trust", "scarcity", "social_proof"];
 const CUE = ["sender_domain", "mismatched_link", "urgency_language",
   "generic_greeting", "credential_request", "spelling_grammar",
   "unexpected_attachment", "suspicious_qr"];
@@ -124,6 +124,13 @@ make("users", ["orgId", "email", "name", "role"], {
   jobRole: str, managerId: oidOrNull,
   status: { enum: ["invited", "active", "disabled"] },
   lastLoginAt: dateOrNull,
+  // App-specific, spec-unlisted (like isOnboarding on scenarios): self-reported
+  // from the onboarding survey, used to target generated phishing scenarios.
+  // Distinct from departmentId above, which is the org's formal department
+  // directory FK -- these are freeform/enum labels for content personalization,
+  // not org structure.
+  department: strOrNull, workType: strOrNull, ageRange: strOrNull,
+  phishingAwarenessScore: num,
 });
 
 make("profiles", ["userId", "orgId"], {

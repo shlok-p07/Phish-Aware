@@ -18,6 +18,14 @@ export interface User {
   streak: number;
   badges: string[];
   calibrationScore: number;
+  /** @nullable */
+  department?: string | null;
+  /** @nullable */
+  workType?: string | null;
+  /** @nullable */
+  ageRange?: string | null;
+  /** Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty. */
+  phishingAwarenessScore?: number;
   onboardingCompleted: boolean;
   createdAt: Date;
 }

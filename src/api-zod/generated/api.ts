@@ -30,6 +30,10 @@ export const GetCurrentUserResponse = zod.object({
   "streak": zod.number().int(),
   "badges": zod.array(zod.string()),
   "calibrationScore": zod.number(),
+  "department": zod.string().nullish(),
+  "workType": zod.string().nullish(),
+  "ageRange": zod.string().nullish(),
+  "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -61,6 +65,10 @@ export const SignupResponse = zod.object({
   "streak": zod.number().int(),
   "badges": zod.array(zod.string()),
   "calibrationScore": zod.number(),
+  "department": zod.string().nullish(),
+  "workType": zod.string().nullish(),
+  "ageRange": zod.string().nullish(),
+  "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -84,6 +92,10 @@ export const LoginResponse = zod.object({
   "streak": zod.number().int(),
   "badges": zod.array(zod.string()),
   "calibrationScore": zod.number(),
+  "department": zod.string().nullish(),
+  "workType": zod.string().nullish(),
+  "ageRange": zod.string().nullish(),
+  "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -102,6 +114,10 @@ export const ContinueAsGuestResponse = zod.object({
   "streak": zod.number().int(),
   "badges": zod.array(zod.string()),
   "calibrationScore": zod.number(),
+  "department": zod.string().nullish(),
+  "workType": zod.string().nullish(),
+  "ageRange": zod.string().nullish(),
+  "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -137,7 +153,10 @@ export const SubmitOnboardingQuizBody = zod.object({
   "answers": zod.array(zod.object({
   "scenarioId": zod.string(),
   "verdict": zod.boolean().describe('true if the user judged it phishing')
-}))
+})),
+  "department": zod.string().optional().describe('From the intro survey -- used to tailor generated scenarios.'),
+  "workType": zod.string().optional().describe('From the intro survey (e.g. Remote\/Hybrid\/Onsite).'),
+  "ageRange": zod.string().optional().describe('From the intro survey, e.g. \"25-34\".')
 })
 
 export const SubmitOnboardingQuizResponse = zod.object({

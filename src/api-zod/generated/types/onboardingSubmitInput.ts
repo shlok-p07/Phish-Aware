@@ -9,4 +9,10 @@ import type { OnboardingAnswer } from './onboardingAnswer';
 
 export interface OnboardingSubmitInput {
   answers: OnboardingAnswer[];
+  /** From the intro survey -- used to tailor generated scenarios. */
+  department?: string;
+  /** From the intro survey (e.g. Remote/Hybrid/Onsite). */
+  workType?: string;
+  /** From the intro survey, e.g. "25-34". */
+  ageRange?: string;
 }

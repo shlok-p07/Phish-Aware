@@ -45,6 +45,28 @@ export const ONBOARDING_SURVEY_QUESTIONS: SurveyQuestion[] = [
     ],
   },
   {
+    id: "department",
+    type: "select",
+    prompt: "Which department are you in?",
+    helper: "This lets us tailor scenarios to attacks your team actually sees.",
+    required: true,
+    options: ["IT", "Finance", "HR", "Management", "Engineering", "Sales", "Operations", "Other"],
+  },
+  {
+    id: "work_type",
+    type: "select",
+    prompt: "How do you mostly work?",
+    required: true,
+    options: ["Remote", "Hybrid", "Onsite"],
+  },
+  {
+    id: "age_range",
+    type: "select",
+    prompt: "What's your age range?",
+    required: true,
+    options: ["18-24", "25-34", "35-44", "45-54", "55+"],
+  },
+  {
     id: "email_volume",
     type: "select",
     prompt: "How many emails do you read on a typical day?",

@@ -16,5 +16,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     return error(401, "Invalid email or password.");
   }
   await createSession(user._id);
-  return json(LoginResponse.parse(toUserDto(user)));
+  const lastLoginAt = new Date();
+  await users.updateOne({ _id: user._id }, { $set: { lastLoginAt } });
+  return json(LoginResponse.parse(toUserDto({ ...user, lastLoginAt })));
 });

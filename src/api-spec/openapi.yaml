@@ -589,6 +589,15 @@ components:
             type: string
         calibrationScore:
           type: number
+        department:
+          type: ["string", "null"]
+        workType:
+          type: ["string", "null"]
+        ageRange:
+          type: ["string", "null"]
+        phishingAwarenessScore:
+          type: number
+          description: Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.
         onboardingCompleted:
           type: boolean
         createdAt:
@@ -673,6 +682,15 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OnboardingAnswer"
+        department:
+          type: string
+          description: From the intro survey -- used to tailor generated scenarios.
+        workType:
+          type: string
+          description: From the intro survey (e.g. Remote/Hybrid/Onsite).
+        ageRange:
+          type: string
+          description: From the intro survey, e.g. "25-34".
 
     OnboardingResult:
       type: object

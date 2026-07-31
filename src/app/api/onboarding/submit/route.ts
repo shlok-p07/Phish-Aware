@@ -25,11 +25,26 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   // Starting level based on diagnostic accuracy, with a small XP head start.
   const startingXp = Math.round(accuracy * 120);
   const level = levelForXp(startingXp);
+  // Phase 1 of the adaptive scenario generator: awareness score starts as
+  // diagnostic accuracy. It's what maps to generated-scenario difficulty
+  // (see src/server/attackProfiles.ts) -- distinct from calibrationScore,
+  // which measures confidence-vs-correctness, not raw detection accuracy.
+  const phishingAwarenessScore = accuracy;
 
   const users = await usersCollection();
   await users.updateOne(
     { _id: userId },
-    { $set: { xp: startingXp, level, onboardingCompleted: true } },
+    {
+      $set: {
+        xp: startingXp,
+        level,
+        onboardingCompleted: true,
+        phishingAwarenessScore,
+        department: body.department ?? null,
+        workType: body.workType ?? null,
+        ageRange: body.ageRange ?? null,
+      },
+    },
   );
 
   return json(

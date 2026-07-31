@@ -17,7 +17,7 @@ type Schema = Document;
 
 const ROLE = ["admin", "manager", "employee"];
 const VECTOR = ["email", "sms", "voice", "qr", "social", "web"];
-const LEVER = ["urgency", "curiosity", "authority", "fear", "reward", "trust"];
+const LEVER = ["urgency", "curiosity", "authority", "fear", "reward", "trust", "scarcity", "social_proof"];
 const CUE = [
   "sender_domain", "mismatched_link", "urgency_language", "generic_greeting",
   "credential_request", "spelling_grammar", "unexpected_attachment", "suspicious_qr",
@@ -120,6 +120,8 @@ export async function ensureSchema(db: Db): Promise<void> {
     jobRole: str, managerId: oidOrNull,
     status: { enum: ["invited", "active", "disabled"] },
     lastLoginAt: dateOrNull,
+    department: strOrNull, workType: strOrNull, ageRange: strOrNull,
+    phishingAwarenessScore: num,
   });
 
   await make(db, "profiles", ["userId", "orgId"], {

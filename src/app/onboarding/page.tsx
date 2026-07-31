@@ -26,9 +26,11 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<{scenarioId: string, verdict: boolean}[]>([]);
   const [result, setResult] = useState<OnboardingResult | null>(null);
-  // Survey answers gate the diagnostic: null means the survey is still open.
-  // TODO: nothing persists these yet — hook up an API call when the questions
-  // are final.
+  // Which step is showing. Kept separate from surveyAnswers (below) so going
+  // back to the survey doesn't wipe out what was already entered there.
+  const [showSurvey, setShowSurvey] = useState(true);
+  // Persisted (department/work_type/age_range) once the quiz submits below.
+  // Never reset to null after the first save -- see showSurvey above.
   const [surveyAnswers, setSurveyAnswers] = useState<OnboardingSurveyAnswerMap | null>(null);
 
   // If already onboarded, send away.
@@ -40,12 +42,21 @@ export default function OnboardingPage() {
 
   const handleSurveyComplete = (answers: OnboardingSurveyAnswerMap) => {
     setSurveyAnswers(answers);
+    setShowSurvey(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Full freedom to move between the two onboarding steps: neither one loses
+  // its answers when you leave it, since nothing is scored until the very
+  // last quiz question submits.
+  const handleBackToSurvey = () => {
+    setShowSurvey(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Step 1: the intro survey. The diagnostic keeps loading in the background
   // while they fill it in.
-  if (!surveyAnswers) {
+  if (showSurvey) {
     return (
       <div className="min-h-dvh flex flex-col bg-muted/30">
         <div className="max-w-3xl w-full mx-auto px-4 py-8 flex-1 flex flex-col">
@@ -61,12 +72,15 @@ export default function OnboardingPage() {
             </p>
             <h1 className="text-2xl md:text-3xl font-display font-bold">Tell us about you</h1>
             <p className="text-muted-foreground font-medium max-w-lg mx-auto">
-              Six quick questions. Your answers help us pitch the training at the
-              right level—then we'll run a short diagnostic.
+              A few quick questions. Your answers help us pitch the training at the
+              right level, then we'll run a short diagnostic.
             </p>
           </div>
 
-          <OnboardingSurvey onComplete={handleSurveyComplete} />
+          <OnboardingSurvey
+            onComplete={handleSurveyComplete}
+            initialAnswers={surveyAnswers ?? undefined}
+          />
 
         </div>
       </div>
@@ -81,6 +95,21 @@ export default function OnboardingPage() {
     return <div className="min-h-screen flex items-center justify-center">Failed to load diagnostic.</div>;
   }
 
+  // Reaching here means showSurvey is false, which only happens after
+  // handleSurveyComplete has set this -- but TS can't infer that invariant
+  // across the two separate state variables.
+  if (!surveyAnswers) {
+    return null;
+  }
+
+  // Answering doesn't score anything until the very last question submits,
+  // so there's no reason to lock someone out of reconsidering an earlier guess.
+  const handleBack = () => {
+    if (currentStep === 0) return;
+    setAnswers(prev => prev.slice(0, -1));
+    setCurrentStep(prev => prev - 1);
+  };
+
   const handleAnswer = (verdict: boolean) => {
     const currentQ = quizQuestions[currentStep];
     const newAnswers = [...answers, { scenarioId: currentQ.id, verdict }];
@@ -90,7 +119,14 @@ export default function OnboardingPage() {
       setCurrentStep(prev => prev + 1);
     } else {
       // Submit the quiz
-      submitQuiz.mutate({ data: { answers: newAnswers } }, {
+      submitQuiz.mutate({
+        data: {
+          answers: newAnswers,
+          department: surveyAnswers.department,
+          workType: surveyAnswers.work_type,
+          ageRange: surveyAnswers.age_range,
+        },
+      }, {
         onSuccess: (res) => {
           // The server marked onboarding complete; refresh the cached user so the
           // app-layout gate (which reads user.onboardingCompleted) lets us through.
@@ -210,9 +246,9 @@ export default function OnboardingPage() {
               <ShieldAlert className="mr-2 w-6 h-6" />
               Phishing
             </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
+            <Button
+              size="lg"
+              variant="outline"
               className="py-8 border border-success/20 bg-success/5 hover:bg-success hover:text-success-foreground text-success font-bold text-lg rounded-lg transition-all"
               onClick={() => handleAnswer(false)}
               disabled={submitQuiz.isPending}
@@ -222,6 +258,26 @@ export default function OnboardingPage() {
             </Button>
           </CardFooter>
         </Card>
+
+        {currentStep > 0 ? (
+          <Button
+            variant="ghost"
+            className="font-bold mt-4 mx-auto"
+            onClick={handleBack}
+            disabled={submitQuiz.isPending}
+          >
+            Back to previous question
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            className="font-bold mt-4 mx-auto"
+            onClick={handleBackToSurvey}
+            disabled={submitQuiz.isPending}
+          >
+            Back to survey answers
+          </Button>
+        )}
 
       </div>
     </div>

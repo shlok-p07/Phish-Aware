@@ -25,10 +25,12 @@ import {
 type Props = {
   onComplete: (answers: OnboardingSurveyAnswerMap) => void;
   isSubmitting?: boolean;
+  /** Pre-fills previously-entered answers when someone navigates back to this step. */
+  initialAnswers?: OnboardingSurveyAnswerMap;
 };
 
-export function OnboardingSurvey({ onComplete, isSubmitting }: Props) {
-  const [draft, setDraft] = useState<OnboardingSurveyAnswerMap>({});
+export function OnboardingSurvey({ onComplete, isSubmitting, initialAnswers }: Props) {
+  const [draft, setDraft] = useState<OnboardingSurveyAnswerMap>(initialAnswers ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const setAnswer = (id: string, value: string) => {

@@ -88,6 +88,15 @@ export default function PracticePage() {
     setSelectedCues([]);
   };
 
+  // Lets someone change their mind about the verdict itself, not just the
+  // cues/confidence after it -- nothing is scored until "Submit Verdict", so
+  // there's no reason to lock them out of reconsidering before that point.
+  const handleBackToInspect = () => {
+    setVerdict(null);
+    setSelectedCues([]);
+    setStep('inspect');
+  };
+
   const toggleCue = (cueId: string) => {
     setSelectedCues(prev =>
       prev.includes(cueId) ? prev.filter(id => id !== cueId) : [...prev, cueId]
@@ -354,6 +363,9 @@ export default function PracticePage() {
                       onClick={() => setStep('confidence')}
                     >
                       Next <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                    <Button variant="ghost" className="w-full font-bold" onClick={handleBackToInspect}>
+                      Back, change my verdict
                     </Button>
                   </div>
                 )}

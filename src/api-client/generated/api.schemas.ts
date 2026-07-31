@@ -69,6 +69,14 @@ export interface User {
   streak: number;
   badges: string[];
   calibrationScore: number;
+  /** @nullable */
+  department?: string | null;
+  /** @nullable */
+  workType?: string | null;
+  /** @nullable */
+  ageRange?: string | null;
+  /** Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty. */
+  phishingAwarenessScore?: number;
   onboardingCompleted: boolean;
   createdAt: string;
 }
@@ -114,6 +122,12 @@ export interface OnboardingAnswer {
 
 export interface OnboardingSubmitInput {
   answers: OnboardingAnswer[];
+  /** From the intro survey -- used to tailor generated scenarios. */
+  department?: string;
+  /** From the intro survey (e.g. Remote/Hybrid/Onsite). */
+  workType?: string;
+  /** From the intro survey, e.g. "25-34". */
+  ageRange?: string;
 }
 
 export interface OnboardingResult {

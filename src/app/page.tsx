@@ -7,84 +7,93 @@ import {
   Target,
   BarChart3,
   Trophy,
-  Mail,
-  MessageSquare,
-  Phone,
-  QrCode,
-  Users,
-  Globe,
   ArrowRight,
   CheckCircle2,
-  Lock,
+  Sparkles,
+  Gauge,
+  Repeat,
 } from "lucide-react";
-import { AntigravityBackground } from "@/components/antigravity-background";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { InboxPreview } from "@/components/inbox-preview";
+import { Reveal } from "@/components/reveal";
 import { getUserIdFromRequest } from "@/server/session";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: { absolute: "PhishAware — Train yourself to spot phishing" },
+  title: { absolute: "PhishAware: Email phishing training that actually sticks" },
   description:
-    "PhishAware is a gamified, hands-on training app that teaches you to recognize phishing across email, SMS, voice, QR codes, social media, and fake websites — all in a safe, simulated environment.",
+    "PhishAware trains employees to catch the phishing emails that get past filters, using realistic, fully simulated scenarios with instant feedback and analytics that prove detection skills are improving.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "PhishAware — Train yourself to spot phishing",
+    title: "PhishAware: Email phishing training that actually sticks",
     description:
-      "Learn to spot phishing through a gamified, simulated inbox. No real emails, links, or credentials involved.",
+      "Realistic, fully simulated phishing-email scenarios with instant feedback. No real emails, links, or credentials involved.",
     url: "/",
     type: "website",
   },
 };
 
-const FEATURES = [
+const WHY_EMAIL = [
   {
-    icon: BookOpen,
-    title: "Bite-sized lessons",
-    body: "Quick, focused guides that break down how each scam works and the exact cues that give it away.",
+    icon: Sparkles,
+    stat: "8",
+    label: "real phishing cues",
+    body: "The exact tell-tale signs attackers rely on: sender spoofing, urgency language, mismatched links, and more.",
   },
   {
-    icon: Target,
-    title: "Realistic practice",
-    body: "Judge simulated messages in a Gmail-like inbox, flag the red flags, and rate your confidence.",
+    icon: Gauge,
+    stat: "Instant",
+    label: "feedback loop",
+    body: "Every attempt is scored the moment it's submitted, with the specific cues caught and missed.",
   },
   {
-    icon: BarChart3,
-    title: "Personal analytics",
-    body: "Track accuracy over time, see which cues you miss most, and measure how well-calibrated your instincts are.",
-  },
-  {
-    icon: Trophy,
-    title: "Measurable progress",
-    body: "Track points, streaks, and milestones, and benchmark each person against their team as skills sharpen.",
+    icon: Repeat,
+    stat: "Personalized",
+    label: "to your role",
+    body: "Scenarios are shaped by your department and how you work, and get harder as your accuracy improves. Not one library everyone sees the same way.",
   },
 ];
 
-const VECTORS = [
-  { icon: Mail, label: "Email" },
-  { icon: MessageSquare, label: "SMS" },
-  { icon: Phone, label: "Voice" },
-  { icon: QrCode, label: "QR codes" },
-  { icon: Users, label: "Social" },
-  { icon: Globe, label: "Websites" },
+const FEATURES = [
+  {
+    icon: BookOpen,
+    title: "Lessons that build real pattern recognition",
+    body: "Short, focused breakdowns of how each email scam works and the specific detail that gives it away. Not a generic slideshow.",
+  },
+  {
+    icon: Target,
+    title: "Scenarios that fit the job, not a generic library",
+    body: "A Finance scenario leans on invoice fraud; IT gets fake help-desk requests. Every scenario plays out in a simulated inbox, judged the way it actually happens at work.",
+  },
+  {
+    icon: BarChart3,
+    title: "Analytics that hold up in a report",
+    body: "Per-person and team-wide accuracy trends, broken down by which cues each person consistently misses.",
+  },
+  {
+    icon: Trophy,
+    title: "Progress people actually keep up with",
+    body: "Streaks, levels, and a team leaderboard turn recurring training from a compliance checkbox into something people return to.",
+  },
 ];
 
 const STEPS = [
   {
     step: "1",
-    title: "Take a quick diagnostic",
-    body: "A short quiz sets your starting difficulty so training meets you where you are.",
+    title: "Take a 2-minute diagnostic",
+    body: "A short quiz plus a few questions about your role set your starting difficulty and shape which scenarios you'll see.",
   },
   {
     step: "2",
-    title: "Learn and practice",
-    body: "Work through lessons, then test yourself against realistic simulated scams.",
+    title: "Practice against scenarios built for you",
+    body: "Work through lessons, then judge simulated phishing emails modeled on the tactics your role actually faces.",
   },
   {
     step: "3",
-    title: "Watch your instincts sharpen",
-    body: "Get instant feedback on every attempt and track your progress as you improve.",
+    title: "Watch the miss rate drop",
+    body: "Every attempt comes with instant, specific feedback, so you can track improvement attempt by attempt.",
   },
 ];
 
@@ -95,15 +104,19 @@ export default async function LandingPage() {
     redirect("/dashboard");
   }
 
-  // Note: no `bg-background` on the wrapper below — <body> already supplies it,
-  // and an opaque background here would paint over the fixed particle canvas.
   return (
-    <div className="min-h-dvh flex flex-col">
-      <AntigravityBackground />
+    <div className="min-h-dvh flex flex-col relative">
+      {/* Subtle fixed background wash so the glass surfaces (header, pill,
+          footer, final CTA) have something soft to blur against. Small and
+          low-opacity on purpose -- not a dominant colored block. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-24 right-[-10%] w-md h-112 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 rounded-full bg-primary/[0.07] blur-3xl" />
+      </div>
 
       {/* Nav */}
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/50 backdrop-blur-xl">
+        <div className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="bg-primary text-primary-foreground p-2 rounded-lg shadow-sm">
               <Shield className="w-6 h-6" />
@@ -124,179 +137,191 @@ export default async function LandingPage() {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="max-w-6xl mx-auto px-4 md:px-8 pt-16 md:pt-24 pb-16 text-center">
-          <div className="inline-flex items-center gap-2 border border-border bg-muted/50 text-muted-foreground font-medium text-sm px-3.5 py-1.5 rounded-md mb-6">
-            <Lock className="w-3.5 h-3.5 text-primary" />
-            Fully simulated — no real emails, links, or credentials
+        <section className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 pt-16 md:pt-24 pb-16 md:pb-24">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <div>
+              <h1 className="text-4xl sm:text-5xl md:text-[3.25rem] font-display font-bold tracking-tight leading-[1.08]">
+                Train your team to catch the phishing emails your filters miss
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground mt-6 leading-relaxed">
+                Spam filters catch most phishing emails. Your employees are
+                the last line of defense against the ones that get through.
+                PhishAware adapts every scenario to each person's role and
+                department, so practice feels like the attacks they'd
+                actually get, and gives you the data to prove detection
+                skills are improving.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 mt-9">
+                <Button asChild size="lg" className="font-semibold group w-full sm:w-auto">
+                  <Link href="/auth">
+                    Get started
+                    <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="font-semibold w-full sm:w-auto">
+                  <Link href="/auth">Try as a guest</Link>
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground mt-4">
+                No credit card required. Free to start.
+              </p>
+            </div>
+            <div className="flex justify-center lg:justify-end">
+              <InboxPreview />
+            </div>
           </div>
-          <h1 className="text-4xl sm:text-5xl md:text-[3.5rem] font-display font-bold tracking-tight max-w-4xl mx-auto leading-[1.08]">
-            Security awareness training that measurably reduces risk
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mt-6 leading-relaxed">
-            PhishAware gives your team hands-on practice against realistic,
-            simulated attacks across every channel — and gives you the analytics
-            to prove detection skills are improving.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-9">
-            <Button
-              asChild
-              size="lg"
-              className="font-semibold group w-full sm:w-auto"
-            >
-              <Link href="/auth">
-                Get started
-                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="font-semibold w-full sm:w-auto"
-            >
-              <Link href="/auth">Try as a guest</Link>
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground mt-4">
-            No credit card required. Free to start.
-          </p>
         </section>
 
-        {/* Vectors */}
-        <section className="max-w-6xl mx-auto px-4 md:px-8 pb-16">
-          <p className="text-center text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-6">
-            Covering every angle attackers use
-          </p>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
-            {VECTORS.map((v) => (
-              <div
-                key={v.label}
-                className="flex flex-col items-center gap-2 bg-card border border-border rounded-lg py-5 px-2"
-              >
-                <v.icon className="w-7 h-7 text-primary" />
-                <span className="text-sm font-semibold">{v.label}</span>
+        {/* Why email, why this approach */}
+        <section className="bg-muted/40 border-y border-border">
+          <div className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 py-16 md:py-20">
+            <Reveal className="grid lg:grid-cols-[1fr_1.3fr] gap-10 lg:gap-16 items-center">
+              <div>
+                <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
+                  Email is still the #1 way attackers get in
+                </h2>
+                <p className="text-muted-foreground text-lg font-medium mt-4">
+                  So that's where PhishAware goes deep, instead of spreading
+                  thin across every channel.
+                </p>
               </div>
-            ))}
+              <div className="space-y-3">
+                {WHY_EMAIL.map((w) => (
+                  <div
+                    key={w.label}
+                    className="flex items-start gap-4 bg-card border border-border rounded-lg p-5"
+                  >
+                    <div className="shrink-0 bg-primary/10 text-primary rounded-lg p-2.5">
+                      <w.icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="font-display font-bold">
+                        <span className="text-lg">{w.stat}</span>{" "}
+                        <span className="text-sm font-semibold text-muted-foreground">
+                          {w.label}
+                        </span>
+                      </p>
+                      <p className="text-sm text-muted-foreground leading-relaxed mt-1">
+                        {w.body}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
           </div>
         </section>
 
         {/* Features */}
-        <section className="bg-muted/40 border-y border-border">
-          <div className="max-w-6xl mx-auto px-4 md:px-8 py-16 md:py-20">
+        <section className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 py-16 md:py-20">
+          <Reveal>
             <div className="text-center max-w-2xl mx-auto mb-12">
               <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
-                Everything you need to build real instincts
+                Built to change behavior, not just check a box
               </h2>
               <p className="text-muted-foreground text-lg font-medium mt-4">
-                Not just a quiz — a full training loop that adapts to you.
+                Annual training videos don't change what people click on.
+                Repeated, realistic practice does.
               </p>
             </div>
             <div className="grid sm:grid-cols-2 gap-4 md:gap-6">
               {FEATURES.map((f) => (
-                <div
-                  key={f.title}
-                  className="bg-card border border-border rounded-lg p-6 md:p-8"
-                >
+                <div key={f.title} className="bg-card border border-border rounded-lg p-6 md:p-8">
                   <div className="inline-flex bg-primary/10 text-primary p-3 rounded-lg mb-4">
                     <f.icon className="w-7 h-7" />
                   </div>
-                  <h3 className="text-xl font-display font-bold mb-2">
-                    {f.title}
-                  </h3>
+                  <h3 className="text-xl font-display font-bold mb-2">{f.title}</h3>
                   <p className="text-muted-foreground font-medium leading-relaxed">
                     {f.body}
                   </p>
                 </div>
               ))}
             </div>
-          </div>
+          </Reveal>
         </section>
 
         {/* How it works */}
-        <section className="max-w-6xl mx-auto px-4 md:px-8 py-16 md:py-20">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
-              How it works
-            </h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {STEPS.map((s) => (
-              <div key={s.step} className="text-center px-4">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary border border-primary/20 font-display font-bold text-xl flex items-center justify-center mx-auto mb-5">
-                  {s.step}
-                </div>
-                <h3 className="text-xl font-bold mb-2">{s.title}</h3>
-                <p className="text-muted-foreground font-medium leading-relaxed">
-                  {s.body}
-                </p>
+        <section className="bg-muted/40 border-y border-border">
+          <div className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 py-16 md:py-20">
+            <Reveal>
+              <div className="text-center max-w-2xl mx-auto mb-12">
+                <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
+                  How it works
+                </h2>
               </div>
-            ))}
+              <div className="grid md:grid-cols-3 gap-6 relative">
+                <div
+                  aria-hidden
+                  className="hidden md:block absolute top-6 left-[16.5%] right-[16.5%] h-px bg-border"
+                />
+                {STEPS.map((s) => (
+                  <div key={s.step} className="relative text-center px-4">
+                    <div className="w-12 h-12 rounded-lg bg-primary text-primary-foreground font-display font-bold text-xl flex items-center justify-center mx-auto mb-5 shadow-sm">
+                      {s.step}
+                    </div>
+                    <h3 className="text-xl font-bold mb-2">{s.title}</h3>
+                    <p className="text-muted-foreground font-medium leading-relaxed">
+                      {s.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
           </div>
         </section>
 
         {/* Trust / safety */}
-        <section className="max-w-4xl mx-auto px-4 md:px-8 pb-16">
-          <div className="bg-primary/5 border border-primary/20 rounded-lg p-8 md:p-10">
+        <section className="max-w-4xl mx-auto px-4 md:px-8 py-16 md:py-20">
+          <Reveal className="bg-primary/5 border border-primary/20 rounded-lg p-8 md:p-10">
             <div className="flex flex-col sm:flex-row items-start gap-5">
               <div className="bg-primary text-primary-foreground p-3 rounded-lg shrink-0">
                 <Shield className="w-7 h-7" />
               </div>
               <div className="space-y-3">
-                <h2 className="text-2xl font-display font-bold">
-                  Safe by design
-                </h2>
+                <h2 className="text-2xl font-display font-bold">Safe by design</h2>
                 <ul className="space-y-2">
                   {[
-                    "Every scenario is simulated — nothing you interact with is real.",
+                    "Every scenario is simulated. Nothing you interact with is real.",
                     "We never ask for real passwords, payment details, or account access.",
                     "Guest mode lets you try everything with zero commitment.",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-2.5">
                       <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                      <span className="font-medium text-foreground/90">
-                        {item}
-                      </span>
+                      <span className="font-medium text-foreground/90">{item}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             </div>
-          </div>
+          </Reveal>
         </section>
 
         {/* Final CTA */}
-        <section className="max-w-6xl mx-auto px-4 md:px-8 pb-20">
-          <div className="bg-primary text-primary-foreground rounded-lg px-6 py-14 md:py-16 text-center shadow-md">
+        <section className="max-w-5xl mx-auto px-4 md:px-8 pb-20">
+          <Reveal className="rounded-2xl border border-primary/15 bg-primary/5 backdrop-blur-xl px-6 py-14 md:py-16 text-center shadow-sm">
             <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight max-w-2xl mx-auto">
-              Ready to build a phishing-resistant team?
+              Give your team practice, not just a policy
             </h2>
-            <p className="text-primary-foreground/90 text-lg font-medium mt-4 max-w-xl mx-auto">
-              Give your people realistic, measurable practice against the
-              attacks they actually face.
+            <p className="text-muted-foreground text-lg font-medium mt-4 max-w-xl mx-auto">
+              Start free. See how your team performs against real phishing
+              tactics, then add the analytics leadership can actually act on.
             </p>
-            <Button
-              asChild
-              size="lg"
-              variant="secondary"
-              className="font-semibold mt-8 group"
-            >
+            <Button asChild size="lg" className="font-semibold mt-8 group">
               <Link href="/auth">
                 Get started
                 <ArrowRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
-          </div>
+          </Reveal>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border/60">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <footer className="border-t border-border/40 bg-background/50 backdrop-blur-xl">
+        <div className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Shield className="w-5 h-5" />
-            <span className="font-display font-bold text-foreground">
-              PhishAware
-            </span>
+            <span className="font-display font-bold text-foreground">PhishAware</span>
           </div>
           <p className="text-sm text-muted-foreground font-medium">
             Built for learning. No real emails, links, or credentials involved.

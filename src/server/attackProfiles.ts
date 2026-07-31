@@ -1,0 +1,116 @@
+/**
+ * Vocabulary for the adaptive scenario generator (see project's AI-pipeline
+ * spec). Persuasion tactics reuse the shared spec's `emotionalLevers` enum,
+ * extended from 6 to 8 values to match the product spec exactly (see
+ * phishaware-db/init/01-validators.js's LEVER const, kept in lockstep).
+ */
+export type PersuasionTacticId =
+  | "urgency"
+  | "authority"
+  | "fear"
+  | "trust"
+  | "curiosity"
+  | "reward"
+  | "scarcity"
+  | "social_proof";
+
+export const PERSUASION_TACTIC_LABELS: Record<PersuasionTacticId, string> = {
+  urgency: "Urgency",
+  authority: "Authority",
+  fear: "Fear",
+  trust: "Trust/Familiarity",
+  curiosity: "Curiosity",
+  reward: "Reward",
+  scarcity: "Scarcity",
+  social_proof: "Social Proof",
+};
+
+export type AttackTypeId =
+  | "credential_harvesting"
+  | "bec"
+  | "invoice_fraud"
+  | "payroll_fraud"
+  | "mfa_fatigue"
+  | "cloud_file_sharing_scam"
+  | "it_helpdesk_scam"
+  | "package_delivery_scam"
+  | "software_update_scam"
+  | "malware_delivery";
+
+export const ATTACK_TYPE_LABELS: Record<AttackTypeId, string> = {
+  credential_harvesting: "Credential Harvesting",
+  bec: "Business Email Compromise (BEC)",
+  invoice_fraud: "Invoice / Payment Fraud",
+  payroll_fraud: "Payroll / HR Fraud",
+  mfa_fatigue: "MFA Fatigue / Authentication Abuse",
+  cloud_file_sharing_scam: "Cloud File Sharing Scam",
+  it_helpdesk_scam: "IT Support / Help Desk Scam",
+  package_delivery_scam: "Package Delivery / Logistics Scam",
+  software_update_scam: "Software / Account Update Scam",
+  malware_delivery: "Malware Delivery",
+};
+
+/** Attack types applicable to every department, per the product spec. */
+const UNIVERSAL_ATTACK_TYPES: AttackTypeId[] = [
+  "credential_harvesting",
+  "mfa_fatigue",
+  "it_helpdesk_scam",
+  "package_delivery_scam",
+  "malware_delivery",
+];
+
+/**
+ * Department -> eligible attack types, layered on top of the universal set.
+ * Department options come from the onboarding survey (src/lib/onboarding-survey.ts).
+ * The spec's "Office workers"/"IT-heavy organizations" phrasing doesn't map
+ * 1:1 onto that survey's department list, so Engineering/Operations stand in
+ * for "Office workers" (cloud file sharing) and IT gets the software/account
+ * update scam that the spec scoped to "IT-heavy organizations".
+ */
+export const DEPARTMENT_ATTACK_TYPES: Record<string, AttackTypeId[]> = {
+  IT: [...UNIVERSAL_ATTACK_TYPES, "software_update_scam"],
+  Finance: [...UNIVERSAL_ATTACK_TYPES, "bec", "invoice_fraud"],
+  HR: [...UNIVERSAL_ATTACK_TYPES, "bec", "payroll_fraud"],
+  Management: [...UNIVERSAL_ATTACK_TYPES, "bec"],
+  Engineering: [...UNIVERSAL_ATTACK_TYPES, "cloud_file_sharing_scam"],
+  Operations: [...UNIVERSAL_ATTACK_TYPES, "cloud_file_sharing_scam", "payroll_fraud"],
+  Sales: UNIVERSAL_ATTACK_TYPES,
+  Other: UNIVERSAL_ATTACK_TYPES,
+};
+
+function eligibleAttackTypes(department: string | null): AttackTypeId[] {
+  if (!department) return UNIVERSAL_ATTACK_TYPES;
+  return DEPARTMENT_ATTACK_TYPES[department] ?? UNIVERSAL_ATTACK_TYPES;
+}
+
+function pickRandom<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)]!;
+}
+
+/**
+ * Phase 1 (new users, no interaction history yet): pick a persuasion tactic
+ * and an attack type at random, with the attack type constrained to what's
+ * realistic for the user's department. Phase 2 (tracked in project memory
+ * as not yet built) replaces the random picks with a 70/30 weighted
+ * explore/exploit choice over each user's per-tactic/attack-type accuracy
+ * history once enough attempts exist to compute it.
+ */
+export function pickAttackProfile(department: string | null): {
+  persuasionTactic: PersuasionTacticId;
+  attackType: AttackTypeId;
+} {
+  const tactics = Object.keys(PERSUASION_TACTIC_LABELS) as PersuasionTacticId[];
+  return {
+    persuasionTactic: pickRandom(tactics),
+    attackType: pickRandom(eligibleAttackTypes(department)),
+  };
+}
+
+/** Maps a 0-1 phishing awareness score to the 1-5 difficulty scale ScenarioDoc uses. */
+export function difficultyForAwarenessScore(score: number): number {
+  if (score >= 0.85) return 5;
+  if (score >= 0.65) return 4;
+  if (score >= 0.4) return 3;
+  if (score >= 0.2) return 2;
+  return 1;
+}
