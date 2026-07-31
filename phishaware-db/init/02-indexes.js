@@ -67,6 +67,16 @@ db.deliveries.createIndex({ userId: 1 });
 // invitations
 db.invitations.createIndex({ token: 1 }, { unique: true });
 db.invitations.createIndex({ orgId: 1, status: 1 });
+// At most one live invitation per address per org. Re-inviting someone whose
+// earlier invitation was revoked or accepted stays allowed.
+db.invitations.createIndex(
+  { orgId: 1, email: 1 },
+  { unique: true, partialFilterExpression: { status: "pending" } },
+);
+// The SSO callback's lookup: "is this address invited anywhere?"
+db.invitations.createIndex({ email: 1, status: 1 });
+// Deliberately no TTL on expiresAt -- expired invitations must stay queryable
+// for the audit trail. Expiry is computed by the app, not swept.
 
 // consents
 db.consents.createIndex({ userId: 1, policyType: 1 });
@@ -90,6 +100,35 @@ db.sessions.createIndex({ token: 1 }, { unique: true });
 db.sessions.createIndex({ userId: 1 });
 db.sessions.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+// ssoConnections — one live connection per org, and one org per email domain.
+// Both uniques are scoped to enabled:true so a domain can move to another org
+// once the first is disabled, and so several draft connections can coexist
+// without their empty allowedDomains arrays colliding in the multikey index.
+// The two orgId indexes need explicit names: sharing a key means their
+// auto-generated names would collide (IndexKeySpecsConflict).
+db.ssoConnections.createIndex({ orgId: 1 });
+db.ssoConnections.createIndex(
+  { orgId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { enabled: true },
+    name: "orgId_1_enabled_unique",
+  },
+);
+db.ssoConnections.createIndex(
+  { allowedDomains: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { enabled: true },
+    name: "allowedDomains_1_enabled_unique",
+  },
+);
+
+// ssoStates — single-use lookup plus a TTL sweep. Mongo's TTL monitor only
+// runs about once a minute, so the callback also checks expiresAt in code.
+db.ssoStates.createIndex({ state: 1 }, { unique: true });
+db.ssoStates.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 print("[02-indexes] all indexes created.");
 
 // unique index on each collection's PARTICULAR primary key (mirrors _id)
@@ -100,6 +139,7 @@ const PK = {
   assignments: "assignmentId", deliveries: "deliveryId", invitations: "invitationId",
   consents: "consentId", notifications: "notificationId", auditLogs: "auditLogId",
   surveys: "surveyId", surveyResponses: "surveyResponseId",
+  ssoConnections: "ssoConnectionId",
 };
 Object.entries(PK).forEach(function (e) {
   db[e[0]].createIndex({ [e[1]]: 1 }, { unique: true, name: e[1] + "_pk" });

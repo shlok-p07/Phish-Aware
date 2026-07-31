@@ -12,12 +12,16 @@ import {
 	ArrowRight,
 	Ghost,
 	HelpCircle,
+	Building2,
+	AlertTriangle,
+	X,
 } from "lucide-react";
 import {
 	useLogin,
 	useSignup,
 	useContinueAsGuest,
 	useGetCurrentUser,
+	useDiscoverSso,
 	getGetCurrentUserQueryKey,
 } from "@/api-client";
 import { Button } from "@/components/ui/button";
@@ -49,15 +53,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import zxcvbn from "zxcvbn";
-import { FcGoogle } from "react-icons/fc";
-import { FaMicrosoft } from "react-icons/fa";
+import {
+	PasswordStrength,
+	MIN_PASSWORD_SCORE,
+} from "@/components/password-strength";
+import { ssoErrorMessage } from "@/lib/sso-errors";
 
 const loginSchema = z.object({
 	email: z.string().email("Please enter a valid email"),
 	password: z.string().min(1, "Password is required"),
 });
-
-const MIN_PASSWORD_SCORE = 2;
 
 const signupSchema = z.object({
 	name: z.string().min(2, "Name must be at least 2 characters"),
@@ -69,53 +74,6 @@ const signupSchema = z.object({
 			message: "Password is too weak — try adding more words or symbols",
 		}),
 });
-
-const STRENGTH_LABELS = ["Very weak", "Weak", "Fair", "Good", "Strong"] as const;
-const STRENGTH_COLORS = [
-	"bg-destructive",
-	"bg-destructive",
-	"bg-amber-500",
-	"bg-emerald-500",
-	"bg-emerald-600",
-] as const;
-
-function PasswordStrength({ password }: { password: string }) {
-	if (!password) return null;
-	const { score, feedback } = zxcvbn(password);
-	const hint = feedback.warning || feedback.suggestions[0];
-	return (
-		<div className="space-y-1.5 pt-1">
-			<div className="flex gap-1.5">
-				{[0, 1, 2, 3].map((i) => (
-					<span
-						key={i}
-						className={cn(
-							"h-1.5 flex-1 rounded-full transition-colors",
-							i < score ? STRENGTH_COLORS[score] : "bg-muted",
-						)}
-					/>
-				))}
-			</div>
-			<div className="flex items-center justify-between gap-2">
-				<span
-					className={cn(
-						"text-xs font-semibold",
-						score >= MIN_PASSWORD_SCORE
-							? "text-muted-foreground"
-							: "text-destructive",
-					)}
-				>
-					{STRENGTH_LABELS[score]}
-				</span>
-				{hint && (
-					<span className="text-xs text-muted-foreground text-right">
-						{hint}
-					</span>
-				)}
-			</div>
-		</div>
-	);
-}
 
 export default function AuthPage() {
 	const router = useRouter();
@@ -129,7 +87,15 @@ export default function AuthPage() {
 	const loginMutation = useLogin();
 	const signupMutation = useSignup();
 	const guestMutation = useContinueAsGuest();
+	const discoverSso = useDiscoverSso();
 
+	const [ssoError, setSsoError] = useState<string | null>(null);
+	// Identifier-first sign-in: ask for the email, look up whether its domain
+	// has an identity provider, and only fall back to a password field when it
+	// doesn't. Saves SSO users from ever seeing a password box they can't use
+	// (their accounts have no password hash at all).
+	const [loginStep, setLoginStep] = useState<"email" | "password">("email");
+	const passwordRef = useRef<HTMLInputElement>(null);
 	const [tab, setTab] = useState("login");
 	const loginRef = useRef<HTMLDivElement>(null);
 	const signupRef = useRef<HTMLDivElement>(null);
@@ -146,6 +112,24 @@ export default function AuthPage() {
 		if (signupRef.current) ro.observe(signupRef.current);
 		return () => ro.disconnect();
 	}, [tab, isLoading, user]);
+
+	// The OIDC callback redirects here with ?sso_error=<code> on any failure.
+	// Rendered as a persistent inline banner rather than a toast: the user has
+	// just been bounced back from an external identity provider, so they're
+	// looking at this card, not at a corner notification that they may well
+	// have scrolled past or dismissed by clicking.
+	//
+	// The copy is looked up client-side, so nothing from the URL is ever
+	// rendered -- an unknown code falls back to a generic message.
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		const code = params.get("sso_error");
+		if (!code) return;
+		setSsoError(ssoErrorMessage(code));
+		params.delete("sso_error");
+		const query = params.toString();
+		router.replace(query ? `/auth?${query}` : "/auth");
+	}, [router]);
 
 	const isGuest = Boolean(user?.isGuest);
 
@@ -173,6 +157,36 @@ export default function AuthPage() {
 	});
 
 	const signupPassword = signupForm.watch("password");
+
+	// Move focus to the password box when it appears, so the flow stays
+	// keyboard-only from start to finish.
+	useEffect(() => {
+		if (loginStep === "password") passwordRef.current?.focus();
+	}, [loginStep]);
+
+	const goToPasswordStep = () => setLoginStep("password");
+
+	const onContinue = async () => {
+		if (!(await loginForm.trigger("email"))) return;
+		const email = loginForm.getValues("email");
+		discoverSso.mutate(
+			{ data: { email } },
+			{
+				onSuccess: (result) => {
+					if (result.ssoAvailable && result.startUrl) {
+						// A full navigation, not a fetch — the next hop is the IdP,
+						// which is cross-origin.
+						window.location.href = result.startUrl;
+						return;
+					}
+					goToPasswordStep();
+				},
+				// Discovery is a convenience, not a gate. If the lookup fails we
+				// still let them sign in with a password rather than dead-ending.
+				onError: goToPasswordStep,
+			},
+		);
+	};
 
 	const onLogin = (values: z.infer<typeof loginSchema>) => {
 		loginMutation.mutate(
@@ -248,15 +262,6 @@ export default function AuthPage() {
 		});
 	};
 
-	const onSso = (provider: "Google" | "Microsoft") => {
-		// SSO is not wired to an identity provider yet — surface a clear notice.
-		toast({
-			title: `${provider} SSO coming soon`,
-			description:
-				"Single sign-on isn't enabled yet. Use email and password for now.",
-		});
-	};
-
 	if (isLoading || (user && !user.isGuest)) return null;
 
 	return (
@@ -278,6 +283,29 @@ export default function AuthPage() {
 					</div>
 				</div>
 
+				{ssoError && (
+					<div
+						role="alert"
+						className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4"
+					>
+						<AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+						<div className="min-w-0 flex-1 space-y-0.5">
+							<p className="font-semibold text-sm text-foreground">
+								Single sign-on failed
+							</p>
+							<p className="text-sm text-muted-foreground">{ssoError}</p>
+						</div>
+						<button
+							type="button"
+							onClick={() => setSsoError(null)}
+							aria-label="Dismiss"
+							className="text-muted-foreground hover:text-foreground p-0.5 rounded shrink-0"
+						>
+							<X className="h-4 w-4" />
+						</button>
+					</div>
+				)}
+
 				<Card className="border shadow-sm">
 					<Tabs value={tab} onValueChange={setTab} className="w-full">
 						<CardHeader className="pb-4">
@@ -297,38 +325,6 @@ export default function AuthPage() {
 							</TabsList>
 						</CardHeader>
 						<CardContent className="pb-6">
-							<div className="grid grid-cols-2 gap-3">
-								<Button
-									type="button"
-									variant="outline"
-									className="py-6 rounded-lg font-semibold hover:cursor-pointer"
-									onClick={() => onSso("Google")}
-								>
-									<FcGoogle className="mr-2 h-5 w-5" />
-									Google
-								</Button>
-								<Button
-									type="button"
-									variant="outline"
-									className="py-6 rounded-lg font-semibold hover:cursor-pointer"
-									onClick={() => onSso("Microsoft")}
-								>
-									<FaMicrosoft className="mr-2 h-5 w-5 text-[#00a4ef]" />
-									Microsoft
-								</Button>
-							</div>
-
-							<div className="relative my-6">
-								<div className="absolute inset-0 flex items-center">
-									<span className="w-full border-t border-border" />
-								</div>
-								<div className="relative flex justify-center text-xs uppercase font-semibold tracking-wider">
-									<span className="bg-card px-4 text-muted-foreground">
-										Or continue with email
-									</span>
-								</div>
-							</div>
-
 							<div
 								style={{
 									height: height !== undefined ? `${height}px` : undefined,
@@ -346,65 +342,114 @@ export default function AuthPage() {
 											: "pointer-events-none absolute inset-x-0 top-0 opacity-0",
 									)}
 								>
-										<Form {...loginForm}>
-											<form
-												onSubmit={loginForm.handleSubmit(onLogin)}
-												className="space-y-4"
-											>
-												<FormField
-													control={loginForm.control}
-													name="email"
-													render={({ field }) => (
-														<FormItem>
-															<FormLabel className="font-semibold text-foreground">
-																Email
-															</FormLabel>
-															<FormControl>
-																<div className="relative">
-																	<Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-																	<Input
-																		placeholder="you@example.com"
-																		className="pl-10 py-6 rounded-lg bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
-																		{...field}
-																	/>
-																</div>
-															</FormControl>
-															<FormMessage />
-														</FormItem>
-													)}
-												/>
-												<FormField
-													control={loginForm.control}
-													name="password"
-													render={({ field }) => (
-														<FormItem>
-															<FormLabel className="font-semibold text-foreground">
-																Password
-															</FormLabel>
-															<FormControl>
-																<div className="relative">
-																	<Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-																	<Input
-																		type="password"
-																		placeholder="••••••••"
-																		className="pl-10 py-6 rounded-lg bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
-																		{...field}
-																	/>
-																</div>
-															</FormControl>
-															<FormMessage />
-														</FormItem>
-													)}
-												/>
-												<Button
-													type="submit"
-													className="w-full py-6 text-lg rounded-lg font-bold mt-2 shadow-sm hover:cursor-pointer"
-													disabled={loginMutation.isPending}
-												>
-													{loginMutation.isPending ? "Logging in..." : "Log in"}
-												</Button>
-											</form>
-										</Form>
+						<Form {...loginForm}>
+							<form
+								onSubmit={
+									loginStep === "email"
+										? (e) => {
+											e.preventDefault();
+											void onContinue();
+										}
+										: loginForm.handleSubmit(onLogin)
+								}
+								aria-label="Log in"
+								className="space-y-4"
+							>
+								<FormField
+									control={loginForm.control}
+									name="email"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="font-semibold text-foreground">
+												Email
+											</FormLabel>
+											<div className="relative">
+												<Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground pointer-events-none" />
+												<FormControl>
+													<Input
+														type="email"
+														autoComplete="username"
+														placeholder="you@example.com"
+														className="pl-10 py-6 rounded-lg bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
+														{...field}
+														onChange={(e) => {
+															field.onChange(e);
+															// Editing the address invalidates the lookup we
+															// already ran for the previous one.
+															if (loginStep === "password") {
+																setLoginStep("email");
+																loginForm.setValue("password", "");
+															}
+														}}
+													/>
+												</FormControl>
+											</div>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+
+								{/* Kept mounted but hidden so password managers still see a
+								    username + password pair and can offer to autofill. */}
+								<div className={cn(loginStep === "password" ? "block" : "hidden")}>
+									<FormField
+										control={loginForm.control}
+										name="password"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel className="font-semibold text-foreground">
+													Password
+												</FormLabel>
+												<div className="relative">
+													<Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground pointer-events-none" />
+													<FormControl>
+														<Input
+															type="password"
+															autoComplete="current-password"
+															placeholder="••••••••"
+															className="pl-10 py-6 rounded-lg bg-muted/50 border-transparent focus-visible:border-primary focus-visible:ring-primary focus-visible:bg-background transition-colors"
+															{...field}
+															ref={(el) => {
+																field.ref(el);
+																passwordRef.current = el;
+															}}
+														/>
+													</FormControl>
+												</div>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+								</div>
+
+								<Button
+									type="submit"
+									className="w-full py-5 text-base rounded-lg font-bold mt-2 shadow-sm hover:cursor-pointer"
+									disabled={loginMutation.isPending || discoverSso.isPending}
+								>
+									{loginStep === "email"
+										? discoverSso.isPending
+											? "Checking..."
+											: "Continue"
+										: loginMutation.isPending
+											? "Logging in..."
+											: "Log in"}
+								</Button>
+
+								{loginStep === "email" && (
+									// Escape hatch: someone whose domain has SSO but who also has
+									// a password (an admin who set the org up beforehand) would
+									// otherwise be redirected every time with no way back.
+									<button
+										type="button"
+										onClick={goToPasswordStep}
+										className="w-full text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors hover:cursor-pointer"
+									>
+										Use a password instead
+									</button>
+								)}
+							</form>
+						</Form>
 								</div>
 
 								<div
@@ -420,6 +465,7 @@ export default function AuthPage() {
 										<Form {...signupForm}>
 											<form
 												onSubmit={signupForm.handleSubmit(onSignup)}
+												aria-label="Sign up"
 												className="space-y-4"
 											>
 												<FormField

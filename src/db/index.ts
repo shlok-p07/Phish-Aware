@@ -9,3 +9,6 @@ export * from "./models/sessions";
 export * from "./models/organizations";
 export * from "./models/campaigns";
 export * from "./models/assignments";
+export * from "./models/invitations";
+export * from "./models/ssoConnections";
+export * from "./models/ssoStates";

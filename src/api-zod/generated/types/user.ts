@@ -6,10 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Level } from './level';
+import type { OrgRole } from './orgRole';
 
 export interface User {
   id: string;
   name: string;
+  /** The caller's own role. Needed so the UI can hide admin-only navigation instead of routing members to a page whose every request will 403. Telling someone their own role reveals nothing. */
+  role: OrgRole;
+  /** Whether the caller belongs to an organization. Distinguishes a member (no admin nav) from an unaffiliated user (offered the create-organization flow). */
+  hasOrg: boolean;
   /** @nullable */
   email?: string | null;
   isGuest: boolean;

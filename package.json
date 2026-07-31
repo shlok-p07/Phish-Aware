@@ -12,6 +12,8 @@
     "test": "bun test",
     "db:init": "set -a && . ./.env && set +a && mongosh \"$MONGODB_URI\" phishaware-db/init/01-validators.js && mongosh \"$MONGODB_URI\" phishaware-db/init/02-indexes.js",
     "db:seed": "tsx --env-file=.env src/db/seed-cli.ts",
+    "db:migrate-invites": "tsx --env-file=.env src/db/migrate-invited-users.ts",
+    "sso:demo": "tsx --env-file=.env src/db/sso-demo.ts",
     "codegen": "orval --config ./src/api-spec/orval.config.ts"
   },
   "dependencies": {
@@ -57,6 +59,7 @@
     "mongodb": "^6.11.0",
     "next": "^15.5.4",
     "next-themes": "^0.4.6",
+    "openid-client": "^6.8.4",
     "react": "^19.2.0",
     "react-day-picker": "^9.11.1",
     "react-dom": "^19.2.0",

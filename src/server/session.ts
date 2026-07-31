@@ -8,24 +8,52 @@ const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 /** Guest sessions (and all their data) live for one hour only. */
 export const GUEST_SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-/** Create a session row + set the httpOnly cookie. Returns the token. */
-export async function createSession(
-  userId: ObjectId,
-  ttlMs: number = SESSION_TTL_MS,
-): Promise<string> {
-  const token = randomBytes(32).toString("hex");
-  const createdAt = new Date();
-  const expiresAt = new Date(createdAt.getTime() + ttlMs);
-  const sessions = await sessionsCollection();
-  await sessions.insertOne({ _id: new ObjectId(), token, userId, createdAt, expiresAt });
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, {
+/** The attributes every session cookie carries, shared by both ways of setting it. */
+export interface SessionCookieOptions {
+  httpOnly: true;
+  sameSite: "lax";
+  secure: boolean;
+  expires: Date;
+  path: "/";
+}
+
+export function sessionCookieOptions(expiresAt: Date): SessionCookieOptions {
+  return {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     expires: expiresAt,
     path: "/",
-  });
+  };
+}
+
+/**
+ * Insert the session row only, without touching cookies.
+ *
+ * Split out from createSession so callers that build their own NextResponse --
+ * notably the OIDC callback, which has to redirect and set the cookie on the
+ * same response -- can attach the cookie themselves via res.cookies.set().
+ */
+export async function createSessionRow(
+  userId: ObjectId,
+  ttlMs: number = SESSION_TTL_MS,
+): Promise<{ token: string; expiresAt: Date }> {
+  const token = randomBytes(32).toString("hex");
+  const createdAt = new Date();
+  const expiresAt = new Date(createdAt.getTime() + ttlMs);
+  const sessions = await sessionsCollection();
+  await sessions.insertOne({ _id: new ObjectId(), token, userId, createdAt, expiresAt });
+  return { token, expiresAt };
+}
+
+/** Create a session row + set the httpOnly cookie. Returns the token. */
+export async function createSession(
+  userId: ObjectId,
+  ttlMs: number = SESSION_TTL_MS,
+): Promise<string> {
+  const { token, expiresAt } = await createSessionRow(userId, ttlMs);
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, token, sessionCookieOptions(expiresAt));
   return token;
 }
 

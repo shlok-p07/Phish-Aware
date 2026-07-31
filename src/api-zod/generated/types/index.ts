@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './acceptInvitationInput';
 export * from './analyticsSummary';
 export * from './attemptResult';
 export * from './authLoginInput';
@@ -17,7 +18,9 @@ export * from './cueId';
 export * from './cueOption';
 export * from './dashboardSummary';
 export * from './healthStatus';
+export * from './invitationLink';
 export * from './inviteMemberInput';
+export * from './inviteMemberResult';
 export * from './leaderboardEntry';
 export * from './lesson';
 export * from './lessonScreen';
@@ -32,18 +35,28 @@ export * from './orgAnalytics';
 export * from './orgAnalyticsRiskBands';
 export * from './orgMember';
 export * from './orgMemberAccuracy';
+export * from './orgMemberKind';
 export * from './orgMemberStatus';
 export * from './orgRole';
+export * from './orgSsoConnection';
 export * from './practiceScenario';
 export * from './progressPoint';
+export * from './publicInvitation';
 export * from './riskLevel';
 export * from './scenarioAttachment';
 export * from './scenarioLink';
 export * from './severity';
+export * from './ssoDiscoverInput';
+export * from './ssoDiscovery';
+export * from './ssoProviderKind';
+export * from './ssoTestCheck';
+export * from './ssoTestCheckStatus';
+export * from './ssoTestResult';
 export * from './submitAttemptInput';
 export * from './trainingAssignment';
 export * from './updateMemberRoleInput';
 export * from './updateOrgSettingsInput';
+export * from './upsertOrgSsoConnectionInput';
 export * from './user';
 export * from './vector';
 export * from './vectorAccuracy';

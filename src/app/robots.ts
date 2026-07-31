@@ -7,8 +7,18 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      // Keep the authenticated app and API out of search indexes.
-      disallow: ["/dashboard", "/practice", "/profile", "/settings", "/onboarding", "/api/"],
+      // Keep the authenticated app and API out of search indexes. /invite/
+      // is public but token-bearing, so it must never be crawled or indexed.
+      disallow: [
+        "/dashboard",
+        "/practice",
+        "/profile",
+        "/settings",
+        "/onboarding",
+        "/admin",
+        "/invite/",
+        "/api/",
+      ],
     },
     sitemap: `${siteUrl}/sitemap.xml`,
     host: siteUrl,

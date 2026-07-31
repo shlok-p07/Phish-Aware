@@ -9,6 +9,7 @@ const dbName = process.env.MONGODB_DB ?? "phishaware";
 const globalForMongo = globalThis as unknown as {
   _mongoClientPromise?: Promise<MongoClient>;
   _mongoProvisioned?: boolean;
+  _mongoProvisioning?: Promise<void>;
 };
 
 // Lazy on purpose: Next.js evaluates this module graph at build time (e.g.
@@ -38,7 +39,11 @@ function connect(): Promise<MongoClient> {
 function provisionOnce(client: MongoClient): void {
   if (globalForMongo._mongoProvisioned) return;
   globalForMongo._mongoProvisioned = true;
-  (async () => {
+  // Handle kept so closeMongoClient() can drain it. Short-lived CLI scripts
+  // (db:seed, db:migrate-invites) otherwise finish and close the pool while
+  // this is still mid-flight, which surfaces as a spurious
+  // MongoNotConnectedError on an operation nobody asked for.
+  globalForMongo._mongoProvisioning = (async () => {
     const db = client.db(dbName);
     await provisionDatabase(db);
     const { seedIfEmpty } = await import("@/server/seed");
@@ -62,7 +67,12 @@ export async function getCollection<T extends Document>(name: string): Promise<C
 
 export async function closeMongoClient(): Promise<void> {
   if (!globalForMongo._mongoClientPromise) return;
+  // Let any in-flight provisioning settle first -- closing under it would
+  // abort operations mid-run. Safe from the deadlock that stops getDb() from
+  // awaiting the same promise, since provisioning never calls this.
+  await globalForMongo._mongoProvisioning?.catch(() => {});
   const client = await globalForMongo._mongoClientPromise;
   await client.close();
   globalForMongo._mongoClientPromise = undefined;
+  globalForMongo._mongoProvisioning = undefined;
 }

@@ -25,6 +25,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AcceptInvitationInput,
   AnalyticsSummary,
   AttemptResult,
   AuthLoginInput,
@@ -34,7 +35,9 @@ import type {
   CueOption,
   DashboardSummary,
   HealthStatus,
+  InvitationLink,
   InviteMemberInput,
+  InviteMemberResult,
   LeaderboardEntry,
   Lesson,
   LessonSummary,
@@ -44,11 +47,17 @@ import type {
   Org,
   OrgAnalytics,
   OrgMember,
+  OrgSsoConnection,
   PracticeScenario,
+  PublicInvitation,
+  SsoDiscoverInput,
+  SsoDiscovery,
+  SsoTestResult,
   SubmitAttemptInput,
   TrainingAssignment,
   UpdateMemberRoleInput,
   UpdateOrgSettingsInput,
+  UpsertOrgSsoConnectionInput,
   User
 } from './api.schemas';
 
@@ -1835,7 +1844,8 @@ export const getListOrgMembersUrl = () => {
 }
 
 /**
- * @summary List the organization's members with real accuracy/risk stats
+ * A merged list. Rows with kind="member" are user accounts; rows with kind="invitation" are outstanding invitations that nobody has accepted yet. Their `id` fields come from different collections, so callers must branch on `kind` before calling any per-row endpoint.
+ * @summary List members and pending invitations, with real accuracy/risk stats
  */
 export const listOrgMembers = async ( options?: Parameters<typeof customFetch>[1]): Promise<OrgMember[]> => {
 
@@ -1906,7 +1916,7 @@ export function useListOrgMembers<TData = Awaited<ReturnType<typeof listOrgMembe
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary List the organization's members with real accuracy/risk stats
+ * @summary List members and pending invitations, with real accuracy/risk stats
  */
 
 export function useListOrgMembers<TData = Awaited<ReturnType<typeof listOrgMembers>>, TError = ErrorType<void>>(
@@ -1936,11 +1946,12 @@ export const getInviteOrgMemberUrl = () => {
 }
 
 /**
- * @summary Invite a member (creates their account with status "invited")
+ * Creates an invitation, not a user account. The response carries the accept link exactly once, at the moment the admin needs to copy it — the members list deliberately omits it. Use /org/invitations/{id}/link to retrieve it again later.
+ * @summary Invite a member (creates a pending invitation and returns its link)
  */
-export const inviteOrgMember = async (inviteMemberInput: InviteMemberInput, options?: Parameters<typeof customFetch>[1]): Promise<OrgMember> => {
+export const inviteOrgMember = async (inviteMemberInput: InviteMemberInput, options?: Parameters<typeof customFetch>[1]): Promise<InviteMemberResult> => {
 
-  return customFetch<OrgMember>(getInviteOrgMemberUrl(),
+  return customFetch<InviteMemberResult>(getInviteOrgMemberUrl(),
   {
     ...options,
     method: 'POST',
@@ -1985,7 +1996,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type InviteOrgMemberMutationError = ErrorType<void>
 
     /**
- * @summary Invite a member (creates their account with status "invited")
+ * @summary Invite a member (creates a pending invitation and returns its link)
  */
 export const useInviteOrgMember = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inviteOrgMember>>, TError,{data: BodyType<InviteMemberInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1996,6 +2007,783 @@ export const useInviteOrgMember = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getInviteOrgMemberMutationOptions(options), queryClient);
+    }
+
+export const getRevokeOrgInvitationUrl = (id: string,) => {
+
+
+
+
+  return `/api/org/invitations/${id}`
+}
+
+/**
+ * @summary Revoke a pending invitation
+ */
+export const revokeOrgInvitation = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRevokeOrgInvitationUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeOrgInvitationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeOrgInvitation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeOrgInvitation>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['revokeOrgInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeOrgInvitation>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  revokeOrgInvitation(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeOrgInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof revokeOrgInvitation>>>
+
+    export type RevokeOrgInvitationMutationError = ErrorType<void>
+
+    /**
+ * @summary Revoke a pending invitation
+ */
+export const useRevokeOrgInvitation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeOrgInvitation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof revokeOrgInvitation>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getRevokeOrgInvitationMutationOptions(options), queryClient);
+    }
+
+export const getGetOrgInvitationLinkUrl = (id: string,) => {
+
+
+
+
+  return `/api/org/invitations/${id}/link`
+}
+
+/**
+ * POST rather than GET so react-query won't cache a bearer token in the client. The token is unchanged — use /resend to rotate it.
+ * @summary Retrieve an existing invitation's accept link
+ */
+export const getOrgInvitationLink = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<InvitationLink> => {
+
+  return customFetch<InvitationLink>(getGetOrgInvitationLinkUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOrgInvitationLinkMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getOrgInvitationLink>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof getOrgInvitationLink>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['getOrgInvitationLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof getOrgInvitationLink>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  getOrgInvitationLink(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GetOrgInvitationLinkMutationResult = NonNullable<Awaited<ReturnType<typeof getOrgInvitationLink>>>
+
+    export type GetOrgInvitationLinkMutationError = ErrorType<void>
+
+    /**
+ * @summary Retrieve an existing invitation's accept link
+ */
+export const useGetOrgInvitationLink = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getOrgInvitationLink>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof getOrgInvitationLink>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getGetOrgInvitationLinkMutationOptions(options), queryClient);
+    }
+
+export const getResendOrgInvitationUrl = (id: string,) => {
+
+
+
+
+  return `/api/org/invitations/${id}/resend`
+}
+
+/**
+ * Issues a brand-new token, invalidating the previous link. This is the "I think that link leaked" action.
+ * @summary Rotate an invitation's token and extend its expiry
+ */
+export const resendOrgInvitation = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<InvitationLink> => {
+
+  return customFetch<InvitationLink>(getResendOrgInvitationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResendOrgInvitationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendOrgInvitation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resendOrgInvitation>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['resendOrgInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resendOrgInvitation>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  resendOrgInvitation(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResendOrgInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof resendOrgInvitation>>>
+
+    export type ResendOrgInvitationMutationError = ErrorType<void>
+
+    /**
+ * @summary Rotate an invitation's token and extend its expiry
+ */
+export const useResendOrgInvitation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendOrgInvitation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resendOrgInvitation>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getResendOrgInvitationMutationOptions(options), queryClient);
+    }
+
+export const getGetInvitationUrl = (token: string,) => {
+
+
+
+
+  return `/api/invitations/${token}`
+}
+
+/**
+ * Public — the token is the credential. No session required.
+ * @summary Look up a public invitation by its token
+ */
+export const getInvitation = async (token: string, options?: Parameters<typeof customFetch>[1]): Promise<PublicInvitation> => {
+
+  return customFetch<PublicInvitation>(getGetInvitationUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetInvitationQueryKey = (token: string,) => {
+    return [
+    `/api/invitations/${token}`
+    ] as const;
+    }
+
+
+export const getGetInvitationQueryOptions = <TData = Awaited<ReturnType<typeof getInvitation>>, TError = ErrorType<void>>(token: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInvitation>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetInvitationQueryKey(token);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getInvitation>>> = ({ signal }) => getInvitation(token, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: token !== null && token !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getInvitation>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetInvitationQueryResult = NonNullable<Awaited<ReturnType<typeof getInvitation>>>
+export type GetInvitationQueryError = ErrorType<void>
+
+
+export function useGetInvitation<TData = Awaited<ReturnType<typeof getInvitation>>, TError = ErrorType<void>>(
+ token: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInvitation>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInvitation>>,
+          TError,
+          Awaited<ReturnType<typeof getInvitation>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetInvitation<TData = Awaited<ReturnType<typeof getInvitation>>, TError = ErrorType<void>>(
+ token: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInvitation>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInvitation>>,
+          TError,
+          Awaited<ReturnType<typeof getInvitation>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetInvitation<TData = Awaited<ReturnType<typeof getInvitation>>, TError = ErrorType<void>>(
+ token: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInvitation>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Look up a public invitation by its token
+ */
+
+export function useGetInvitation<TData = Awaited<ReturnType<typeof getInvitation>>, TError = ErrorType<void>>(
+ token: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInvitation>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetInvitationQueryOptions(token,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAcceptInvitationUrl = (token: string,) => {
+
+
+
+
+  return `/api/invitations/${token}/accept`
+}
+
+/**
+ * Two modes. Password mode (`password` present) creates a new account. Adopt mode (empty body, authenticated session) attaches the caller's existing account to the org — used when they already had a personal PhishAware account under the invited address.
+ * @summary Accept an invitation and sign in
+ */
+export const acceptInvitation = async (token: string,
+    acceptInvitationInput?: AcceptInvitationInput, options?: Parameters<typeof customFetch>[1]): Promise<User> => {
+
+  return customFetch<User>(getAcceptInvitationUrl(token),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(acceptInvitationInput)
+  }
+);}
+
+
+
+
+
+export const getAcceptInvitationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptInvitation>>, TError,{token: string;data?: BodyType<AcceptInvitationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptInvitation>>, TError,{token: string;data?: BodyType<AcceptInvitationInput>}, TContext> => {
+
+const mutationKey = ['acceptInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptInvitation>>, {token: string;data?: BodyType<AcceptInvitationInput>}> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  acceptInvitation(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof acceptInvitation>>>
+    export type AcceptInvitationMutationBody = BodyType<AcceptInvitationInput> | undefined
+    export type AcceptInvitationMutationError = ErrorType<void>
+
+    /**
+ * @summary Accept an invitation and sign in
+ */
+export const useAcceptInvitation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptInvitation>>, TError,{token: string;data?: BodyType<AcceptInvitationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof acceptInvitation>>,
+        TError,
+        {token: string;data?: BodyType<AcceptInvitationInput>},
+        TContext
+      > => {
+      return useMutation(getAcceptInvitationMutationOptions(options), queryClient);
+    }
+
+export const getDiscoverSsoUrl = () => {
+
+
+
+
+  return `/api/auth/sso/discover`
+}
+
+/**
+ * Public and deliberately domain-granular: two addresses at the same domain get byte-identical responses, so this cannot be used to test whether a particular person has an account. Everything account-specific happens after the IdP has authenticated the caller.
+ * @summary Ask whether an email domain has single sign-on configured
+ */
+export const discoverSso = async (ssoDiscoverInput: SsoDiscoverInput, options?: Parameters<typeof customFetch>[1]): Promise<SsoDiscovery> => {
+
+  return customFetch<SsoDiscovery>(getDiscoverSsoUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(ssoDiscoverInput)
+  }
+);}
+
+
+
+
+
+export const getDiscoverSsoMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discoverSso>>, TError,{data: BodyType<SsoDiscoverInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof discoverSso>>, TError,{data: BodyType<SsoDiscoverInput>}, TContext> => {
+
+const mutationKey = ['discoverSso'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof discoverSso>>, {data: BodyType<SsoDiscoverInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  discoverSso(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DiscoverSsoMutationResult = NonNullable<Awaited<ReturnType<typeof discoverSso>>>
+    export type DiscoverSsoMutationBody = BodyType<SsoDiscoverInput>
+    export type DiscoverSsoMutationError = ErrorType<void>
+
+    /**
+ * @summary Ask whether an email domain has single sign-on configured
+ */
+export const useDiscoverSso = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discoverSso>>, TError,{data: BodyType<SsoDiscoverInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof discoverSso>>,
+        TError,
+        {data: BodyType<SsoDiscoverInput>},
+        TContext
+      > => {
+      return useMutation(getDiscoverSsoMutationOptions(options), queryClient);
+    }
+
+export const getGetOrgSsoConnectionUrl = () => {
+
+
+
+
+  return `/api/org/sso`
+}
+
+/**
+ * @summary Get this organization's SSO connection (secret redacted)
+ */
+export const getOrgSsoConnection = async ( options?: Parameters<typeof customFetch>[1]): Promise<OrgSsoConnection> => {
+
+  return customFetch<OrgSsoConnection>(getGetOrgSsoConnectionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOrgSsoConnectionQueryKey = () => {
+    return [
+    `/api/org/sso`
+    ] as const;
+    }
+
+
+export const getGetOrgSsoConnectionQueryOptions = <TData = Awaited<ReturnType<typeof getOrgSsoConnection>>, TError = ErrorType<void>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOrgSsoConnection>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOrgSsoConnectionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOrgSsoConnection>>> = ({ signal }) => getOrgSsoConnection({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrgSsoConnection>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetOrgSsoConnectionQueryResult = NonNullable<Awaited<ReturnType<typeof getOrgSsoConnection>>>
+export type GetOrgSsoConnectionQueryError = ErrorType<void>
+
+
+export function useGetOrgSsoConnection<TData = Awaited<ReturnType<typeof getOrgSsoConnection>>, TError = ErrorType<void>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOrgSsoConnection>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOrgSsoConnection>>,
+          TError,
+          Awaited<ReturnType<typeof getOrgSsoConnection>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOrgSsoConnection<TData = Awaited<ReturnType<typeof getOrgSsoConnection>>, TError = ErrorType<void>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOrgSsoConnection>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOrgSsoConnection>>,
+          TError,
+          Awaited<ReturnType<typeof getOrgSsoConnection>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOrgSsoConnection<TData = Awaited<ReturnType<typeof getOrgSsoConnection>>, TError = ErrorType<void>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOrgSsoConnection>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get this organization's SSO connection (secret redacted)
+ */
+
+export function useGetOrgSsoConnection<TData = Awaited<ReturnType<typeof getOrgSsoConnection>>, TError = ErrorType<void>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOrgSsoConnection>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetOrgSsoConnectionQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpsertOrgSsoConnectionUrl = () => {
+
+
+
+
+  return `/api/org/sso`
+}
+
+/**
+ * @summary Create or update this organization's SSO connection
+ */
+export const upsertOrgSsoConnection = async (upsertOrgSsoConnectionInput: UpsertOrgSsoConnectionInput, options?: Parameters<typeof customFetch>[1]): Promise<OrgSsoConnection> => {
+
+  return customFetch<OrgSsoConnection>(getUpsertOrgSsoConnectionUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(upsertOrgSsoConnectionInput)
+  }
+);}
+
+
+
+
+
+export const getUpsertOrgSsoConnectionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertOrgSsoConnection>>, TError,{data: BodyType<UpsertOrgSsoConnectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof upsertOrgSsoConnection>>, TError,{data: BodyType<UpsertOrgSsoConnectionInput>}, TContext> => {
+
+const mutationKey = ['upsertOrgSsoConnection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upsertOrgSsoConnection>>, {data: BodyType<UpsertOrgSsoConnectionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  upsertOrgSsoConnection(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpsertOrgSsoConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof upsertOrgSsoConnection>>>
+    export type UpsertOrgSsoConnectionMutationBody = BodyType<UpsertOrgSsoConnectionInput>
+    export type UpsertOrgSsoConnectionMutationError = ErrorType<void>
+
+    /**
+ * @summary Create or update this organization's SSO connection
+ */
+export const useUpsertOrgSsoConnection = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertOrgSsoConnection>>, TError,{data: BodyType<UpsertOrgSsoConnectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof upsertOrgSsoConnection>>,
+        TError,
+        {data: BodyType<UpsertOrgSsoConnectionInput>},
+        TContext
+      > => {
+      return useMutation(getUpsertOrgSsoConnectionMutationOptions(options), queryClient);
+    }
+
+export const getDeleteOrgSsoConnectionUrl = () => {
+
+
+
+
+  return `/api/org/sso`
+}
+
+/**
+ * @summary Remove this organization's SSO connection
+ */
+export const deleteOrgSsoConnection = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteOrgSsoConnectionUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteOrgSsoConnectionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOrgSsoConnection>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteOrgSsoConnection>>, TError,void, TContext> => {
+
+const mutationKey = ['deleteOrgSsoConnection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteOrgSsoConnection>>, void> = () => {
+
+
+          return  deleteOrgSsoConnection(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteOrgSsoConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteOrgSsoConnection>>>
+
+    export type DeleteOrgSsoConnectionMutationError = ErrorType<void>
+
+    /**
+ * @summary Remove this organization's SSO connection
+ */
+export const useDeleteOrgSsoConnection = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOrgSsoConnection>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteOrgSsoConnection>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDeleteOrgSsoConnectionMutationOptions(options), queryClient);
+    }
+
+export const getTestOrgSsoConnectionUrl = () => {
+
+
+
+
+  return `/api/org/sso/test`
+}
+
+/**
+ * Validates discovery, issuer exact-match, endpoints, PKCE support, JWKS, and client credentials — with no browser round trip and no user interaction. Catches the common misconfigurations before anyone attempts a real sign-in.
+ * @summary Run server-side preflight checks against the configured IdP
+ */
+export const testOrgSsoConnection = async ( options?: Parameters<typeof customFetch>[1]): Promise<SsoTestResult> => {
+
+  return customFetch<SsoTestResult>(getTestOrgSsoConnectionUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTestOrgSsoConnectionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testOrgSsoConnection>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof testOrgSsoConnection>>, TError,void, TContext> => {
+
+const mutationKey = ['testOrgSsoConnection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testOrgSsoConnection>>, void> = () => {
+
+
+          return  testOrgSsoConnection(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestOrgSsoConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof testOrgSsoConnection>>>
+
+    export type TestOrgSsoConnectionMutationError = ErrorType<void>
+
+    /**
+ * @summary Run server-side preflight checks against the configured IdP
+ */
+export const useTestOrgSsoConnection = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testOrgSsoConnection>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof testOrgSsoConnection>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getTestOrgSsoConnectionMutationOptions(options), queryClient);
     }
 
 export const getUpdateOrgMemberRoleUrl = (id: string,) => {

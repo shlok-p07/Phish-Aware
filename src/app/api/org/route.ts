@@ -9,17 +9,9 @@ import {
   type OrganizationDoc,
 } from "@/db";
 import { json, error, requireUserId, requireOrgAdmin, withErrorHandling } from "@/server/http";
+import { toOrgDto } from "@/server/org";
 
 export const dynamic = "force-dynamic";
-
-function toOrgDto(org: OrganizationDoc) {
-  return {
-    id: org._id.toString(),
-    name: org.name,
-    ssoDomain: org.domain ?? "",
-    seatLimit: org.settings.seatLimit,
-  };
-}
 
 /** Fetch the current user's org, or 404 if they don't belong to one yet. */
 export const GET = withErrorHandling(async () => {

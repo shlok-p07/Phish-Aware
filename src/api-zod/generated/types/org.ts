@@ -9,7 +9,12 @@
 export interface Org {
   id: string;
   name: string;
-  /** Empty string means invite-only (no auto-join domain) */
+  /** The organization's primary email domain, for display. It does NOT grant access on its own — membership is invite-only. Domains that actually gate SSO live on the SSO connection's allowedDomains. */
   ssoDomain: string;
+  /** 0 means unlimited */
   seatLimit: number;
+  /** Mirrored from the org's SSO connection so this needs no extra read */
+  ssoEnabled: boolean;
+  /** @nullable */
+  ssoProvider: string | null;
 }

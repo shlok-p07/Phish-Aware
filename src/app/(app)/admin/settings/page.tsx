@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, KeyRound, Users, AlertTriangle, Trash2 } from "lucide-react";
+import { Save, Building2, Users, AlertTriangle, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
   getGetOrgQueryKey,
 } from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
+import { SsoCard } from "./sso-card";
 
 export default function AdminSettingsPage() {
   const { data: org } = useGetOrg({ query: { retry: false } });
@@ -85,11 +86,12 @@ export default function AdminSettingsPage() {
       <Card className="border shadow-sm">
         <CardHeader className="bg-muted/30 border-b pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
-            <KeyRound className="w-5 h-5 text-primary" />
-            Single sign-on
+            <Building2 className="w-5 h-5 text-primary" />
+            Email domain
           </CardTitle>
           <CardDescription className="text-sm font-medium">
-            Employees who sign up with this email domain join automatically. Others need an invite.
+            Your organization&apos;s primary domain, used for display. It does not grant
+            access on its own — everyone needs an invitation.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6 space-y-4">
@@ -97,12 +99,11 @@ export default function AdminSettingsPage() {
             <Label htmlFor="s-domain" className="font-semibold">Email domain</Label>
             <Input id="s-domain" placeholder="acme.com" value={domain}
               onChange={(e) => setDomain(e.target.value)} className="rounded-lg max-w-md" />
-            <p className="text-xs text-muted-foreground font-medium">
-              Leave blank to require an invitation for everyone.
-            </p>
           </div>
         </CardContent>
       </Card>
+
+      <SsoCard />
 
       <Card className="border shadow-sm">
         <CardHeader className="bg-muted/30 border-b pb-4">

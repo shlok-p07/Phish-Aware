@@ -1,22 +1,27 @@
 import { NextRequest } from "next/server";
-import { ObjectId, MongoServerError } from "mongodb";
-import { usersCollection, specDefaults } from "@/db";
+import { MongoServerError } from "mongodb";
+import { usersCollection } from "@/db";
 import { SignupBody, SignupResponse } from "@/api-zod";
 import { hashPassword } from "@/server/password";
+import { buildUserDoc } from "@/server/users";
 import {
   createSession,
   destroySession,
   getUserIdFromRequest,
 } from "@/server/session";
 import { toUserDto } from "@/server/dto";
+import { normalizeEmail } from "@/server/sso/domain";
 import { json, error, withErrorHandling } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const body = SignupBody.parse(await req.json());
+  // Lowercased so "Alice@acme.com" and "alice@acme.com" can't become two
+  // accounts -- and so these rows match what an IdP returns on the SSO path.
+  const email = normalizeEmail(body.email);
   const users = await usersCollection();
-  const existing = await users.findOne({ email: body.email });
+  const existing = await users.findOne({ email });
   if (existing) {
     return error(409, "An account with this email already exists.");
   }
@@ -32,7 +37,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
         {
           $set: {
             name: body.name,
-            email: body.email,
+            email,
             passwordHash: hashPassword(body.password),
             isGuest: false,
             updatedAt: new Date(),
@@ -48,31 +53,12 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     }
   }
 
-  const id = new ObjectId();
-  const user = {
-    _id: id,
-    userId: id,
-    orgId: null,
+  const user = buildUserDoc({
     name: body.name,
-    email: body.email,
+    email,
     passwordHash: hashPassword(body.password),
-    isGuest: false,
-    level: "beginner",
-    xp: 0,
-    streak: 0,
-    lastActiveDate: null,
-    badges: [],
-    calibrationScore: 0,
-    department: null,
-    workType: null,
-    ageRange: null,
-    phishingAwarenessScore: 0,
-    onboardingCompleted: false,
-    role: "employee" as const,
-    status: "active" as const,
     lastLoginAt: new Date(),
-    ...specDefaults(),
-  };
+  });
   try {
     await users.insertOne(user);
   } catch (err) {

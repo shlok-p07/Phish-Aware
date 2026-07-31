@@ -30,9 +30,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading, isError } = useGetCurrentUser({
     query: { retry: false, queryKey: getGetCurrentUserQueryKey() },
   });
-  const { data: org } = useGetOrg({ query: { retry: false } });
-  const hasOrg = Boolean(org);
   const logout = useLogout();
+
+  // Three distinct states, and they need three different affordances:
+  //   admin of an org  -> "Admin"
+  //   member of an org -> nothing (every admin endpoint would 403)
+  //   no org at all    -> "Create org"
+  // This used to key off whether GET /api/org succeeded, which is true for
+  // ANY member -- fine while only admins were ever in orgs, wrong the moment
+  // employees started joining via invitations and SSO.
+  const isOrgAdmin = user?.role === "admin" && user.hasOrg === true;
+  const showCreateOrg = Boolean(user) && !user!.isGuest && user!.hasOrg === false;
 
   useEffect(() => {
     if (!isLoading) {
@@ -123,10 +131,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="mt-auto pt-6 space-y-2">
-          {!user.isGuest && (
-            <Link href={hasOrg ? "/admin" : "/admin/create"} title={collapsed ? (hasOrg ? "Admin" : "Create organization") : undefined} className={`flex items-center py-3.5 rounded-lg transition-all font-semibold ${collapsed ? "justify-center px-0" : "gap-4 px-4"} ${pathname.startsWith("/admin") ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+          {!user.isGuest && (isOrgAdmin || showCreateOrg) && (
+            <Link href={isOrgAdmin ? "/admin" : "/admin/create"} title={collapsed ? (isOrgAdmin ? "Admin" : "Create organization") : undefined} className={`flex items-center py-3.5 rounded-lg transition-all font-semibold ${collapsed ? "justify-center px-0" : "gap-4 px-4"} ${pathname.startsWith("/admin") ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
               <Building2 className="w-6 h-6 shrink-0" />
-              <span className={`whitespace-nowrap transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-40"}`}>{hasOrg ? "Admin" : "Create org"}</span>
+              <span className={`whitespace-nowrap transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-40"}`}>{isOrgAdmin ? "Admin" : "Create org"}</span>
             </Link>
           )}
           <Link href="/settings" title={collapsed ? "Settings" : undefined} className={`flex items-center py-3.5 rounded-lg transition-all font-semibold ${collapsed ? "justify-center px-0" : "gap-4 px-4"} ${pathname === "/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>

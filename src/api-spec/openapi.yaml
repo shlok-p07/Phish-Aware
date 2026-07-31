@@ -26,7 +26,19 @@ tags:
     description: Leaderboard
   - name: org
     description: Organization admin (members, training campaigns, analytics)
+  - name: invitations
+    description: Org invitations — issuing them (admin) and accepting them (public)
+  - name: sso
+    description: Per-organization OIDC single sign-on
 paths:
+  # NOTE — Browser-navigation endpoints deliberately absent from this spec:
+  #   GET /auth/sso/start     302 -> the org's identity provider
+  #   GET /auth/sso/callback  302 -> /dashboard or /auth?sso_error=<code>
+  # Both are top-level browser navigations, not fetches. Generating react-query
+  # hooks for them would produce clients that fetch() the URL, transparently
+  # follow the redirect to a cross-origin IdP, and fail with an opaque CORS
+  # error. The UI navigates to them with window.location.href instead.
+
   /healthz:
     get:
       operationId: healthCheck
@@ -360,10 +372,15 @@ paths:
     get:
       operationId: listOrgMembers
       tags: [org]
-      summary: List the organization's members with real accuracy/risk stats
+      summary: List members and pending invitations, with real accuracy/risk stats
+      description: >
+        A merged list. Rows with kind="member" are user accounts; rows with
+        kind="invitation" are outstanding invitations that nobody has accepted
+        yet. Their `id` fields come from different collections, so callers must
+        branch on `kind` before calling any per-row endpoint.
       responses:
         "200":
-          description: Members
+          description: Members and pending invitations
           content:
             application/json:
               schema:
@@ -375,7 +392,12 @@ paths:
     post:
       operationId: inviteOrgMember
       tags: [org]
-      summary: Invite a member (creates their account with status "invited")
+      summary: Invite a member (creates a pending invitation and returns its link)
+      description: >
+        Creates an invitation, not a user account. The response carries the
+        accept link exactly once, at the moment the admin needs to copy it —
+        the members list deliberately omits it. Use /org/invitations/{id}/link
+        to retrieve it again later.
       requestBody:
         required: true
         content:
@@ -384,15 +406,253 @@ paths:
               $ref: "#/components/schemas/InviteMemberInput"
       responses:
         "201":
-          description: Member invited
+          description: Invitation created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OrgMember"
+                $ref: "#/components/schemas/InviteMemberResult"
+        "403":
+          description: Admin access required, or the organization is out of seats
+        "409":
+          description: Already a member, or already has a pending invitation
+
+  /org/invitations/{id}:
+    delete:
+      operationId: revokeOrgInvitation
+      tags: [invitations]
+      summary: Revoke a pending invitation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Invitation revoked
+        "403":
+          description: Admin access required
+        "404":
+          description: Invitation not found
+
+  /org/invitations/{id}/link:
+    post:
+      operationId: getOrgInvitationLink
+      tags: [invitations]
+      summary: Retrieve an existing invitation's accept link
+      description: >
+        POST rather than GET so react-query won't cache a bearer token in the
+        client. The token is unchanged — use /resend to rotate it.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invitation link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationLink"
+        "403":
+          description: Admin access required
+        "404":
+          description: Invitation not found
+        "410":
+          description: Invitation is no longer pending
+
+  /org/invitations/{id}/resend:
+    post:
+      operationId: resendOrgInvitation
+      tags: [invitations]
+      summary: Rotate an invitation's token and extend its expiry
+      description: >
+        Issues a brand-new token, invalidating the previous link. This is the
+        "I think that link leaked" action.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: New invitation link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationLink"
+        "403":
+          description: Admin access required
+        "404":
+          description: Invitation not found
+        "410":
+          description: Invitation is no longer pending
+
+  /invitations/{token}:
+    get:
+      operationId: getInvitation
+      tags: [invitations]
+      summary: Look up a public invitation by its token
+      description: Public — the token is the credential. No session required.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invitation details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicInvitation"
+        "404":
+          description: No such invitation
+        "410":
+          description: Invitation expired, revoked, or already accepted
+
+  /invitations/{token}/accept:
+    post:
+      operationId: acceptInvitation
+      tags: [invitations]
+      summary: Accept an invitation and sign in
+      description: >
+        Two modes. Password mode (`password` present) creates a new account.
+        Adopt mode (empty body, authenticated session) attaches the caller's
+        existing account to the org — used when they already had a personal
+        PhishAware account under the invited address.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptInvitationInput"
+      responses:
+        "201":
+          description: Invitation accepted; a session cookie is set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid input
+        "403":
+          description: The organization is out of seats
+        "404":
+          description: No such invitation
+        "409":
+          description: >
+            An account already exists for this address. The body's `code` is
+            "account_exists" — sign in, then retry with an empty body to adopt it.
+        "410":
+          description: Invitation expired, revoked, or already accepted
+
+  /auth/sso/discover:
+    post:
+      operationId: discoverSso
+      tags: [sso]
+      summary: Ask whether an email domain has single sign-on configured
+      description: >
+        Public and deliberately domain-granular: two addresses at the same
+        domain get byte-identical responses, so this cannot be used to test
+        whether a particular person has an account. Everything account-specific
+        happens after the IdP has authenticated the caller.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SsoDiscoverInput"
+      responses:
+        "200":
+          description: Discovery result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SsoDiscovery"
+        "429":
+          description: Too many requests
+
+  /org/sso:
+    get:
+      operationId: getOrgSsoConnection
+      tags: [sso]
+      summary: Get this organization's SSO connection (secret redacted)
+      responses:
+        "200":
+          description: SSO connection state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgSsoConnection"
+        "403":
+          description: Admin access required
+    put:
+      operationId: upsertOrgSsoConnection
+      tags: [sso]
+      summary: Create or update this organization's SSO connection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertOrgSsoConnectionInput"
+      responses:
+        "200":
+          description: Saved connection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgSsoConnection"
+        "400":
+          description: Invalid issuer, or discovery failed
         "403":
           description: Admin access required
         "409":
-          description: A member with this email already exists
+          description: Another organization has already claimed one of these domains
+        "503":
+          description: This server has no APP_ENCRYPTION_KEY, so secrets can't be stored
+    delete:
+      operationId: deleteOrgSsoConnection
+      tags: [sso]
+      summary: Remove this organization's SSO connection
+      responses:
+        "204":
+          description: Connection removed
+        "403":
+          description: Admin access required
+
+  /org/sso/test:
+    post:
+      operationId: testOrgSsoConnection
+      tags: [sso]
+      summary: Run server-side preflight checks against the configured IdP
+      description: >
+        Validates discovery, issuer exact-match, endpoints, PKCE support, JWKS,
+        and client credentials — with no browser round trip and no user
+        interaction. Catches the common misconfigurations before anyone
+        attempts a real sign-in.
+      responses:
+        "200":
+          description: Check results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SsoTestResult"
+        "403":
+          description: Admin access required
+        "404":
+          description: No SSO connection configured
 
   /org/members/{id}:
     patch:
@@ -567,12 +827,26 @@ components:
           calibrationScore,
           onboardingCompleted,
           createdAt,
+          role,
+          hasOrg,
         ]
       properties:
         id:
           type: string
         name:
           type: string
+        role:
+          $ref: "#/components/schemas/OrgRole"
+          description: >
+            The caller's own role. Needed so the UI can hide admin-only
+            navigation instead of routing members to a page whose every request
+            will 403. Telling someone their own role reveals nothing.
+        hasOrg:
+          type: boolean
+          description: >
+            Whether the caller belongs to an organization. Distinguishes a
+            member (no admin nav) from an unaffiliated user (offered the
+            create-organization flow).
         email:
           type: ["string", "null"]
         isGuest:
@@ -970,7 +1244,7 @@ components:
 
     Org:
       type: object
-      required: [id, name, ssoDomain, seatLimit]
+      required: [id, name, ssoDomain, seatLimit, ssoEnabled, ssoProvider]
       properties:
         id:
           type: string
@@ -978,9 +1252,18 @@ components:
           type: string
         ssoDomain:
           type: string
-          description: Empty string means invite-only (no auto-join domain)
+          description: >
+            The organization's primary email domain, for display. It does NOT
+            grant access on its own — membership is invite-only. Domains that
+            actually gate SSO live on the SSO connection's allowedDomains.
         seatLimit:
           type: integer
+          description: 0 means unlimited
+        ssoEnabled:
+          type: boolean
+          description: Mirrored from the org's SSO connection so this needs no extra read
+        ssoProvider:
+          type: ["string", "null"]
 
     CreateOrgInput:
       type: object
@@ -998,15 +1281,24 @@ components:
           type: string
         ssoDomain:
           type: string
+          description: Display only — see Org.ssoDomain. Does not grant access.
         seatLimit:
           type: integer
+          description: 0 means unlimited
 
     OrgMember:
       type: object
-      required: [id, name, email, role, status, joinedAt, accuracy, riskLevel]
+      required:
+        [id, kind, name, email, role, status, joinedAt, expiresAt, accuracy, riskLevel]
       properties:
         id:
           type: string
+          description: >
+            A user id when kind="member", an invitation id when
+            kind="invitation". The two are not interchangeable.
+        kind:
+          type: string
+          enum: [member, invitation]
         name:
           type: string
         email:
@@ -1019,6 +1311,10 @@ components:
         joinedAt:
           type: ["string", "null"]
           format: date-time
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+          description: When an invitation lapses. Always null for kind="member".
         accuracy:
           type: integer
           description: 0-100, computed from real practice attempts
@@ -1035,6 +1331,61 @@ components:
           type: string
         role:
           $ref: "#/components/schemas/OrgRole"
+
+    InviteMemberResult:
+      type: object
+      required: [member, inviteUrl]
+      properties:
+        member:
+          $ref: "#/components/schemas/OrgMember"
+        inviteUrl:
+          type: string
+          description: >
+            The accept link. Returned only here and from
+            /org/invitations/{id}/link — never in the members list.
+
+    InvitationLink:
+      type: object
+      required: [url, expiresAt]
+      properties:
+        url:
+          type: string
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+
+    PublicInvitation:
+      type: object
+      required: [orgName, email, role, expiresAt, ssoAvailable, requiresExistingAccount]
+      properties:
+        orgName:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/OrgRole"
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+        ssoAvailable:
+          type: boolean
+        ssoStartUrl:
+          type: ["string", "null"]
+        requiresExistingAccount:
+          type: boolean
+          description: >
+            True when a PhishAware account already uses this address. The
+            password form is replaced by a sign-in-to-accept prompt, so an
+            invitation can never silently absorb someone else's account.
+
+    AcceptInvitationInput:
+      type: object
+      properties:
+        name:
+          type: string
+        password:
+          type: string
+          description: Omit entirely to adopt the currently signed-in account instead.
 
     UpdateMemberRoleInput:
       type: object
@@ -1117,3 +1468,118 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OrgMemberAccuracy"
+
+    SsoProviderKind:
+      type: string
+      enum: [okta, entra, google, auth0, generic]
+
+    SsoDiscoverInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+
+    SsoDiscovery:
+      type: object
+      required: [ssoAvailable]
+      properties:
+        ssoAvailable:
+          type: boolean
+        orgName:
+          type: ["string", "null"]
+        providerKind:
+          type: ["string", "null"]
+        startUrl:
+          type: ["string", "null"]
+          description: Navigate to this with window.location.href — do not fetch it.
+
+    OrgSsoConnection:
+      type: object
+      required:
+        [configured, serverConfigured, redirectUri, enabled, issuer, clientId,
+         hasClientSecret, providerKind, allowedDomains, requireVerifiedEmail,
+         lastTestAt, lastTestOk, lastTestError]
+      properties:
+        configured:
+          type: boolean
+          description: False when this org has no SSO connection saved yet.
+        serverConfigured:
+          type: boolean
+          description: >
+            False when the server has no APP_ENCRYPTION_KEY. SSO cannot be
+            configured at all until an operator sets one.
+        redirectUri:
+          type: string
+          description: Paste this into the IdP's allowed redirect URLs, exactly.
+        enabled:
+          type: boolean
+        issuer:
+          type: string
+        clientId:
+          type: string
+        hasClientSecret:
+          type: boolean
+          description: The secret itself is never returned.
+        providerKind:
+          $ref: "#/components/schemas/SsoProviderKind"
+        allowedDomains:
+          type: array
+          items:
+            type: string
+        requireVerifiedEmail:
+          type: boolean
+        lastTestAt:
+          type: ["string", "null"]
+          format: date-time
+        lastTestOk:
+          type: ["boolean", "null"]
+        lastTestError:
+          type: ["string", "null"]
+
+    UpsertOrgSsoConnectionInput:
+      type: object
+      required: [issuer, clientId, providerKind, allowedDomains]
+      properties:
+        issuer:
+          type: string
+        clientId:
+          type: string
+        clientSecret:
+          type: string
+          description: Omit to keep the stored secret unchanged.
+        providerKind:
+          $ref: "#/components/schemas/SsoProviderKind"
+        allowedDomains:
+          type: array
+          items:
+            type: string
+        requireVerifiedEmail:
+          type: boolean
+        enabled:
+          type: boolean
+
+    SsoTestCheck:
+      type: object
+      required: [id, label, status, detail]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        status:
+          type: string
+          enum: [pass, warn, fail]
+        detail:
+          type: string
+
+    SsoTestResult:
+      type: object
+      required: [ok, checks]
+      properties:
+        ok:
+          type: boolean
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/SsoTestCheck"

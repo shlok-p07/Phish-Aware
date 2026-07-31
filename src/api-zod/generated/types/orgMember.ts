@@ -5,12 +5,15 @@
  * PhishAware API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { OrgMemberKind } from './orgMemberKind';
 import type { OrgMemberStatus } from './orgMemberStatus';
 import type { OrgRole } from './orgRole';
 import type { RiskLevel } from './riskLevel';
 
 export interface OrgMember {
+  /** A user id when kind="member", an invitation id when kind="invitation". The two are not interchangeable. */
   id: string;
+  kind: OrgMemberKind;
   name: string;
   /** @nullable */
   email: string | null;
@@ -18,6 +21,11 @@ export interface OrgMember {
   status: OrgMemberStatus;
   /** @nullable */
   joinedAt: Date | null;
+  /**
+     * When an invitation lapses. Always null for kind="member".
+     * @nullable
+     */
+  expiresAt: Date | null;
   /** 0-100, computed from real practice attempts */
   accuracy: number;
   riskLevel: RiskLevel;

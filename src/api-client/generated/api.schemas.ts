@@ -58,9 +58,21 @@ export interface CueOption {
   label: string;
 }
 
+export type OrgRole = typeof OrgRole[keyof typeof OrgRole];
+
+
+export const OrgRole = {
+  admin: 'admin',
+  employee: 'employee',
+} as const;
+
 export interface User {
   id: string;
   name: string;
+  /** The caller's own role. Needed so the UI can hide admin-only navigation instead of routing members to a page whose every request will 403. Telling someone their own role reveals nothing. */
+  role: OrgRole;
+  /** Whether the caller belongs to an organization. Distinguishes a member (no admin nav) from an unaffiliated user (offered the create-organization flow). */
+  hasOrg: boolean;
   /** @nullable */
   email?: string | null;
   isGuest: boolean;
@@ -249,14 +261,6 @@ export interface LeaderboardEntry {
   isCurrentUser: boolean;
 }
 
-export type OrgRole = typeof OrgRole[keyof typeof OrgRole];
-
-
-export const OrgRole = {
-  admin: 'admin',
-  employee: 'employee',
-} as const;
-
 export type RiskLevel = typeof RiskLevel[keyof typeof RiskLevel];
 
 
@@ -269,9 +273,14 @@ export const RiskLevel = {
 export interface Org {
   id: string;
   name: string;
-  /** Empty string means invite-only (no auto-join domain) */
+  /** The organization's primary email domain, for display. It does NOT grant access on its own — membership is invite-only. Domains that actually gate SSO live on the SSO connection's allowedDomains. */
   ssoDomain: string;
+  /** 0 means unlimited */
   seatLimit: number;
+  /** Mirrored from the org's SSO connection so this needs no extra read */
+  ssoEnabled: boolean;
+  /** @nullable */
+  ssoProvider: string | null;
 }
 
 export interface CreateOrgInput {
@@ -281,9 +290,19 @@ export interface CreateOrgInput {
 
 export interface UpdateOrgSettingsInput {
   name?: string;
+  /** Display only — see Org.ssoDomain. Does not grant access. */
   ssoDomain?: string;
+  /** 0 means unlimited */
   seatLimit?: number;
 }
+
+export type OrgMemberKind = typeof OrgMemberKind[keyof typeof OrgMemberKind];
+
+
+export const OrgMemberKind = {
+  member: 'member',
+  invitation: 'invitation',
+} as const;
 
 export type OrgMemberStatus = typeof OrgMemberStatus[keyof typeof OrgMemberStatus];
 
@@ -295,7 +314,9 @@ export const OrgMemberStatus = {
 } as const;
 
 export interface OrgMember {
+  /** A user id when kind="member", an invitation id when kind="invitation". The two are not interchangeable. */
   id: string;
+  kind: OrgMemberKind;
   name: string;
   /** @nullable */
   email: string | null;
@@ -303,6 +324,11 @@ export interface OrgMember {
   status: OrgMemberStatus;
   /** @nullable */
   joinedAt: string | null;
+  /**
+     * When an invitation lapses. Always null for kind="member".
+     * @nullable
+     */
+  expiresAt: string | null;
   /** 0-100, computed from real practice attempts */
   accuracy: number;
   riskLevel: RiskLevel;
@@ -312,6 +338,37 @@ export interface InviteMemberInput {
   name?: string;
   email: string;
   role?: OrgRole;
+}
+
+export interface InviteMemberResult {
+  member: OrgMember;
+  /** The accept link. Returned only here and from /org/invitations/{id}/link — never in the members list. */
+  inviteUrl: string;
+}
+
+export interface InvitationLink {
+  url: string;
+  /** @nullable */
+  expiresAt: string | null;
+}
+
+export interface PublicInvitation {
+  orgName: string;
+  email: string;
+  role: OrgRole;
+  /** @nullable */
+  expiresAt: string | null;
+  ssoAvailable: boolean;
+  /** @nullable */
+  ssoStartUrl?: string | null;
+  /** True when a PhishAware account already uses this address. The password form is replaced by a sign-in-to-accept prompt, so an invitation can never silently absorb someone else's account. */
+  requiresExistingAccount: boolean;
+}
+
+export interface AcceptInvitationInput {
+  name?: string;
+  /** Omit entirely to adopt the currently signed-in account instead. */
+  password?: string;
 }
 
 export interface UpdateMemberRoleInput {
@@ -357,5 +414,88 @@ export interface OrgAnalytics {
   /** % of active members with at least one practice attempt */
   participationRate: number;
   perMember: OrgMemberAccuracy[];
+}
+
+export type SsoProviderKind = typeof SsoProviderKind[keyof typeof SsoProviderKind];
+
+
+export const SsoProviderKind = {
+  okta: 'okta',
+  entra: 'entra',
+  google: 'google',
+  auth0: 'auth0',
+  generic: 'generic',
+} as const;
+
+export interface SsoDiscoverInput {
+  email: string;
+}
+
+export interface SsoDiscovery {
+  ssoAvailable: boolean;
+  /** @nullable */
+  orgName?: string | null;
+  /** @nullable */
+  providerKind?: string | null;
+  /**
+     * Navigate to this with window.location.href — do not fetch it.
+     * @nullable
+     */
+  startUrl?: string | null;
+}
+
+export interface OrgSsoConnection {
+  /** False when this org has no SSO connection saved yet. */
+  configured: boolean;
+  /** False when the server has no APP_ENCRYPTION_KEY. SSO cannot be configured at all until an operator sets one. */
+  serverConfigured: boolean;
+  /** Paste this into the IdP's allowed redirect URLs, exactly. */
+  redirectUri: string;
+  enabled: boolean;
+  issuer: string;
+  clientId: string;
+  /** The secret itself is never returned. */
+  hasClientSecret: boolean;
+  providerKind: SsoProviderKind;
+  allowedDomains: string[];
+  requireVerifiedEmail: boolean;
+  /** @nullable */
+  lastTestAt: string | null;
+  /** @nullable */
+  lastTestOk: boolean | null;
+  /** @nullable */
+  lastTestError: string | null;
+}
+
+export interface UpsertOrgSsoConnectionInput {
+  issuer: string;
+  clientId: string;
+  /** Omit to keep the stored secret unchanged. */
+  clientSecret?: string;
+  providerKind: SsoProviderKind;
+  allowedDomains: string[];
+  requireVerifiedEmail?: boolean;
+  enabled?: boolean;
+}
+
+export type SsoTestCheckStatus = typeof SsoTestCheckStatus[keyof typeof SsoTestCheckStatus];
+
+
+export const SsoTestCheckStatus = {
+  pass: 'pass',
+  warn: 'warn',
+  fail: 'fail',
+} as const;
+
+export interface SsoTestCheck {
+  id: string;
+  label: string;
+  status: SsoTestCheckStatus;
+  detail: string;
+}
+
+export interface SsoTestResult {
+  ok: boolean;
+  checks: SsoTestCheck[];
 }
 

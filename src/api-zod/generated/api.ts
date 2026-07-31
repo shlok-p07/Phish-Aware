@@ -23,6 +23,8 @@ export const HealthCheckResponse = zod.object({
 export const GetCurrentUserResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "role": zod.enum(['admin', 'employee']).describe('The caller\'s own role. Needed so the UI can hide admin-only navigation instead of routing members to a page whose every request will 403. Telling someone their own role reveals nothing.\n'),
+  "hasOrg": zod.boolean().describe('Whether the caller belongs to an organization. Distinguishes a member (no admin nav) from an unaffiliated user (offered the create-organization flow).\n'),
   "email": zod.string().nullish(),
   "isGuest": zod.boolean(),
   "level": zod.enum(['beginner', 'intermediate', 'advanced']),
@@ -58,6 +60,8 @@ export const SignupBody = zod.object({
 export const SignupResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "role": zod.enum(['admin', 'employee']).describe('The caller\'s own role. Needed so the UI can hide admin-only navigation instead of routing members to a page whose every request will 403. Telling someone their own role reveals nothing.\n'),
+  "hasOrg": zod.boolean().describe('Whether the caller belongs to an organization. Distinguishes a member (no admin nav) from an unaffiliated user (offered the create-organization flow).\n'),
   "email": zod.string().nullish(),
   "isGuest": zod.boolean(),
   "level": zod.enum(['beginner', 'intermediate', 'advanced']),
@@ -85,6 +89,8 @@ export const LoginBody = zod.object({
 export const LoginResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "role": zod.enum(['admin', 'employee']).describe('The caller\'s own role. Needed so the UI can hide admin-only navigation instead of routing members to a page whose every request will 403. Telling someone their own role reveals nothing.\n'),
+  "hasOrg": zod.boolean().describe('Whether the caller belongs to an organization. Distinguishes a member (no admin nav) from an unaffiliated user (offered the create-organization flow).\n'),
   "email": zod.string().nullish(),
   "isGuest": zod.boolean(),
   "level": zod.enum(['beginner', 'intermediate', 'advanced']),
@@ -107,6 +113,8 @@ export const LoginResponse = zod.object({
 export const ContinueAsGuestResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "role": zod.enum(['admin', 'employee']).describe('The caller\'s own role. Needed so the UI can hide admin-only navigation instead of routing members to a page whose every request will 403. Telling someone their own role reveals nothing.\n'),
+  "hasOrg": zod.boolean().describe('Whether the caller belongs to an organization. Distinguishes a member (no admin nav) from an unaffiliated user (offered the create-organization flow).\n'),
   "email": zod.string().nullish(),
   "isGuest": zod.boolean(),
   "level": zod.enum(['beginner', 'intermediate', 'advanced']),
@@ -333,8 +341,10 @@ export const GetLeaderboardResponse = zod.array(GetLeaderboardResponseItem)
 export const GetOrgResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "ssoDomain": zod.string().describe('Empty string means invite-only (no auto-join domain)'),
-  "seatLimit": zod.number().int()
+  "ssoDomain": zod.string().describe('The organization\'s primary email domain, for display. It does NOT grant access on its own — membership is invite-only. Domains that actually gate SSO live on the SSO connection\'s allowedDomains.\n'),
+  "seatLimit": zod.number().int().describe('0 means unlimited'),
+  "ssoEnabled": zod.boolean().describe('Mirrored from the org\'s SSO connection so this needs no extra read'),
+  "ssoProvider": zod.string().nullable()
 })
 
 
@@ -349,8 +359,10 @@ export const CreateOrgBody = zod.object({
 export const CreateOrgResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "ssoDomain": zod.string().describe('Empty string means invite-only (no auto-join domain)'),
-  "seatLimit": zod.number().int()
+  "ssoDomain": zod.string().describe('The organization\'s primary email domain, for display. It does NOT grant access on its own — membership is invite-only. Domains that actually gate SSO live on the SSO connection\'s allowedDomains.\n'),
+  "seatLimit": zod.number().int().describe('0 means unlimited'),
+  "ssoEnabled": zod.boolean().describe('Mirrored from the org\'s SSO connection so this needs no extra read'),
+  "ssoProvider": zod.string().nullable()
 })
 
 
@@ -365,28 +377,33 @@ export const DeleteOrgResponse = zod.void()
  */
 export const UpdateOrgSettingsBody = zod.object({
   "name": zod.string().optional(),
-  "ssoDomain": zod.string().optional(),
-  "seatLimit": zod.number().int().optional()
+  "ssoDomain": zod.string().optional().describe('Display only — see Org.ssoDomain. Does not grant access.'),
+  "seatLimit": zod.number().int().optional().describe('0 means unlimited')
 })
 
 export const UpdateOrgSettingsResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "ssoDomain": zod.string().describe('Empty string means invite-only (no auto-join domain)'),
-  "seatLimit": zod.number().int()
+  "ssoDomain": zod.string().describe('The organization\'s primary email domain, for display. It does NOT grant access on its own — membership is invite-only. Domains that actually gate SSO live on the SSO connection\'s allowedDomains.\n'),
+  "seatLimit": zod.number().int().describe('0 means unlimited'),
+  "ssoEnabled": zod.boolean().describe('Mirrored from the org\'s SSO connection so this needs no extra read'),
+  "ssoProvider": zod.string().nullable()
 })
 
 
 /**
- * @summary List the organization's members with real accuracy/risk stats
+ * A merged list. Rows with kind="member" are user accounts; rows with kind="invitation" are outstanding invitations that nobody has accepted yet. Their `id` fields come from different collections, so callers must branch on `kind` before calling any per-row endpoint.
+ * @summary List members and pending invitations, with real accuracy/risk stats
  */
 export const ListOrgMembersResponseItem = zod.object({
-  "id": zod.string(),
+  "id": zod.string().describe('A user id when kind=\"member\", an invitation id when kind=\"invitation\". The two are not interchangeable.\n'),
+  "kind": zod.enum(['member', 'invitation']),
   "name": zod.string(),
   "email": zod.string().nullable(),
   "role": zod.enum(['admin', 'employee']),
   "status": zod.enum(['invited', 'active', 'disabled']),
   "joinedAt": zod.coerce.date().nullable(),
+  "expiresAt": zod.coerce.date().nullable().describe('When an invitation lapses. Always null for kind=\"member\".'),
   "accuracy": zod.number().int().describe('0-100, computed from real practice attempts'),
   "riskLevel": zod.enum(['low', 'medium', 'high'])
 })
@@ -394,7 +411,8 @@ export const ListOrgMembersResponse = zod.array(ListOrgMembersResponseItem)
 
 
 /**
- * @summary Invite a member (creates their account with status "invited")
+ * Creates an invitation, not a user account. The response carries the accept link exactly once, at the moment the admin needs to copy it — the members list deliberately omits it. Use /org/invitations/{id}/link to retrieve it again later.
+ * @summary Invite a member (creates a pending invitation and returns its link)
  */
 export const InviteOrgMemberBody = zod.object({
   "name": zod.string().optional(),
@@ -403,14 +421,197 @@ export const InviteOrgMemberBody = zod.object({
 })
 
 export const InviteOrgMemberResponse = zod.object({
-  "id": zod.string(),
+  "member": zod.object({
+  "id": zod.string().describe('A user id when kind=\"member\", an invitation id when kind=\"invitation\". The two are not interchangeable.\n'),
+  "kind": zod.enum(['member', 'invitation']),
   "name": zod.string(),
   "email": zod.string().nullable(),
   "role": zod.enum(['admin', 'employee']),
   "status": zod.enum(['invited', 'active', 'disabled']),
   "joinedAt": zod.coerce.date().nullable(),
+  "expiresAt": zod.coerce.date().nullable().describe('When an invitation lapses. Always null for kind=\"member\".'),
   "accuracy": zod.number().int().describe('0-100, computed from real practice attempts'),
   "riskLevel": zod.enum(['low', 'medium', 'high'])
+}),
+  "inviteUrl": zod.string().describe('The accept link. Returned only here and from \/org\/invitations\/{id}\/link — never in the members list.\n')
+})
+
+
+/**
+ * @summary Revoke a pending invitation
+ */
+export const RevokeOrgInvitationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RevokeOrgInvitationResponse = zod.void()
+
+
+/**
+ * POST rather than GET so react-query won't cache a bearer token in the client. The token is unchanged — use /resend to rotate it.
+ * @summary Retrieve an existing invitation's accept link
+ */
+export const GetOrgInvitationLinkParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetOrgInvitationLinkResponse = zod.object({
+  "url": zod.string(),
+  "expiresAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * Issues a brand-new token, invalidating the previous link. This is the "I think that link leaked" action.
+ * @summary Rotate an invitation's token and extend its expiry
+ */
+export const ResendOrgInvitationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ResendOrgInvitationResponse = zod.object({
+  "url": zod.string(),
+  "expiresAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * Public — the token is the credential. No session required.
+ * @summary Look up a public invitation by its token
+ */
+export const GetInvitationParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const GetInvitationResponse = zod.object({
+  "orgName": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'employee']),
+  "expiresAt": zod.coerce.date().nullable(),
+  "ssoAvailable": zod.boolean(),
+  "ssoStartUrl": zod.string().nullish(),
+  "requiresExistingAccount": zod.boolean().describe('True when a PhishAware account already uses this address. The password form is replaced by a sign-in-to-accept prompt, so an invitation can never silently absorb someone else\'s account.\n')
+})
+
+
+/**
+ * Two modes. Password mode (`password` present) creates a new account. Adopt mode (empty body, authenticated session) attaches the caller's existing account to the org — used when they already had a personal PhishAware account under the invited address.
+ * @summary Accept an invitation and sign in
+ */
+export const AcceptInvitationParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const AcceptInvitationBody = zod.object({
+  "name": zod.string().optional(),
+  "password": zod.string().optional().describe('Omit entirely to adopt the currently signed-in account instead.')
+})
+
+export const AcceptInvitationResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "role": zod.enum(['admin', 'employee']).describe('The caller\'s own role. Needed so the UI can hide admin-only navigation instead of routing members to a page whose every request will 403. Telling someone their own role reveals nothing.\n'),
+  "hasOrg": zod.boolean().describe('Whether the caller belongs to an organization. Distinguishes a member (no admin nav) from an unaffiliated user (offered the create-organization flow).\n'),
+  "email": zod.string().nullish(),
+  "isGuest": zod.boolean(),
+  "level": zod.enum(['beginner', 'intermediate', 'advanced']),
+  "xp": zod.number().int(),
+  "streak": zod.number().int(),
+  "badges": zod.array(zod.string()),
+  "calibrationScore": zod.number(),
+  "department": zod.string().nullish(),
+  "workType": zod.string().nullish(),
+  "ageRange": zod.string().nullish(),
+  "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
+  "onboardingCompleted": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * Public and deliberately domain-granular: two addresses at the same domain get byte-identical responses, so this cannot be used to test whether a particular person has an account. Everything account-specific happens after the IdP has authenticated the caller.
+ * @summary Ask whether an email domain has single sign-on configured
+ */
+export const DiscoverSsoBody = zod.object({
+  "email": zod.string()
+})
+
+export const DiscoverSsoResponse = zod.object({
+  "ssoAvailable": zod.boolean(),
+  "orgName": zod.string().nullish(),
+  "providerKind": zod.string().nullish(),
+  "startUrl": zod.string().nullish().describe('Navigate to this with window.location.href — do not fetch it.')
+})
+
+
+/**
+ * @summary Get this organization's SSO connection (secret redacted)
+ */
+export const GetOrgSsoConnectionResponse = zod.object({
+  "configured": zod.boolean().describe('False when this org has no SSO connection saved yet.'),
+  "serverConfigured": zod.boolean().describe('False when the server has no APP_ENCRYPTION_KEY. SSO cannot be configured at all until an operator sets one.\n'),
+  "redirectUri": zod.string().describe('Paste this into the IdP\'s allowed redirect URLs, exactly.'),
+  "enabled": zod.boolean(),
+  "issuer": zod.string(),
+  "clientId": zod.string(),
+  "hasClientSecret": zod.boolean().describe('The secret itself is never returned.'),
+  "providerKind": zod.enum(['okta', 'entra', 'google', 'auth0', 'generic']),
+  "allowedDomains": zod.array(zod.string()),
+  "requireVerifiedEmail": zod.boolean(),
+  "lastTestAt": zod.coerce.date().nullable(),
+  "lastTestOk": zod.boolean().nullable(),
+  "lastTestError": zod.string().nullable()
+})
+
+
+/**
+ * @summary Create or update this organization's SSO connection
+ */
+export const UpsertOrgSsoConnectionBody = zod.object({
+  "issuer": zod.string(),
+  "clientId": zod.string(),
+  "clientSecret": zod.string().optional().describe('Omit to keep the stored secret unchanged.'),
+  "providerKind": zod.enum(['okta', 'entra', 'google', 'auth0', 'generic']),
+  "allowedDomains": zod.array(zod.string()),
+  "requireVerifiedEmail": zod.boolean().optional(),
+  "enabled": zod.boolean().optional()
+})
+
+export const UpsertOrgSsoConnectionResponse = zod.object({
+  "configured": zod.boolean().describe('False when this org has no SSO connection saved yet.'),
+  "serverConfigured": zod.boolean().describe('False when the server has no APP_ENCRYPTION_KEY. SSO cannot be configured at all until an operator sets one.\n'),
+  "redirectUri": zod.string().describe('Paste this into the IdP\'s allowed redirect URLs, exactly.'),
+  "enabled": zod.boolean(),
+  "issuer": zod.string(),
+  "clientId": zod.string(),
+  "hasClientSecret": zod.boolean().describe('The secret itself is never returned.'),
+  "providerKind": zod.enum(['okta', 'entra', 'google', 'auth0', 'generic']),
+  "allowedDomains": zod.array(zod.string()),
+  "requireVerifiedEmail": zod.boolean(),
+  "lastTestAt": zod.coerce.date().nullable(),
+  "lastTestOk": zod.boolean().nullable(),
+  "lastTestError": zod.string().nullable()
+})
+
+
+/**
+ * @summary Remove this organization's SSO connection
+ */
+export const DeleteOrgSsoConnectionResponse = zod.void()
+
+
+/**
+ * Validates discovery, issuer exact-match, endpoints, PKCE support, JWKS, and client credentials — with no browser round trip and no user interaction. Catches the common misconfigurations before anyone attempts a real sign-in.
+ * @summary Run server-side preflight checks against the configured IdP
+ */
+export const TestOrgSsoConnectionResponse = zod.object({
+  "ok": zod.boolean(),
+  "checks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['pass', 'warn', 'fail']),
+  "detail": zod.string()
+}))
 })
 
 

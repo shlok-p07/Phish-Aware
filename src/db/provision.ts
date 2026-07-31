@@ -38,7 +38,12 @@ const PK: Record<string, string> = {
   assignments: "assignmentId", deliveries: "deliveryId", invitations: "invitationId",
   consents: "consentId", notifications: "notificationId", auditLogs: "auditLogId",
   surveys: "surveyId", surveyResponses: "surveyResponseId",
+  // App-internal, but it follows the named-PK convention. ssoStates does not,
+  // for the same reason sessions doesn't: transient and not part of the spec.
+  ssoConnections: "ssoConnectionId",
 };
+
+const SSO_PROVIDER_KIND = ["okta", "entra", "google", "auth0", "generic"];
 
 const oid: Schema = { bsonType: "objectId" };
 const oidOrNull: Schema = { bsonType: ["objectId", "null"] };
@@ -206,10 +211,12 @@ export async function ensureSchema(db: Db): Promise<void> {
     outcome: { enum: DELIVERY_OUTCOME },
   });
 
+  // `name` and `acceptedUserId` are app extras beyond the shared spec.
   await make(db, "invitations", ["orgId", "email", "token", "status", "invitedBy"], {
     orgId: oid, email: str, role: { enum: ROLE }, departmentId: oidOrNull,
     token: str, status: { enum: INVITATION_STATUS }, invitedBy: oid,
     expiresAt: dateOrNull, acceptedAt: dateOrNull,
+    name: strOrNull, acceptedUserId: oidOrNull,
   });
 
   await make(db, "consents", ["userId", "orgId", "policyType", "granted"], {
@@ -268,6 +275,25 @@ export async function ensureSchema(db: Db): Promise<void> {
   await make(db, "sessions", ["token", "userId", "expiresAt"], {
     token: str, userId: oid, expiresAt: { bsonType: "date" },
   });
+
+  // ===== App-internal -- SSO (not part of the shared cross-team spec) =====
+
+  await make(db, "ssoConnections", ["orgId", "issuer", "clientId", "clientSecretEnc", "enabled"], {
+    orgId: oid, providerKind: { enum: SSO_PROVIDER_KIND },
+    issuer: str, clientId: str, clientSecretEnc: str,
+    extraScopes: { bsonType: "array", items: str },
+    allowedDomains: { bsonType: "array", items: str },
+    requireVerifiedEmail: { bsonType: "bool" }, enabled: { bsonType: "bool" },
+    discovery: { bsonType: ["object", "null"] }, discoveryFetchedAt: dateOrNull,
+    lastTestAt: dateOrNull, lastTestOk: { bsonType: ["bool", "null"] },
+    lastTestError: strOrNull, configVersion: num,
+  });
+
+  await make(db, "ssoStates", ["state", "nonce", "codeVerifier", "orgId", "expiresAt"], {
+    state: str, nonce: str, codeVerifier: str, orgId: oid, connectionId: oid,
+    redirectTo: str, emailHint: strOrNull, isTest: { bsonType: "bool" },
+    expiresAt: { bsonType: "date" },
+  });
 }
 
 export async function ensureIndexes(db: Db): Promise<void> {
@@ -310,6 +336,16 @@ export async function ensureIndexes(db: Db): Promise<void> {
 
   await db.collection("invitations").createIndex({ token: 1 }, { unique: true });
   await db.collection("invitations").createIndex({ orgId: 1, status: 1 });
+  // At most one live invitation per address per org. Re-inviting someone whose
+  // earlier invitation was revoked or accepted stays allowed.
+  await db.collection("invitations").createIndex(
+    { orgId: 1, email: 1 },
+    { unique: true, partialFilterExpression: { status: "pending" } },
+  );
+  // The SSO callback's lookup: "is this address invited anywhere?"
+  await db.collection("invitations").createIndex({ email: 1, status: 1 });
+  // Deliberately no TTL on expiresAt -- expired invitations must stay
+  // queryable for the audit trail. Expiry is computed (see invitationState).
 
   await db.collection("consents").createIndex({ userId: 1, policyType: 1 });
 
@@ -325,6 +361,35 @@ export async function ensureIndexes(db: Db): Promise<void> {
   await db.collection("sessions").createIndex({ token: 1 }, { unique: true });
   await db.collection("sessions").createIndex({ userId: 1 });
   await db.collection("sessions").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+  await db.collection("ssoConnections").createIndex({ orgId: 1 });
+  // One live connection per org, and one org per email domain. Both are scoped
+  // to enabled:true so a domain can move to another org once the first is
+  // disabled -- and so several draft connections can coexist without their
+  // empty allowedDomains arrays colliding in the unique multikey index.
+  // Explicitly named: same key as the plain orgId index above, so the
+  // auto-generated name would collide with it (IndexKeySpecsConflict).
+  await db.collection("ssoConnections").createIndex(
+    { orgId: 1 },
+    {
+      unique: true,
+      partialFilterExpression: { enabled: true },
+      name: "orgId_1_enabled_unique",
+    },
+  );
+  await db.collection("ssoConnections").createIndex(
+    { allowedDomains: 1 },
+    {
+      unique: true,
+      partialFilterExpression: { enabled: true },
+      name: "allowedDomains_1_enabled_unique",
+    },
+  );
+
+  await db.collection("ssoStates").createIndex({ state: 1 }, { unique: true });
+  // Mongo's TTL monitor only runs about once a minute, so the callback checks
+  // expiresAt in code too. This is cleanup, not enforcement.
+  await db.collection("ssoStates").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
   await Promise.all(
     Object.entries(PK).map(([collection, pk]) =>

@@ -24,6 +24,9 @@ emails, links, or credential prompts anywhere in the app.
   progress carries over.
 - **Organization admin** — create an org, invite teammates, assign training
   campaigns, and see org-wide accuracy/risk analytics.
+- **Single sign-on** — organizations can link their own OIDC identity provider
+  (Okta, Entra ID, Google Workspace, Auth0), so employees sign in with their
+  existing corporate account. Membership stays invite-only.
 - **First-class accessibility** — text scaling, reduced motion, high contrast,
   a dyslexia-friendly font, and larger tap targets.
 
@@ -78,7 +81,10 @@ bun install
 cp .env.example .env
 # then edit .env and point MONGODB_URI at your MongoDB instance
 
-# 3. Start the dev server
+# 3. (Only if you want single sign-on) generate a key to encrypt IdP secrets
+openssl rand -base64 32   # paste into APP_ENCRYPTION_KEY in .env
+
+# 4. Start the dev server
 bun run dev
 ```
 
@@ -131,6 +137,7 @@ dev doesn't need Docker at all — just `bun run dev`.
 | `bun test`          | Run the unit test suite                                         |
 | `bun run db:init`   | (Optional, manual) apply the MongoDB schema via mongosh — the app does this itself on startup |
 | `bun run db:seed`   | (Optional, manual) seed lessons/scenarios/sample users via CLI — the app does this itself on startup |
+| `bun run db:migrate-invites` | One-off: convert legacy dead "invited" user rows into real invitations (dry run; pass `-- --apply`) |
 | `bun run codegen`   | Regenerate `api-client`/`api-zod` from `api-spec/openapi.yaml`  |
 
 ## Project structure
@@ -140,7 +147,8 @@ src/
 ├── app/                # Next.js App Router
 │   ├── (app)/          # Authenticated app (dashboard, learn, practice, admin, ...)
 │   ├── api/            # Route handlers (auth, lessons, practice, profile, org, ...)
-│   ├── auth/           # Login / signup
+│   ├── auth/           # Login / signup / SSO entry point
+│   ├── invite/[token]/ # Public invitation accept page
 │   ├── onboarding/     # Diagnostic quiz
 │   ├── page.tsx        # Public marketing landing page
 │   ├── sitemap.ts      # Generated sitemap
@@ -150,8 +158,11 @@ src/
 ├── api-zod/            # Generated Zod request/response schemas
 ├── components/         # UI components (incl. shadcn/ui in components/ui)
 ├── db/                 # MongoDB client + collection models (users, scenarios,
-│                          lessons, attempts, sessions, organizations, ...)
+│                          lessons, attempts, sessions, organizations,
+│                          invitations, ssoConnections, ssoStates, ...)
 └── server/             # Domain logic (grading, leveling, streaks, sessions, seeds)
+    └── sso/            # OIDC: PKCE, discovery/JWKS cache, ID-token claims, and
+                           decideSsoProvisioning() — the pure "who gets in" rule
 
 phishaware-db/init/     # $jsonSchema validators + indexes (source of truth for
                            the Mongo schema; also mounted into the local Docker
@@ -167,9 +178,134 @@ backend/                # Separate FastAPI service for ML model/dataset work
 
 Signed-up users start without an organization. Creating one (`/admin/create`)
 makes you its admin; from there you can invite members, assign training
-campaigns, and view org-wide accuracy/risk analytics under `/admin`. Invited
-members' accounts are created immediately with status "invited" — there's no
-invite-email/accept flow yet, since this app has no mailer.
+campaigns, and view org-wide accuracy/risk analytics under `/admin`.
+
+### Invitations
+
+Inviting someone creates a row in `invitations` (a token, a role, a 14-day
+expiry) — not a user account. Because the app has no mailer, the admin UI hands
+back a **copyable invite link** instead of sending an email; the members list
+can re-copy or rotate it, and rotating invalidates the old one.
+
+Opening `/invite/<token>` lets the invitee either set a password or, if the org
+has SSO, sign in with their company account. If a PhishAware account already
+uses that address, the password form is replaced by a sign-in prompt: only the
+account's own owner, authenticated, can attach it to an org — otherwise an
+invitation could quietly absorb a stranger's account. Adopting keeps their
+existing XP, streak, and practice history.
+
+Seat limits are enforced at invite time (counting pending invitations) and again
+at accept time. A limit of `0` means unlimited.
+
+### Single sign-on (OIDC)
+
+Each organization can link its own identity provider — Okta, Microsoft Entra ID,
+Google Workspace, Auth0, or any generic OIDC provider — under
+**Admin → Organization → Single sign-on**. Employees then sign in with their
+existing corporate account instead of a PhishAware password.
+
+Access is **invite-only**: authenticating with the IdP is not enough. The
+callback only admits someone who is already a member or holds a pending
+invitation, so admins keep full control of membership.
+
+Setting one up:
+
+1. In your IdP, create a web application and paste in the **redirect URI** shown
+   on the settings card (`<your-origin>/api/auth/sso/callback`), exactly.
+2. Enter the issuer URL, client ID, and client secret. The issuer has to match
+   what the provider publishes character for character — Auth0's includes a
+   trailing slash, and Entra's multi-tenant `common` issuer (a literal
+   `{tenantid}`) is rejected because it can never be validated.
+3. Add the email domains allowed to use this connection.
+4. Hit **Test connection** — six server-side checks cover discovery, issuer
+   match, endpoints, PKCE S256 support, JWKS, and whether the client credentials
+   are actually valid. **Test sign-in** does a real round trip without creating
+   a session.
+5. Enable it.
+
+The flow is authorization code + PKCE (S256), with single-use `state` stored in
+Mongo, nonce binding, and full ID-token validation (signature via cached JWKS,
+`iss`, `aud`/`azp`, expiry) handled by `openid-client`. Client secrets are
+encrypted at rest with AES-256-GCM under `APP_ENCRYPTION_KEY`.
+
+Note on `email_verified`: Microsoft Entra never sends this claim. An **absent**
+claim is treated as verified only when the address falls inside a domain the
+admin explicitly allowlisted for that connection — the admin having bound that
+domain to that tenant's issuer stands in for the missing signal. An explicit
+`false` is always rejected.
+
+Without `APP_ENCRYPTION_KEY` the app runs normally and password auth is
+unaffected; SSO simply reports itself as unavailable.
+
+### Testing SSO with Auth0
+
+Auth0's free tier is enough to exercise the whole flow. One-time setup:
+
+1. **Applications → Create Application** → name it `PhishAware` → pick
+   **Regular Web Applications** → Create. (Skip the "choose a technology" page.)
+2. Open its **Settings** tab and set:
+   - **Allowed Callback URLs**: `http://localhost:3000/api/auth/sso/callback`
+   - **Allowed Logout URLs**: `http://localhost:3000/auth`
+
+   Exactly those — no trailing slash, no query string. Scroll down and
+   **Save Changes**.
+3. From the same Settings tab, copy **Domain**, **Client ID**, and
+   **Client Secret**.
+4. **User Management → Users → Create User**: email `alice@acme.test`,
+   any password, connection `Username-Password-Authentication`. Then open the
+   user and toggle **Email verified** on.
+5. Put the values in `.env` — note the issuer is the domain wrapped in
+   `https://` **with a trailing slash**, which is what Auth0 puts in the `iss`
+   claim. Getting this wrong is the single most common failure, and the
+   preflight check exists specifically to catch it:
+
+   ```bash
+   SSO_TEST_ISSUER="https://dev-xxxxxxxx.us.auth0.com/"
+   SSO_TEST_CLIENT_ID="..."
+   SSO_TEST_CLIENT_SECRET="..."
+   SSO_TEST_PROVIDER="auth0"
+   SSO_TEST_EMPLOYEE="alice@acme.test"
+   ```
+
+6. With `bun run dev` running:
+
+   ```bash
+   bun run sso:demo
+   ```
+
+   That creates a demo org and admin, saves the connection, runs the six
+   preflight checks against your real tenant, enables SSO only if they pass,
+   issues an invitation for the test user, and prints the sign-in URL. Add
+   `-- --reset` to tear the demo org down and start over.
+
+7. Open `/auth`, click **Sign in with your company account**, enter
+   `alice@acme.test`, and authenticate. You should land in the app as a member
+   of the demo org.
+
+Worth trying afterwards, since these are the paths that matter:
+
+| Try this | Expected |
+| --- | --- |
+| An `@acme.test` address with no invitation | `not_a_member` |
+| An address at any other domain | `domain_not_allowed` |
+| Re-opening the completed callback URL | `invalid_state` (single-use) |
+| Deleting the `phishaware_sso_state` cookie mid-flow | `invalid_state` |
+| Setting the member's `status` to `disabled` in Mongo | `account_disabled` |
+
+**Google Workspace instead:** issuer is `https://accounts.google.com` (no
+trailing slash) and `SSO_TEST_PROVIDER="google"`. Google's issuer is shared by
+every Google account, so the `hd` (hosted-domain) claim is what scopes it to
+your org — which means you need a real Workspace domain, not a personal Gmail.
+
+### Migrating from the old invite behavior
+
+Earlier builds created a `status: "invited"` user row with no password, which
+nobody could ever sign in to. Convert any leftovers into real invitations:
+
+```bash
+bun run db:migrate-invites            # dry run — prints what it would change
+bun run db:migrate-invites -- --apply
+```
 
 ## Content model
 

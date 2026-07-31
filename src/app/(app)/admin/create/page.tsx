@@ -83,7 +83,8 @@ export default function CreateOrgPage() {
                 className="py-6 rounded-lg"
               />
               <p className="text-xs text-muted-foreground font-medium">
-                Employees who sign up with this domain join automatically. Leave blank to require invites.
+                Your organization&apos;s primary email domain, used for display. Everyone
+                still joins by invitation — you can set up single sign-on afterwards.
               </p>
             </div>
             <Button type="submit" className="w-full py-6 rounded-lg font-semibold text-base group">

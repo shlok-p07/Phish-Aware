@@ -1,7 +1,7 @@
 /**
  * 01-validators.js
- * Creates/updates all 18 collections (17 shared + app-internal `sessions`)
- * WITH $jsonSchema validators. Safe to re-run against an already-provisioned
+ * Creates/updates all 20 collections (17 shared + app-internal `sessions`,
+ * `ssoConnections`, `ssoStates`) WITH $jsonSchema validators. Safe to re-run against an already-provisioned
  * cluster (uses collMod for existing collections). Runs automatically on
  * first `docker compose up`, or manually:
  *   mongosh "<uri>" init/01-validators.js
@@ -40,11 +40,12 @@ const CONSENT_TYPE = ["emotional_profiling", "data_processing"];
 const NOTIFICATION_TYPE = ["assignment", "reminder", "result", "system", "survey"];
 const SURVEY_PURPOSE = ["onboarding_baseline", "periodic_pulse"];
 const SURVEY_Q_TYPE = ["likert_1_5", "single_choice", "multi_choice", "boolean"];
+const SSO_PROVIDER_KIND = ["okta", "entra", "google", "auth0", "generic"];
 
 // Each collection's PARTICULAR primary key (named per entity, not generic
 // _id). Value mirrors _id; see 02-indexes.js for the matching unique index.
-// `sessions` has no named PK -- it's app-internal (auth), not part of the
-// shared cross-team schema.
+// `sessions` and `ssoStates` have no named PK -- they're app-internal and
+// transient, not part of the shared cross-team schema.
 const PK = {
   organizations: "orgId", departments: "departmentId", users: "userId",
   profiles: "profileId", scenarios: "scenarioId", lessons: "lessonId",
@@ -52,6 +53,7 @@ const PK = {
   assignments: "assignmentId", deliveries: "deliveryId", invitations: "invitationId",
   consents: "consentId", notifications: "notificationId", auditLogs: "auditLogId",
   surveys: "surveyId", surveyResponses: "surveyResponseId",
+  ssoConnections: "ssoConnectionId",
 };
 
 const oid = { bsonType: "objectId" };
@@ -234,10 +236,13 @@ make("deliveries", ["campaignId", "userId", "orgId", "scenarioId", "outcome"], {
   outcome: { enum: DELIVERY_OUTCOME },
 });
 
+// `name` and `acceptedUserId` are app extras beyond the shared spec -- allowed
+// since these validators never set additionalProperties:false.
 make("invitations", ["orgId", "email", "token", "status", "invitedBy"], {
   orgId: oid, email: str, role: { enum: ROLE }, departmentId: oidOrNull,
   token: str, status: { enum: INVITATION_STATUS }, invitedBy: oid,
   expiresAt: dateOrNull, acceptedAt: dateOrNull,
+  name: strOrNull, acceptedUserId: oidOrNull,
 });
 
 make("consents", ["userId", "orgId", "policyType", "granted"], {
@@ -303,4 +308,26 @@ make("sessions", ["token", "userId", "expiresAt"], {
   token: str, userId: oid, expiresAt: { bsonType: "date" },
 });
 
-print("\n[01-validators] all 18 collections created/updated with schema validation.");
+// ================= App-internal — SSO =================
+// Per-org OIDC identity providers, plus the transient state of in-flight
+// authorization requests. Kept out of `organizations` so the encrypted client
+// secret can't ride along on an unprojected org read.
+
+make("ssoConnections", ["orgId", "issuer", "clientId", "clientSecretEnc", "enabled"], {
+  orgId: oid, providerKind: { enum: SSO_PROVIDER_KIND },
+  issuer: str, clientId: str, clientSecretEnc: str,
+  extraScopes: { bsonType: "array", items: str },
+  allowedDomains: { bsonType: "array", items: str },
+  requireVerifiedEmail: { bsonType: "bool" }, enabled: { bsonType: "bool" },
+  discovery: { bsonType: ["object", "null"] }, discoveryFetchedAt: dateOrNull,
+  lastTestAt: dateOrNull, lastTestOk: { bsonType: ["bool", "null"] },
+  lastTestError: strOrNull, configVersion: num,
+});
+
+make("ssoStates", ["state", "nonce", "codeVerifier", "orgId", "expiresAt"], {
+  state: str, nonce: str, codeVerifier: str, orgId: oid, connectionId: oid,
+  redirectTo: str, emailHint: strOrNull, isTest: { bsonType: "bool" },
+  expiresAt: { bsonType: "date" },
+});
+
+print("\n[01-validators] all 20 collections created/updated with schema validation.");

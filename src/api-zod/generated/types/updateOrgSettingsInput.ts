@@ -8,6 +8,8 @@
 
 export interface UpdateOrgSettingsInput {
   name?: string;
+  /** Display only — see Org.ssoDomain. Does not grant access. */
   ssoDomain?: string;
+  /** 0 means unlimited */
   seatLimit?: number;
 }

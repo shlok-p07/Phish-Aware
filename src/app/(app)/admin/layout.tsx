@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Building2, Users, BarChart3, ClipboardList, Settings2 } from "lucide-react";
-import { useGetOrg } from "@/api-client";
+import { useGetOrg, useGetCurrentUser, getGetCurrentUserQueryKey } from "@/api-client";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -15,17 +15,39 @@ const TABS = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { data: org, isLoading } = useGetOrg({ query: { retry: false } });
+  const { data: user, isLoading: userLoading } = useGetCurrentUser({
+    query: { retry: false, queryKey: getGetCurrentUserQueryKey() },
+  });
   const pathname = usePathname();
   const router = useRouter();
 
-  // No org yet — send the user to the create flow.
+  const isAdmin = user?.role === "admin";
+  const ready = !isLoading && !userLoading;
+
   useEffect(() => {
-    if (!isLoading && !org && pathname !== "/admin/create") router.replace("/admin/create");
-  }, [isLoading, org, pathname, router]);
+    if (!ready || !user) return;
+    if (pathname === "/admin/create") {
+      // Already in an org, so there's nothing to create -- POST /api/org would
+      // just 409.
+      if (user.hasOrg) router.replace(isAdmin ? "/admin" : "/dashboard");
+      return;
+    }
+    // A member who isn't an admin gets bounced rather than shown the chrome:
+    // every request this section makes is gated by requireOrgAdmin and would
+    // 403, which used to render as an empty page with no explanation.
+    if (!isAdmin) {
+      router.replace("/dashboard");
+      return;
+    }
+    // Admin with no org yet — send them through the create flow.
+    if (!org) router.replace("/admin/create");
+  }, [ready, org, user, isAdmin, pathname, router]);
 
   // The create page renders outside the tabbed chrome.
-  if (pathname === "/admin/create") return <>{children}</>;
-  if (isLoading || !org) return null;
+  if (pathname === "/admin/create") {
+    return ready && user && !user.hasOrg ? <>{children}</> : null;
+  }
+  if (!ready || !org || !isAdmin) return null;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">

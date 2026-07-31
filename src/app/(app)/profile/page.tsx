@@ -99,7 +99,7 @@ export default function ProfilePage() {
 								className="absolute bottom-0 w-full bg-primary transition-all duration-1000"
 								style={{ height: `${calibrationScore}%` }}
 							/>
-							<span className="relative z-10 font-bold text-foreground mix-blend-difference text-lg">
+							<span className="relative z-10 font-bold text-foreground text-lg">
 								{calibrationScore}%
 							</span>
 						</div>
