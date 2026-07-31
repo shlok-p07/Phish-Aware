@@ -49,7 +49,9 @@ emails, links, or credential prompts anywhere in the app.
 - A MongoDB instance — either a connection string to
   [MongoDB Atlas](https://www.mongodb.com/atlas), or Docker (see below) for a
   disposable local instance
-- [`mongosh`](https://www.mongodb.com/docs/mongodb-shell/) for `db:init`
+- [`mongosh`](https://www.mongodb.com/docs/mongodb-shell/) is only needed if
+  you want to run `db:init`/`db:seed` by hand — the app provisions its own
+  schema, indexes, and seed data automatically on startup (see below)
 
 **Docker is optional, not required.** Pick one path per teammate:
 
@@ -76,39 +78,41 @@ bun install
 cp .env.example .env
 # then edit .env and point MONGODB_URI at your MongoDB instance
 
-# 3. Apply the schema (collections + $jsonSchema validators + indexes)
-bun run db:init
-
-# 4. Seed lessons, practice scenarios, and sample leaderboard users
-bun run db:seed
-
-# 5. Start the dev server
+# 3. Start the dev server
 bun run dev
 ```
 
-The app runs at [http://localhost:3000](http://localhost:3000).
+The app runs at [http://localhost:3000](http://localhost:3000). On first
+boot, a Next.js
+[instrumentation hook](https://nextjs.org/docs/app/guides/instrumentation)
+(`src/instrumentation.ts`) automatically applies the schema (collections +
+`$jsonSchema` validators + indexes, see `src/db/provision.ts`) and seeds
+lessons/practice scenarios/sample leaderboard users if the database is
+empty — nobody needs to run a setup script by hand, whether that's a
+teammate's laptop, CI, Docker, or a Render deploy. It's idempotent, so it's
+safe to run against an already-provisioned cluster every time the server
+starts.
 
-`./dev.sh` wraps steps 3-5 into one command (verifies Mongo connectivity
-first) and `./dev.sh stop` stops the dev server it started.
+`bun run db:init`/`bun run db:seed` still exist as standalone mongosh/CLI
+equivalents (handy for debugging or for teammates working from
+`phishaware-db/init/` directly outside this app), but the app no longer
+depends on either being run manually.
 
-### Setup with Docker (local Mongo, no Atlas needed)
+### Setup with Docker (production container parity)
 
 ```bash
 docker compose up -d --build
 ```
 
-This builds the app image and starts a local `mongo:7` container, which
-auto-applies the schema (collections + validators + indexes) on first boot.
-Then seed it once from the host (Mongo's port is published to
-`localhost:27017`):
-
-```bash
-MONGODB_URI="mongodb://localhost:27017" bun run db:seed
-```
-
-The app is then available at [http://localhost:3000](http://localhost:3000).
-This is for local dev/test parity only — it's a disposable database, separate
-from whatever `MONGODB_URI` your `.env` points at for non-Docker development.
+This builds the app image from the same `Dockerfile` used for deploys and
+runs it against whatever `MONGODB_URI` is in your `.env` (the shared Atlas
+cluster) — there's no separate local Mongo container anymore, since
+everyone on the team reads/writes the same live database. The app's own
+startup hook provisions the schema/indexes and seeds it, same as any other
+environment. The app is then available at
+[http://localhost:3000](http://localhost:3000). This is mainly useful for
+testing the production container build locally before deploying; day-to-day
+dev doesn't need Docker at all — just `bun run dev`.
 
 ## Scripts
 
@@ -120,8 +124,8 @@ from whatever `MONGODB_URI` your `.env` points at for non-Docker development.
 | `bun run lint`      | Run ESLint via `next lint`                                      |
 | `bun run typecheck` | Type-check the project with `tsc --noEmit`                     |
 | `bun test`          | Run the unit test suite                                         |
-| `bun run db:init`   | Apply the MongoDB schema (validators + indexes)                |
-| `bun run db:seed`   | Seed lessons, scenarios, and sample users if empty              |
+| `bun run db:init`   | (Optional, manual) apply the MongoDB schema via mongosh — the app does this itself on startup |
+| `bun run db:seed`   | (Optional, manual) seed lessons/scenarios/sample users via CLI — the app does this itself on startup |
 | `bun run codegen`   | Regenerate `api-client`/`api-zod` from `api-spec/openapi.yaml`  |
 
 ## Project structure

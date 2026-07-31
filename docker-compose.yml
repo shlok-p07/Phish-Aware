@@ -1,40 +1,8 @@
 services:
-  mongo:
-    image: mongo:7
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_DATABASE: phishaware
-    volumes:
-      - mongo_data:/data/db
-      # Only the schema/index scripts are auto-run on first boot (Mongo's
-      # docker-entrypoint-initdb.d runs every file in this dir alphabetically).
-      # 03-seed.js is intentionally NOT mounted here -- it seeds an
-      # incompatible fake enterprise dataset meant only for the standalone
-      # phishaware-db reference repo, never for a database this app actually
-      # reads from. The app's own `bun run db:seed` seeds real, compatible
-      # content instead.
-      - ./phishaware-db/init/01-validators.js:/docker-entrypoint-initdb.d/01-validators.js:ro
-      - ./phishaware-db/init/02-indexes.js:/docker-entrypoint-initdb.d/02-indexes.js:ro
-    ports:
-      - "27017:27017"
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   app:
     build: .
     restart: unless-stopped
-    depends_on:
-      mongo:
-        condition: service_healthy
-    environment:
-      MONGODB_URI: mongodb://mongo:27017
-      MONGODB_DB: phishaware
-      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+    env_file:
+      - .env
     ports:
       - "3000:3000"
-
-volumes:
-  mongo_data:
