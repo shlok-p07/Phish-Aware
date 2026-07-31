@@ -60,6 +60,7 @@ export const GET = withErrorHandling(
       orgName: org?.name ?? "your organization",
       email: invitation.email,
       role: invitation.role,
+      department: invitation.department ?? null,
       expiresAt: invitation.expiresAt?.toISOString() ?? null,
       ssoAvailable,
       ssoStartUrl: ssoAvailable

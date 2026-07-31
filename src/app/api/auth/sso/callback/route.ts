@@ -10,7 +10,11 @@ import {
 import { withErrorHandling } from "@/server/http";
 import { normalizeEmail } from "@/server/sso/domain";
 import { extractIdentity, displayName } from "@/server/sso/idToken";
-import { decideSsoProvisioning, type SsoRejectCode } from "@/server/sso/provisioning";
+import {
+  decideSsoProvisioning,
+  selectInvitation,
+  type SsoRejectCode,
+} from "@/server/sso/provisioning";
 import { configurationFor } from "@/server/sso/oidc";
 import { buildUserDoc } from "@/server/users";
 import { createSessionRow, sessionCookieOptions, SESSION_COOKIE } from "@/server/session";
@@ -178,15 +182,20 @@ async function handleCallback(req: NextRequest): Promise<NextResponse> {
     organizationsCollection(),
   ]);
 
-  const [member, orphan, invitation, org, activeSeats] = await Promise.all([
+  const [member, orphan, invitationRows, org, activeSeats] = await Promise.all([
     users.findOne({ orgId: connection.orgId, email }),
     users.findOne({ orgId: null, email }),
-    invitations.findOne({ orgId: connection.orgId, email, status: { $ne: "revoked" } }),
+    // Every row, not one: an address can hold a live invitation alongside
+    // spent ones from previous stints in the org. selectInvitation picks.
+    // Revoked rows are included so a revocation is reported as such.
+    invitations.find({ orgId: connection.orgId, email }).toArray(),
     orgs.findOne({ _id: connection.orgId }, { projection: { settings: 1 } }),
     users.countDocuments({ orgId: connection.orgId, status: { $ne: "disabled" } }),
   ]);
 
   const now = new Date();
+  const invitation = selectInvitation(invitationRows, now);
+
   const decision = decideSsoProvisioning({
     email,
     emailVerified: identity.emailVerified,
@@ -244,6 +253,11 @@ async function handleCallback(req: NextRequest): Promise<NextResponse> {
           status: "active",
           lastLoginAt: now,
           updatedAt: now,
+          // Only when the invitation pins one and they haven't already
+          // answered the survey's department question themselves.
+          ...(invitation?.department && !orphan!.department
+            ? { department: invitation.department }
+            : {}),
         },
       },
       { returnDocument: "after" },
@@ -261,6 +275,9 @@ async function handleCallback(req: NextRequest): Promise<NextResponse> {
       passwordHash: null,
       orgId: connection.orgId,
       role: decision.role,
+      // Pinned by the admin who sent the invitation, if there was one. Lets
+      // the intro survey skip its department question.
+      department: invitation?.department ?? null,
       status: "active",
       lastLoginAt: now,
       now,

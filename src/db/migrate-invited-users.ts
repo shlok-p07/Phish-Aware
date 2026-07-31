@@ -81,6 +81,7 @@ async function main() {
       name: user.name || null,
       role: user.role,
       departmentId: null,
+      department: user.department,
       token: generateInviteToken(),
       status: "pending",
       // The original inviter isn't recorded on the old rows; attribute it to

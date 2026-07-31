@@ -86,6 +86,9 @@ export const POST = withErrorHandling(
         passwordHash: hashPassword(body.password),
         orgId: invitation.orgId,
         role: invitation.role,
+        // Pinned by the admin who sent the invitation, if they set one. The
+        // intro survey skips its department question when this is present.
+        department: invitation.department,
         status: "active",
         lastLoginAt: now,
         now,
@@ -126,6 +129,11 @@ export const POST = withErrorHandling(
             status: "active",
             lastLoginAt: now,
             updatedAt: now,
+            // Only when the invitation pins one, and only if they haven't
+            // already told us themselves on the survey.
+            ...(invitation.department && !caller.department
+              ? { department: invitation.department }
+              : {}),
           },
         },
         { returnDocument: "after" },

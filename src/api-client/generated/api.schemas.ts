@@ -85,8 +85,6 @@ export interface User {
   department?: string | null;
   /** @nullable */
   workType?: string | null;
-  /** @nullable */
-  ageRange?: string | null;
   /** Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty. */
   phishingAwarenessScore?: number;
   onboardingCompleted: boolean;
@@ -132,14 +130,116 @@ export interface OnboardingAnswer {
   verdict: boolean;
 }
 
+export type SurveyFeaturesWorkMode = typeof SurveyFeaturesWorkMode[keyof typeof SurveyFeaturesWorkMode];
+
+
+export const SurveyFeaturesWorkMode = {
+  Remote: 'Remote',
+  Hybrid: 'Hybrid',
+  Office: 'Office',
+} as const;
+
+/**
+ * Kept in sync with DEPARTMENTS in src/lib/onboarding-survey.ts and the keys of DEPARTMENT_ATTACK_TYPES in src/server/attackProfiles.ts.
+ */
+export type Department = typeof Department[keyof typeof Department];
+
+
+export const Department = {
+  Customer_Support: 'Customer Support',
+  Engineering: 'Engineering',
+  Executive: 'Executive',
+  Finance: 'Finance',
+  HR: 'HR',
+  IT: 'IT',
+  Legal: 'Legal',
+  Marketing: 'Marketing',
+  Operations: 'Operations',
+  Sales: 'Sales',
+} as const;
+
+/**
+ * The intro survey's answers in feature form -- booleans as 1/0, "how often" answers as 0-100, counts as non-negative integers. Question wording and ordering live in src/lib/onboarding-survey.ts; this is the wire shape they reduce to.
+ */
+export interface SurveyFeatures {
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  emails_per_day: number;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  suspicious_emails_per_day: number;
+  /**
+     * @minimum 1
+     * @maximum 128
+     */
+  password_length: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  reuses_passwords: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  uses_password_manager: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  mfa_familiar: number;
+  /**
+     * Always 0 when mfa_familiar is 0 -- the question isn't asked.
+     * @minimum 0
+     * @maximum 1
+     */
+  mfa_enabled: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  security_training: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  clicks_links: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  opens_attachments: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  verifies_links: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  reports_suspicious: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  has_antivirus: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  uses_vpn: number;
+  department: Department;
+  work_mode: SurveyFeaturesWorkMode;
+}
+
 export interface OnboardingSubmitInput {
   answers: OnboardingAnswer[];
-  /** From the intro survey -- used to tailor generated scenarios. */
-  department?: string;
-  /** From the intro survey (e.g. Remote/Hybrid/Onsite). */
-  workType?: string;
-  /** From the intro survey, e.g. "25-34". */
-  ageRange?: string;
+  features?: SurveyFeatures;
 }
 
 export interface OnboardingResult {
@@ -321,6 +421,11 @@ export interface OrgMember {
   /** @nullable */
   email: string | null;
   role: OrgRole;
+  /**
+     * For a member, what they reported on the intro survey. For an invitation, what the admin pinned to it (null if they left it open).
+     * @nullable
+     */
+  department: string | null;
   status: OrgMemberStatus;
   /** @nullable */
   joinedAt: string | null;
@@ -338,6 +443,8 @@ export interface InviteMemberInput {
   name?: string;
   email: string;
   role?: OrgRole;
+  /** Optional. When set, the invited user is created with this department and the intro survey stops asking for it. */
+  department?: Department;
 }
 
 export interface InviteMemberResult {
@@ -356,6 +463,11 @@ export interface PublicInvitation {
   orgName: string;
   email: string;
   role: OrgRole;
+  /**
+     * Pinned by the inviting admin. Carried onto the account on accept, which is what lets the intro survey skip the question.
+     * @nullable
+     */
+  department: string | null;
   /** @nullable */
   expiresAt: string | null;
   ssoAvailable: boolean;

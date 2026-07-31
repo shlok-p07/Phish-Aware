@@ -6,6 +6,7 @@ import {
   PERSUASION_TACTIC_LABELS,
   type AttackTypeId,
 } from "./attackProfiles";
+import { DEPARTMENTS } from "@/lib/onboarding-survey";
 
 const ALL_TACTICS = Object.keys(PERSUASION_TACTIC_LABELS);
 const UNIVERSAL: AttackTypeId[] = [
@@ -33,14 +34,17 @@ describe("pickAttackProfile", () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 
-  it("never picks a department-specific attack type for a department scoped to the universal set", () => {
-    for (const { attackType } of drawMany("Sales")) {
-      expect(UNIVERSAL).toContain(attackType);
+  it("never picks an attack type outside what its department maps to", () => {
+    for (const department of DEPARTMENTS) {
+      const allowed = DEPARTMENT_ATTACK_TYPES[department];
+      for (const { attackType } of drawMany(department, 100)) {
+        expect(allowed).toContain(attackType);
+      }
     }
   });
 
-  it("stays within the universal set for a department with no department-specific mapping", () => {
-    for (const { attackType } of drawMany("Other")) {
+  it("stays within the universal set for a department name we retired", () => {
+    for (const { attackType } of drawMany("Management")) {
       expect(UNIVERSAL).toContain(attackType);
     }
   });
@@ -88,6 +92,21 @@ describe("pickAttackProfile", () => {
     for (const attackTypes of Object.values(DEPARTMENT_ATTACK_TYPES)) {
       for (const id of attackTypes) {
         expect(validIds.has(id)).toBe(true);
+      }
+    }
+  });
+
+  // The survey is where these strings originate; a department offered there
+  // with no mapping here would silently fall back to the universal set, which
+  // looks like working code rather than a missing entry.
+  it("maps exactly the departments the onboarding survey offers", () => {
+    expect(Object.keys(DEPARTMENT_ATTACK_TYPES).sort()).toEqual([...DEPARTMENTS].sort());
+  });
+
+  it("gives every department at least the universal attack types", () => {
+    for (const department of DEPARTMENTS) {
+      for (const id of UNIVERSAL) {
+        expect(DEPARTMENT_ATTACK_TYPES[department]).toContain(id);
       }
     }
   });

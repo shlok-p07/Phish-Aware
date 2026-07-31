@@ -2,21 +2,33 @@ import { describe, expect, it } from "bun:test";
 import {
   validateSurveyAnswers,
   stripEmpty,
+  toSurveyFeatures,
+  visibleQuestions,
+  visibleSections,
+  DEPARTMENTS,
   ONBOARDING_SURVEY_QUESTIONS,
+  ONBOARDING_SURVEY_SECTIONS,
   type OnboardingSurveyAnswerMap,
 } from "./onboarding-survey";
 
 /** A fully valid answer set, used as a baseline that individual tests mutate. */
 const COMPLETE_ANSWERS: OnboardingSurveyAnswerMap = {
-  role: "Student",
-  department: "IT",
-  work_type: "Remote",
-  age_range: "25-34",
-  email_volume: "10–25",
-  confidence: "Somewhat confident",
-  prior_training: "No",
-  goal: "Stop clicking suspicious links",
-  // recent_encounter deliberately omitted -- it's optional
+  emails_per_day: "40",
+  suspicious_emails_per_day: "3",
+  password_length: "14",
+  reuses_passwords: "1",
+  uses_password_manager: "0",
+  mfa_familiar: "1",
+  mfa_enabled: "1",
+  security_training: "0",
+  clicks_links: "60",
+  opens_attachments: "25",
+  verifies_links: "40",
+  reports_suspicious: "10",
+  has_antivirus: "1",
+  uses_vpn: "0",
+  department: "Engineering",
+  work_mode: "Hybrid",
 };
 
 describe("validateSurveyAnswers", () => {
@@ -24,75 +36,200 @@ describe("validateSurveyAnswers", () => {
     expect(validateSurveyAnswers(COMPLETE_ANSWERS)).toEqual({});
   });
 
-  it("flags each required field (department, work_type, age_range) as missing when absent", () => {
-    const { department, work_type, age_range, ...rest } = COMPLETE_ANSWERS;
-    const errors = validateSurveyAnswers(rest);
-    expect(Object.keys(errors)).toContain("department");
-    expect(Object.keys(errors)).toContain("work_type");
-    expect(Object.keys(errors)).toContain("age_range");
+  it("an entirely empty submission flags every question that was asked", () => {
+    const errors = validateSurveyAnswers({});
+    for (const question of visibleQuestions({})) {
+      expect(errors[question.id]).toBeTruthy();
+    }
   });
 
-  it("rejects a department value that isn't one of the real options", () => {
-    const errors = validateSurveyAnswers({ ...COMPLETE_ANSWERS, department: "Marketing" });
-    expect(errors.department).toBeTruthy();
+  it("rejects a non-integer count", () => {
+    expect(validateSurveyAnswers({ ...COMPLETE_ANSWERS, emails_per_day: "12.5" })
+      .emails_per_day).toBeTruthy();
   });
 
-  it("rejects a work_type value outside Remote/Hybrid/Onsite", () => {
-    const errors = validateSurveyAnswers({ ...COMPLETE_ANSWERS, work_type: "From the moon" });
-    expect(errors.work_type).toBeTruthy();
+  it("rejects a count above its declared maximum", () => {
+    expect(validateSurveyAnswers({ ...COMPLETE_ANSWERS, emails_per_day: "5000" })
+      .emails_per_day).toBeTruthy();
   });
 
-  it("rejects an age_range value that isn't one of the real buckets", () => {
-    const errors = validateSurveyAnswers({ ...COMPLETE_ANSWERS, age_range: "16" });
-    expect(errors.age_range).toBeTruthy();
+  it("rejects a password length of zero -- everyone's password has characters", () => {
+    expect(validateSurveyAnswers({ ...COMPLETE_ANSWERS, password_length: "0" })
+      .password_length).toBeTruthy();
   });
 
-  it("does not require the optional recent_encounter field", () => {
-    const errors = validateSurveyAnswers(COMPLETE_ANSWERS);
-    expect(errors.recent_encounter).toBeUndefined();
+  it("accepts zero for a count that legitimately can be zero", () => {
+    expect(
+      validateSurveyAnswers({ ...COMPLETE_ANSWERS, suspicious_emails_per_day: "0" }),
+    ).toEqual({});
   });
 
-  it("accepts recent_encounter when it is provided", () => {
-    const errors = validateSurveyAnswers({
-      ...COMPLETE_ANSWERS,
-      recent_encounter: "Got an email claiming to be from IT asking for my password.",
-    });
-    expect(errors.recent_encounter).toBeUndefined();
+  it("rejects a boolean answer that isn't 1 or 0", () => {
+    expect(validateSurveyAnswers({ ...COMPLETE_ANSWERS, uses_vpn: "yes" }).uses_vpn)
+      .toBeTruthy();
   });
 
-  it("rejects a required free-text field left blank", () => {
-    const errors = validateSurveyAnswers({ ...COMPLETE_ANSWERS, goal: "" });
-    expect(errors.goal).toBeTruthy();
+  it("rejects a 0-100 answer outside the range", () => {
+    expect(validateSurveyAnswers({ ...COMPLETE_ANSWERS, clicks_links: "140" })
+      .clicks_links).toBeTruthy();
   });
 
-  it("rejects a required free-text field that is only whitespace", () => {
-    const errors = validateSurveyAnswers({ ...COMPLETE_ANSWERS, goal: "   " });
-    expect(errors.goal).toBeTruthy();
+  it("accepts both ends of a 0-100 range", () => {
+    expect(
+      validateSurveyAnswers({ ...COMPLETE_ANSWERS, clicks_links: "0", verifies_links: "100" }),
+    ).toEqual({});
   });
 
-  it("rejects free text over its declared maxLength", () => {
-    const goalQuestion = ONBOARDING_SURVEY_QUESTIONS.find((q) => q.id === "goal")!;
-    const tooLong = "x".repeat((goalQuestion as { maxLength: number }).maxLength + 1);
-    const errors = validateSurveyAnswers({ ...COMPLETE_ANSWERS, goal: tooLong });
-    expect(errors.goal).toBeTruthy();
+  it("rejects a department outside the offered list", () => {
+    expect(validateSurveyAnswers({ ...COMPLETE_ANSWERS, department: "Facilities" })
+      .department).toBeTruthy();
+  });
+
+  it("rejects a work mode outside Remote/Hybrid/Office", () => {
+    expect(validateSurveyAnswers({ ...COMPLETE_ANSWERS, work_mode: "Onsite" })
+      .work_mode).toBeTruthy();
   });
 
   it("reports every invalid field at once, not just the first one found", () => {
     const errors = validateSurveyAnswers({
       ...COMPLETE_ANSWERS,
       department: "bogus",
-      work_type: "bogus",
-      goal: "",
+      uses_vpn: "bogus",
+      emails_per_day: "",
     });
-    expect(Object.keys(errors).sort()).toEqual(["department", "goal", "work_type"]);
+    expect(Object.keys(errors).sort()).toEqual(["department", "emails_per_day", "uses_vpn"]);
   });
 
-  it("an entirely empty submission flags every required question", () => {
-    const requiredIds = ONBOARDING_SURVEY_QUESTIONS.filter((q) => q.required).map((q) => q.id);
-    const errors = validateSurveyAnswers({});
-    for (const id of requiredIds) {
-      expect(errors[id]).toBeTruthy();
+  it("doesn't ask -- or require -- whether MFA is enabled when they don't know what MFA is", () => {
+    const { mfa_enabled, ...rest } = COMPLETE_ANSWERS;
+    const answers = { ...rest, mfa_familiar: "0" };
+    expect(visibleQuestions(answers).some((q) => q.id === "mfa_enabled")).toBe(false);
+    expect(validateSurveyAnswers(answers)).toEqual({});
+  });
+
+  it("requires the MFA-enabled answer once they say they're familiar with MFA", () => {
+    const { mfa_enabled, ...rest } = COMPLETE_ANSWERS;
+    expect(validateSurveyAnswers(rest).mfa_enabled).toBeTruthy();
+  });
+});
+
+describe("a department pinned by an org invitation", () => {
+  const { department, ...withoutDepartment } = COMPLETE_ANSWERS;
+
+  it("drops the department question from the survey", () => {
+    const asked = visibleQuestions(withoutDepartment, { presetDepartment: "Legal" });
+    expect(asked.some((q) => q.id === "department")).toBe(false);
+  });
+
+  it("validates without the user answering it", () => {
+    expect(validateSurveyAnswers(withoutDepartment, { presetDepartment: "Legal" })).toEqual({});
+  });
+
+  it("still sends the department in the features, taken from the invitation", () => {
+    const features = toSurveyFeatures(withoutDepartment, { presetDepartment: "Legal" });
+    expect(features.department).toBe("Legal");
+  });
+
+  it("overrides a stale answer left in the draft", () => {
+    const features = toSurveyFeatures(COMPLETE_ANSWERS, { presetDepartment: "Legal" });
+    expect(features.department).toBe("Legal");
+  });
+
+  it("is ignored when it isn't a department we know, so the question is still asked", () => {
+    const asked = visibleQuestions(withoutDepartment, { presetDepartment: "Facilities" });
+    expect(asked.some((q) => q.id === "department")).toBe(true);
+    expect(validateSurveyAnswers(withoutDepartment, { presetDepartment: "Facilities" })
+      .department).toBeTruthy();
+  });
+
+  it("leaves the work-mode question alone", () => {
+    const asked = visibleQuestions(withoutDepartment, { presetDepartment: "Legal" });
+    expect(asked.some((q) => q.id === "work_mode")).toBe(true);
+  });
+});
+
+describe("toSurveyFeatures", () => {
+  it("produces the full numeric feature vector", () => {
+    expect(toSurveyFeatures(COMPLETE_ANSWERS)).toEqual({
+      emails_per_day: 40,
+      suspicious_emails_per_day: 3,
+      password_length: 14,
+      reuses_passwords: 1,
+      uses_password_manager: 0,
+      mfa_familiar: 1,
+      mfa_enabled: 1,
+      security_training: 0,
+      clicks_links: 60,
+      opens_attachments: 25,
+      verifies_links: 40,
+      reports_suspicious: 10,
+      has_antivirus: 1,
+      uses_vpn: 0,
+      department: "Engineering",
+      work_mode: "Hybrid",
+    });
+  });
+
+  it("forces mfa_enabled to 0 when they aren't familiar with MFA", () => {
+    const { mfa_enabled, ...rest } = COMPLETE_ANSWERS;
+    const features = toSurveyFeatures({ ...rest, mfa_familiar: "0" });
+    expect(features.mfa_familiar).toBe(0);
+    expect(features.mfa_enabled).toBe(0);
+  });
+
+  it("forces mfa_enabled to 0 even if a stale 'yes' is left in the draft", () => {
+    const features = toSurveyFeatures({ ...COMPLETE_ANSWERS, mfa_familiar: "0" });
+    expect(features.mfa_enabled).toBe(0);
+  });
+
+  it("refuses to build a vector from an invalid draft rather than emitting NaN", () => {
+    expect(() => toSurveyFeatures({ ...COMPLETE_ANSWERS, emails_per_day: "lots" })).toThrow();
+  });
+
+  it("covers every question the survey asks, and nothing else", () => {
+    const featureKeys = Object.keys(toSurveyFeatures(COMPLETE_ANSWERS)).sort();
+    const questionIds = ONBOARDING_SURVEY_QUESTIONS.map((q) => q.id).sort();
+    expect(featureKeys).toEqual(questionIds);
+  });
+});
+
+describe("survey structure", () => {
+  it("has no duplicate question ids", () => {
+    const ids = ONBOARDING_SURVEY_QUESTIONS.map((q) => q.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("gates every conditional question on a question that exists", () => {
+    const ids = new Set(ONBOARDING_SURVEY_QUESTIONS.map((q) => q.id));
+    for (const question of ONBOARDING_SURVEY_QUESTIONS) {
+      if (question.showWhen) {
+        expect(ids.has(question.showWhen.id)).toBe(true);
+      }
     }
+  });
+
+  it("offers the departments the rest of the app maps scenarios to", () => {
+    const question = ONBOARDING_SURVEY_QUESTIONS.find((q) => q.id === "department")!;
+    expect(question.type).toBe("select");
+    expect((question as { options: readonly string[] }).options).toEqual([...DEPARTMENTS]);
+  });
+
+  it("drops a section entirely once all of its questions are hidden", () => {
+    const workSection = ONBOARDING_SURVEY_SECTIONS.find((s) => s.id === "work")!;
+    // Sanity check that the only other question in the section is work_mode,
+    // so answering it is enough to empty the section out.
+    expect(workSection.questions.map((q) => q.id)).toEqual(["department", "work_mode"]);
+  });
+
+  it("keeps every question reachable from exactly one section", () => {
+    const fromSections = ONBOARDING_SURVEY_SECTIONS.flatMap((s) => s.questions.map((q) => q.id));
+    expect(fromSections.sort()).toEqual(ONBOARDING_SURVEY_QUESTIONS.map((q) => q.id).sort());
+  });
+
+  it("hides an empty section rather than rendering a bare heading", () => {
+    const sections = visibleSections({}, { presetDepartment: "Legal" });
+    const work = sections.find((s) => s.id === "work")!;
+    expect(work.questions.map((q) => q.id)).toEqual(["work_mode"]);
   });
 });
 

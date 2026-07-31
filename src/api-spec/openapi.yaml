@@ -867,8 +867,6 @@ components:
           type: ["string", "null"]
         workType:
           type: ["string", "null"]
-        ageRange:
-          type: ["string", "null"]
         phishingAwarenessScore:
           type: number
           description: Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.
@@ -948,6 +946,113 @@ components:
           type: boolean
           description: true if the user judged it phishing
 
+    SurveyFeatures:
+      type: object
+      description: >
+        The intro survey's answers in feature form -- booleans as 1/0, "how
+        often" answers as 0-100, counts as non-negative integers. Question
+        wording and ordering live in src/lib/onboarding-survey.ts; this is the
+        wire shape they reduce to.
+      required:
+        [
+          emails_per_day,
+          suspicious_emails_per_day,
+          password_length,
+          reuses_passwords,
+          uses_password_manager,
+          mfa_familiar,
+          mfa_enabled,
+          security_training,
+          clicks_links,
+          opens_attachments,
+          verifies_links,
+          reports_suspicious,
+          has_antivirus,
+          uses_vpn,
+          department,
+          work_mode,
+        ]
+      properties:
+        emails_per_day:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        suspicious_emails_per_day:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        password_length:
+          type: integer
+          minimum: 1
+          maximum: 128
+        reuses_passwords:
+          type: integer
+          minimum: 0
+          maximum: 1
+        uses_password_manager:
+          type: integer
+          minimum: 0
+          maximum: 1
+        mfa_familiar:
+          type: integer
+          minimum: 0
+          maximum: 1
+        mfa_enabled:
+          type: integer
+          minimum: 0
+          maximum: 1
+          description: Always 0 when mfa_familiar is 0 -- the question isn't asked.
+        security_training:
+          type: integer
+          minimum: 0
+          maximum: 1
+        clicks_links:
+          type: integer
+          minimum: 0
+          maximum: 100
+        opens_attachments:
+          type: integer
+          minimum: 0
+          maximum: 100
+        verifies_links:
+          type: integer
+          minimum: 0
+          maximum: 100
+        reports_suspicious:
+          type: integer
+          minimum: 0
+          maximum: 100
+        has_antivirus:
+          type: integer
+          minimum: 0
+          maximum: 1
+        uses_vpn:
+          type: integer
+          minimum: 0
+          maximum: 1
+        department:
+          $ref: "#/components/schemas/Department"
+        work_mode:
+          type: string
+          enum: [Remote, Hybrid, Office]
+
+    Department:
+      type: string
+      description: >
+        Kept in sync with DEPARTMENTS in src/lib/onboarding-survey.ts and the
+        keys of DEPARTMENT_ATTACK_TYPES in src/server/attackProfiles.ts.
+      enum:
+        - Customer Support
+        - Engineering
+        - Executive
+        - Finance
+        - HR
+        - IT
+        - Legal
+        - Marketing
+        - Operations
+        - Sales
+
     OnboardingSubmitInput:
       type: object
       required: [answers]
@@ -956,15 +1061,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OnboardingAnswer"
-        department:
-          type: string
-          description: From the intro survey -- used to tailor generated scenarios.
-        workType:
-          type: string
-          description: From the intro survey (e.g. Remote/Hybrid/Onsite).
-        ageRange:
-          type: string
-          description: From the intro survey, e.g. "25-34".
+        features:
+          $ref: "#/components/schemas/SurveyFeatures"
 
     OnboardingResult:
       type: object
@@ -1289,7 +1387,19 @@ components:
     OrgMember:
       type: object
       required:
-        [id, kind, name, email, role, status, joinedAt, expiresAt, accuracy, riskLevel]
+        [
+          id,
+          kind,
+          name,
+          email,
+          role,
+          department,
+          status,
+          joinedAt,
+          expiresAt,
+          accuracy,
+          riskLevel,
+        ]
       properties:
         id:
           type: string
@@ -1305,6 +1415,11 @@ components:
           type: ["string", "null"]
         role:
           $ref: "#/components/schemas/OrgRole"
+        department:
+          type: ["string", "null"]
+          description: >
+            For a member, what they reported on the intro survey. For an
+            invitation, what the admin pinned to it (null if they left it open).
         status:
           type: string
           enum: [invited, active, disabled]
@@ -1331,6 +1446,11 @@ components:
           type: string
         role:
           $ref: "#/components/schemas/OrgRole"
+        department:
+          $ref: "#/components/schemas/Department"
+          description: >
+            Optional. When set, the invited user is created with this
+            department and the intro survey stops asking for it.
 
     InviteMemberResult:
       type: object
@@ -1356,7 +1476,8 @@ components:
 
     PublicInvitation:
       type: object
-      required: [orgName, email, role, expiresAt, ssoAvailable, requiresExistingAccount]
+      required:
+        [orgName, email, role, department, expiresAt, ssoAvailable, requiresExistingAccount]
       properties:
         orgName:
           type: string
@@ -1364,6 +1485,11 @@ components:
           type: string
         role:
           $ref: "#/components/schemas/OrgRole"
+        department:
+          type: ["string", "null"]
+          description: >
+            Pinned by the inviting admin. Carried onto the account on accept,
+            which is what lets the intro survey skip the question.
         expiresAt:
           type: ["string", "null"]
           format: date-time

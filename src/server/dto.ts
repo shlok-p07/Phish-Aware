@@ -20,7 +20,6 @@ export function toUserDto(user: UserDoc) {
     calibrationScore: user.calibrationScore,
     department: user.department,
     workType: user.workType,
-    ageRange: user.ageRange,
     phishingAwarenessScore: user.phishingAwarenessScore,
     onboardingCompleted: user.onboardingCompleted,
     createdAt: user.createdAt,

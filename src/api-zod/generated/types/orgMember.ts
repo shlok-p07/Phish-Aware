@@ -18,6 +18,11 @@ export interface OrgMember {
   /** @nullable */
   email: string | null;
   role: OrgRole;
+  /**
+     * For a member, what they reported on the intro survey. For an invitation, what the admin pinned to it (null if they left it open).
+     * @nullable
+     */
+  department: string | null;
   status: OrgMemberStatus;
   /** @nullable */
   joinedAt: Date | null;

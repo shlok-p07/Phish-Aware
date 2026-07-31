@@ -24,6 +24,11 @@ export interface InvitationDoc extends SpecConventions {
   name: string | null;
   role: OrgRole;
   departmentId: ObjectId | null;
+  // App extra: a department label from the survey's DEPARTMENTS enum, pinned
+  // by the inviting admin. Copied onto the user on accept, which is what lets
+  // the intro survey skip the question. Distinct from departmentId above,
+  // which is the org's formal department-directory FK.
+  department: string | null;
   /** Bearer credential: 32 random bytes, base64url. Unique-indexed. */
   token: string;
   status: InvitationStatus;

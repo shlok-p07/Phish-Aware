@@ -1,5 +1,9 @@
 import { describe, it, expect } from "bun:test";
-import { decideSsoProvisioning, type SsoProvisionInput } from "./provisioning";
+import {
+  decideSsoProvisioning,
+  selectInvitation,
+  type SsoProvisionInput,
+} from "./provisioning";
 
 const NOW = new Date("2026-07-31T12:00:00Z");
 
@@ -244,5 +248,60 @@ describe("decideSsoProvisioning — strangers", () => {
       kind: "reject",
       code: "not_a_member",
     });
+  });
+});
+
+describe("selectInvitation", () => {
+  const row = (
+    status: "pending" | "accepted" | "expired" | "revoked",
+    createdAt: string,
+    expiresAt: string | null = "2026-08-14T12:00:00Z",
+  ) => ({
+    status,
+    createdAt: new Date(createdAt),
+    expiresAt: expiresAt === null ? null : new Date(expiresAt),
+  });
+
+  it("returns null when the address has no invitations", () => {
+    expect(selectInvitation([], NOW)).toBeNull();
+  });
+
+  it("prefers a live invitation over an older spent one", () => {
+    // The regression: someone who was in the org, was removed, and was then
+    // re-invited. The accepted row is older, so an unordered findOne handed it
+    // back and the callback refused them as not_a_member.
+    const accepted = row("accepted", "2026-01-01T00:00:00Z");
+    const pending = row("pending", "2026-07-30T00:00:00Z");
+    expect(selectInvitation([accepted, pending], NOW)).toBe(pending);
+  });
+
+  it("prefers a live invitation over a revoked one regardless of order", () => {
+    const revoked = row("revoked", "2026-07-31T00:00:00Z");
+    const pending = row("pending", "2026-07-20T00:00:00Z");
+    expect(selectInvitation([revoked, pending], NOW)).toBe(pending);
+  });
+
+  it("ignores a pending row that has already lapsed", () => {
+    const lapsed = row("pending", "2026-07-30T00:00:00Z", "2026-07-01T00:00:00Z");
+    const accepted = row("accepted", "2026-01-01T00:00:00Z");
+    expect(selectInvitation([lapsed, accepted], NOW)).toBe(lapsed);
+  });
+
+  it("treats a pending row with no expiry as live", () => {
+    const evergreen = row("pending", "2026-01-01T00:00:00Z", null);
+    expect(selectInvitation([evergreen], NOW)).toBe(evergreen);
+  });
+
+  it("falls back to the newest row so the rejection names the real reason", () => {
+    const accepted = row("accepted", "2026-01-01T00:00:00Z");
+    const revoked = row("revoked", "2026-07-01T00:00:00Z");
+    expect(selectInvitation([accepted, revoked], NOW)).toBe(revoked);
+  });
+
+  it("does not mutate the caller's array", () => {
+    const rows = [row("accepted", "2026-01-01T00:00:00Z"), row("pending", "2026-07-30T00:00:00Z")];
+    const snapshot = [...rows];
+    selectInvitation(rows, NOW);
+    expect(rows).toEqual(snapshot);
   });
 });

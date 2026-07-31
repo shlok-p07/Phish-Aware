@@ -171,6 +171,16 @@ export function InviteContent({ token }: { token: string }) {
 							{invitation.email}
 						</span>
 						{invitation.role === "admin" ? " with admin access." : "."}
+						{invitation.department && (
+							<>
+								{" "}
+								Your admin has you down as{" "}
+								<span className="font-semibold text-foreground">
+									{invitation.department}
+								</span>
+								, so we won&apos;t ask.
+							</>
+						)}
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-6">

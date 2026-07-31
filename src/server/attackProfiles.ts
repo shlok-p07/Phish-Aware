@@ -4,6 +4,8 @@
  * extended from 6 to 8 values to match the product spec exactly (see
  * phishaware-db/init/01-validators.js's LEVER const, kept in lockstep).
  */
+import { isDepartment, type Department } from "@/lib/onboarding-survey";
+
 export type PersuasionTacticId =
   | "urgency"
   | "authority"
@@ -61,26 +63,31 @@ const UNIVERSAL_ATTACK_TYPES: AttackTypeId[] = [
 
 /**
  * Department -> eligible attack types, layered on top of the universal set.
- * Department options come from the onboarding survey (src/lib/onboarding-survey.ts).
+ * Keys are exactly DEPARTMENTS from the onboarding survey
+ * (src/lib/onboarding-survey.ts) -- a test enforces that.
+ *
  * The spec's "Office workers"/"IT-heavy organizations" phrasing doesn't map
- * 1:1 onto that survey's department list, so Engineering/Operations stand in
- * for "Office workers" (cloud file sharing) and IT gets the software/account
- * update scam that the spec scoped to "IT-heavy organizations".
+ * 1:1 onto that list, so the desk-bound departments stand in for "Office
+ * workers" (cloud file sharing) and IT gets the software/account update scam
+ * the spec scoped to "IT-heavy organizations". Anything unmapped, including a
+ * user who never told us, falls back to the universal set.
  */
-export const DEPARTMENT_ATTACK_TYPES: Record<string, AttackTypeId[]> = {
-  IT: [...UNIVERSAL_ATTACK_TYPES, "software_update_scam"],
+export const DEPARTMENT_ATTACK_TYPES: Record<Department, AttackTypeId[]> = {
+  "Customer Support": [...UNIVERSAL_ATTACK_TYPES, "cloud_file_sharing_scam"],
+  Engineering: [...UNIVERSAL_ATTACK_TYPES, "cloud_file_sharing_scam"],
+  Executive: [...UNIVERSAL_ATTACK_TYPES, "bec", "invoice_fraud"],
   Finance: [...UNIVERSAL_ATTACK_TYPES, "bec", "invoice_fraud"],
   HR: [...UNIVERSAL_ATTACK_TYPES, "bec", "payroll_fraud"],
-  Management: [...UNIVERSAL_ATTACK_TYPES, "bec"],
-  Engineering: [...UNIVERSAL_ATTACK_TYPES, "cloud_file_sharing_scam"],
+  IT: [...UNIVERSAL_ATTACK_TYPES, "software_update_scam"],
+  Legal: [...UNIVERSAL_ATTACK_TYPES, "bec", "cloud_file_sharing_scam"],
+  Marketing: [...UNIVERSAL_ATTACK_TYPES, "cloud_file_sharing_scam"],
   Operations: [...UNIVERSAL_ATTACK_TYPES, "cloud_file_sharing_scam", "payroll_fraud"],
-  Sales: UNIVERSAL_ATTACK_TYPES,
-  Other: UNIVERSAL_ATTACK_TYPES,
+  Sales: [...UNIVERSAL_ATTACK_TYPES, "bec", "invoice_fraud"],
 };
 
 function eligibleAttackTypes(department: string | null): AttackTypeId[] {
-  if (!department) return UNIVERSAL_ATTACK_TYPES;
-  return DEPARTMENT_ATTACK_TYPES[department] ?? UNIVERSAL_ATTACK_TYPES;
+  if (!isDepartment(department)) return UNIVERSAL_ATTACK_TYPES;
+  return DEPARTMENT_ATTACK_TYPES[department];
 }
 
 function pickRandom<T>(items: T[]): T {

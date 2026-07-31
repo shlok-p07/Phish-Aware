@@ -19,6 +19,7 @@ const PENDING_INVITATION = {
   orgName: "Acme Corp",
   email: "alice@acme.com",
   role: "employee" as const,
+  department: null,
   expiresAt: "2026-08-14T12:00:00.000Z",
   ssoAvailable: false,
   ssoStartUrl: null,
@@ -62,6 +63,20 @@ describe("InviteContent", () => {
     apiClientMockState.invitation = { ...PENDING_INVITATION, role: "admin" as const };
     renderPage();
     expect(await screen.findByText(/with admin access/i)).toBeDefined();
+  });
+
+  it("tells them the department their admin pinned, so the survey skipping it isn't a surprise", async () => {
+    apiClientMockState.invitation = { ...PENDING_INVITATION, department: "Legal" };
+    renderPage();
+    expect(await screen.findByText("Legal")).toBeDefined();
+    expect(await screen.findByText(/so we won't ask/i)).toBeDefined();
+  });
+
+  it("says nothing about a department when the admin left it open", async () => {
+    apiClientMockState.invitation = PENDING_INVITATION;
+    renderPage();
+    expect(await screen.findByText(/Join Acme Corp/i)).toBeDefined();
+    expect(screen.queryByText(/so we won't ask/i)).toBeNull();
   });
 
   it("leads with the SSO button when the org has a provider", async () => {

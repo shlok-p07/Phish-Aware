@@ -34,7 +34,6 @@ export const GetCurrentUserResponse = zod.object({
   "calibrationScore": zod.number(),
   "department": zod.string().nullish(),
   "workType": zod.string().nullish(),
-  "ageRange": zod.string().nullish(),
   "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
@@ -71,7 +70,6 @@ export const SignupResponse = zod.object({
   "calibrationScore": zod.number(),
   "department": zod.string().nullish(),
   "workType": zod.string().nullish(),
-  "ageRange": zod.string().nullish(),
   "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
@@ -100,7 +98,6 @@ export const LoginResponse = zod.object({
   "calibrationScore": zod.number(),
   "department": zod.string().nullish(),
   "workType": zod.string().nullish(),
-  "ageRange": zod.string().nullish(),
   "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
@@ -124,7 +121,6 @@ export const ContinueAsGuestResponse = zod.object({
   "calibrationScore": zod.number(),
   "department": zod.string().nullish(),
   "workType": zod.string().nullish(),
-  "ageRange": zod.string().nullish(),
   "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
@@ -157,14 +153,72 @@ export const GetOnboardingQuizResponse = zod.array(GetOnboardingQuizResponseItem
 /**
  * @summary Submit onboarding quiz answers and receive a starting level
  */
+export const submitOnboardingQuizBodyFeaturesEmailsPerDayMin = 0;
+export const submitOnboardingQuizBodyFeaturesEmailsPerDayMax = 1000;
+
+export const submitOnboardingQuizBodyFeaturesSuspiciousEmailsPerDayMin = 0;
+export const submitOnboardingQuizBodyFeaturesSuspiciousEmailsPerDayMax = 1000;
+
+export const submitOnboardingQuizBodyFeaturesPasswordLengthMax = 128;
+
+export const submitOnboardingQuizBodyFeaturesReusesPasswordsMin = 0;
+export const submitOnboardingQuizBodyFeaturesReusesPasswordsMax = 1;
+
+export const submitOnboardingQuizBodyFeaturesUsesPasswordManagerMin = 0;
+export const submitOnboardingQuizBodyFeaturesUsesPasswordManagerMax = 1;
+
+export const submitOnboardingQuizBodyFeaturesMfaFamiliarMin = 0;
+export const submitOnboardingQuizBodyFeaturesMfaFamiliarMax = 1;
+
+export const submitOnboardingQuizBodyFeaturesMfaEnabledMin = 0;
+export const submitOnboardingQuizBodyFeaturesMfaEnabledMax = 1;
+
+export const submitOnboardingQuizBodyFeaturesSecurityTrainingMin = 0;
+export const submitOnboardingQuizBodyFeaturesSecurityTrainingMax = 1;
+
+export const submitOnboardingQuizBodyFeaturesClicksLinksMin = 0;
+export const submitOnboardingQuizBodyFeaturesClicksLinksMax = 100;
+
+export const submitOnboardingQuizBodyFeaturesOpensAttachmentsMin = 0;
+export const submitOnboardingQuizBodyFeaturesOpensAttachmentsMax = 100;
+
+export const submitOnboardingQuizBodyFeaturesVerifiesLinksMin = 0;
+export const submitOnboardingQuizBodyFeaturesVerifiesLinksMax = 100;
+
+export const submitOnboardingQuizBodyFeaturesReportsSuspiciousMin = 0;
+export const submitOnboardingQuizBodyFeaturesReportsSuspiciousMax = 100;
+
+export const submitOnboardingQuizBodyFeaturesHasAntivirusMin = 0;
+export const submitOnboardingQuizBodyFeaturesHasAntivirusMax = 1;
+
+export const submitOnboardingQuizBodyFeaturesUsesVpnMin = 0;
+export const submitOnboardingQuizBodyFeaturesUsesVpnMax = 1;
+
+
+
 export const SubmitOnboardingQuizBody = zod.object({
   "answers": zod.array(zod.object({
   "scenarioId": zod.string(),
   "verdict": zod.boolean().describe('true if the user judged it phishing')
 })),
-  "department": zod.string().optional().describe('From the intro survey -- used to tailor generated scenarios.'),
-  "workType": zod.string().optional().describe('From the intro survey (e.g. Remote\/Hybrid\/Onsite).'),
-  "ageRange": zod.string().optional().describe('From the intro survey, e.g. \"25-34\".')
+  "features": zod.object({
+  "emails_per_day": zod.number().int().min(submitOnboardingQuizBodyFeaturesEmailsPerDayMin).max(submitOnboardingQuizBodyFeaturesEmailsPerDayMax),
+  "suspicious_emails_per_day": zod.number().int().min(submitOnboardingQuizBodyFeaturesSuspiciousEmailsPerDayMin).max(submitOnboardingQuizBodyFeaturesSuspiciousEmailsPerDayMax),
+  "password_length": zod.number().int().min(1).max(submitOnboardingQuizBodyFeaturesPasswordLengthMax),
+  "reuses_passwords": zod.number().int().min(submitOnboardingQuizBodyFeaturesReusesPasswordsMin).max(submitOnboardingQuizBodyFeaturesReusesPasswordsMax),
+  "uses_password_manager": zod.number().int().min(submitOnboardingQuizBodyFeaturesUsesPasswordManagerMin).max(submitOnboardingQuizBodyFeaturesUsesPasswordManagerMax),
+  "mfa_familiar": zod.number().int().min(submitOnboardingQuizBodyFeaturesMfaFamiliarMin).max(submitOnboardingQuizBodyFeaturesMfaFamiliarMax),
+  "mfa_enabled": zod.number().int().min(submitOnboardingQuizBodyFeaturesMfaEnabledMin).max(submitOnboardingQuizBodyFeaturesMfaEnabledMax).describe('Always 0 when mfa_familiar is 0 -- the question isn\'t asked.'),
+  "security_training": zod.number().int().min(submitOnboardingQuizBodyFeaturesSecurityTrainingMin).max(submitOnboardingQuizBodyFeaturesSecurityTrainingMax),
+  "clicks_links": zod.number().int().min(submitOnboardingQuizBodyFeaturesClicksLinksMin).max(submitOnboardingQuizBodyFeaturesClicksLinksMax),
+  "opens_attachments": zod.number().int().min(submitOnboardingQuizBodyFeaturesOpensAttachmentsMin).max(submitOnboardingQuizBodyFeaturesOpensAttachmentsMax),
+  "verifies_links": zod.number().int().min(submitOnboardingQuizBodyFeaturesVerifiesLinksMin).max(submitOnboardingQuizBodyFeaturesVerifiesLinksMax),
+  "reports_suspicious": zod.number().int().min(submitOnboardingQuizBodyFeaturesReportsSuspiciousMin).max(submitOnboardingQuizBodyFeaturesReportsSuspiciousMax),
+  "has_antivirus": zod.number().int().min(submitOnboardingQuizBodyFeaturesHasAntivirusMin).max(submitOnboardingQuizBodyFeaturesHasAntivirusMax),
+  "uses_vpn": zod.number().int().min(submitOnboardingQuizBodyFeaturesUsesVpnMin).max(submitOnboardingQuizBodyFeaturesUsesVpnMax),
+  "department": zod.enum(['Customer Support', 'Engineering', 'Executive', 'Finance', 'HR', 'IT', 'Legal', 'Marketing', 'Operations', 'Sales']).describe('Kept in sync with DEPARTMENTS in src\/lib\/onboarding-survey.ts and the keys of DEPARTMENT_ATTACK_TYPES in src\/server\/attackProfiles.ts.\n'),
+  "work_mode": zod.enum(['Remote', 'Hybrid', 'Office'])
+}).optional().describe('The intro survey\'s answers in feature form -- booleans as 1\/0, \"how often\" answers as 0-100, counts as non-negative integers. Question wording and ordering live in src\/lib\/onboarding-survey.ts; this is the wire shape they reduce to.\n')
 })
 
 export const SubmitOnboardingQuizResponse = zod.object({
@@ -401,6 +455,7 @@ export const ListOrgMembersResponseItem = zod.object({
   "name": zod.string(),
   "email": zod.string().nullable(),
   "role": zod.enum(['admin', 'employee']),
+  "department": zod.string().nullable().describe('For a member, what they reported on the intro survey. For an invitation, what the admin pinned to it (null if they left it open).\n'),
   "status": zod.enum(['invited', 'active', 'disabled']),
   "joinedAt": zod.coerce.date().nullable(),
   "expiresAt": zod.coerce.date().nullable().describe('When an invitation lapses. Always null for kind=\"member\".'),
@@ -417,7 +472,8 @@ export const ListOrgMembersResponse = zod.array(ListOrgMembersResponseItem)
 export const InviteOrgMemberBody = zod.object({
   "name": zod.string().optional(),
   "email": zod.string(),
-  "role": zod.enum(['admin', 'employee']).optional()
+  "role": zod.enum(['admin', 'employee']).optional(),
+  "department": zod.enum(['Customer Support', 'Engineering', 'Executive', 'Finance', 'HR', 'IT', 'Legal', 'Marketing', 'Operations', 'Sales']).optional().describe('Optional. When set, the invited user is created with this department and the intro survey stops asking for it.\n')
 })
 
 export const InviteOrgMemberResponse = zod.object({
@@ -427,6 +483,7 @@ export const InviteOrgMemberResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullable(),
   "role": zod.enum(['admin', 'employee']),
+  "department": zod.string().nullable().describe('For a member, what they reported on the intro survey. For an invitation, what the admin pinned to it (null if they left it open).\n'),
   "status": zod.enum(['invited', 'active', 'disabled']),
   "joinedAt": zod.coerce.date().nullable(),
   "expiresAt": zod.coerce.date().nullable().describe('When an invitation lapses. Always null for kind=\"member\".'),
@@ -487,6 +544,7 @@ export const GetInvitationResponse = zod.object({
   "orgName": zod.string(),
   "email": zod.string(),
   "role": zod.enum(['admin', 'employee']),
+  "department": zod.string().nullable().describe('Pinned by the inviting admin. Carried onto the account on accept, which is what lets the intro survey skip the question.\n'),
   "expiresAt": zod.coerce.date().nullable(),
   "ssoAvailable": zod.boolean(),
   "ssoStartUrl": zod.string().nullish(),
@@ -521,7 +579,6 @@ export const AcceptInvitationResponse = zod.object({
   "calibrationScore": zod.number(),
   "department": zod.string().nullish(),
   "workType": zod.string().nullish(),
-  "ageRange": zod.string().nullish(),
   "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()

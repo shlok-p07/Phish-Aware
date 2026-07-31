@@ -54,6 +54,43 @@ export type SsoProvisionDecision =
   | { kind: "create"; role: OrgRole; invitationId: string }
   | { kind: "reject"; code: SsoRejectCode };
 
+/** The subset of an invitation row this picks between. */
+export interface SelectableInvitation {
+  status: InvitationStatus;
+  expiresAt: Date | null;
+  createdAt: Date;
+}
+
+/**
+ * Which of an address's invitations the callback should act on.
+ *
+ * There is often more than one. The unique { orgId, email } index is partial on
+ * status:"pending", so re-inviting someone whose earlier invitation was already
+ * accepted or revoked deliberately leaves that spent row in place next to the
+ * new one. An unordered findOne returns whichever Mongo reaches first -- in
+ * practice the oldest -- so someone removed from an org and then properly
+ * re-invited was refused as `not_a_member` on the strength of the stale row,
+ * while their live invitation sat unread.
+ *
+ * A usable invitation therefore always wins. Failing that, the newest row is
+ * returned so the rejection names the real reason (revoked, expired) instead of
+ * falling through to the generic "ask an admin to invite you".
+ */
+export function selectInvitation<T extends SelectableInvitation>(
+  invitations: T[],
+  now: Date,
+): T | null {
+  const newestFirst = [...invitations].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  );
+  const live = newestFirst.find(
+    (i) =>
+      i.status === "pending" &&
+      (i.expiresAt === null || i.expiresAt.getTime() > now.getTime()),
+  );
+  return live ?? newestFirst[0] ?? null;
+}
+
 export function decideSsoProvisioning(input: SsoProvisionInput): SsoProvisionDecision {
   const {
     email,

@@ -27,8 +27,6 @@ export interface User {
   department?: string | null;
   /** @nullable */
   workType?: string | null;
-  /** @nullable */
-  ageRange?: string | null;
   /** Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty. */
   phishingAwarenessScore?: number;
   onboardingCompleted: boolean;

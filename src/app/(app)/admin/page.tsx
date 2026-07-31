@@ -39,6 +39,11 @@ import {
   type OrgRole,
 } from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
+import { DEPARTMENTS, type Department } from "@/lib/onboarding-survey";
+
+// Radix Select can't hold an empty-string item value, so "no department
+// pinned" needs a sentinel that isn't a real department name.
+const UNSET_DEPARTMENT = "__unset__";
 
 const riskStyles: Record<string, string> = {
   low: "bg-success/10 text-success border-success/30",
@@ -93,6 +98,8 @@ export default function AdminMembersPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<OrgRole>("employee");
+  // "" means leave it open -- the invitee is then asked on the intro survey.
+  const [department, setDepartment] = useState<Department | "">("");
   const [query, setQuery] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   // Held open after a successful invite so the admin can copy the link. With
@@ -116,7 +123,7 @@ export default function AdminMembersPage() {
   const submitInvite = () => {
     if (!email.trim()) return;
     inviteMemberMutation.mutate(
-      { data: { name, email, role } },
+      { data: { name, email, role, ...(department ? { department } : {}) } },
       {
         onSuccess: (result) => {
           invalidateMembers();
@@ -125,6 +132,7 @@ export default function AdminMembersPage() {
           setName("");
           setEmail("");
           setRole("employee");
+          setDepartment("");
         },
         onError: (err) =>
           toast({ title: "Couldn't invite member", description: err.message, variant: "destructive" }),
@@ -209,6 +217,26 @@ export default function AdminMembersPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label className="font-semibold">Department</Label>
+                <Select
+                  value={department === "" ? UNSET_DEPARTMENT : department}
+                  onValueChange={(v) =>
+                    setDepartment(v === UNSET_DEPARTMENT ? "" : (v as Department))
+                  }
+                >
+                  <SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={UNSET_DEPARTMENT}>Let them choose</SelectItem>
+                    {DEPARTMENTS.map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Set it here and they won&apos;t be asked on their intro survey.
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <DialogClose asChild><Button variant="outline" className="rounded-lg">Cancel</Button></DialogClose>
@@ -272,6 +300,7 @@ export default function AdminMembersPage() {
               <TableRow className="bg-muted/30 hover:bg-muted/30">
                 <TableHead className="pl-4">Member</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Department</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Accuracy</TableHead>
                 <TableHead>Risk</TableHead>
@@ -281,7 +310,7 @@ export default function AdminMembersPage() {
             <TableBody>
               {visibleMembers.length === 0 && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground font-medium">
+                  <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground font-medium">
                     {query ? <>No members match &ldquo;{query}&rdquo;.</> : "No members yet. Invite someone to get started."}
                   </TableCell>
                 </TableRow>
@@ -319,6 +348,11 @@ export default function AdminMembersPage() {
                           </SelectContent>
                         </Select>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {m.department ?? (isInvitation ? "Their choice" : "Not set")}
+                      </span>
                     </TableCell>
                     <TableCell>
                       {m.status === "active" ? (

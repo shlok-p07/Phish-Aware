@@ -130,8 +130,10 @@ make("users", ["orgId", "email", "name", "role"], {
   // from the onboarding survey, used to target generated phishing scenarios.
   // Distinct from departmentId above, which is the org's formal department
   // directory FK -- these are freeform/enum labels for content personalization,
-  // not org structure.
-  department: strOrNull, workType: strOrNull, ageRange: strOrNull,
+  // not org structure. surveyFeatures holds the survey's full numeric answer
+  // vector (see src/lib/onboarding-survey.ts).
+  department: strOrNull, workType: strOrNull,
+  surveyFeatures: { bsonType: ["object", "null"] },
   phishingAwarenessScore: num,
 });
 
@@ -240,6 +242,8 @@ make("deliveries", ["campaignId", "userId", "orgId", "scenarioId", "outcome"], {
 // since these validators never set additionalProperties:false.
 make("invitations", ["orgId", "email", "token", "status", "invitedBy"], {
   orgId: oid, email: str, role: { enum: ROLE }, departmentId: oidOrNull,
+  // App extra: survey-enum department label pinned by the inviting admin.
+  department: strOrNull,
   token: str, status: { enum: INVITATION_STATUS }, invitedBy: oid,
   expiresAt: dateOrNull, acceptedAt: dateOrNull,
   name: strOrNull, acceptedUserId: oidOrNull,

@@ -11,14 +11,22 @@ const FAKE_QUESTIONS = [
 ];
 
 const STUB_SURVEY_ANSWERS = {
-  role: "Student",
+  emails_per_day: "40",
+  suspicious_emails_per_day: "3",
+  password_length: "14",
+  reuses_passwords: "1",
+  uses_password_manager: "0",
+  mfa_familiar: "1",
+  mfa_enabled: "1",
+  security_training: "0",
+  clicks_links: "60",
+  opens_attachments: "25",
+  verifies_links: "40",
+  reports_suspicious: "10",
+  has_antivirus: "1",
+  uses_vpn: "0",
   department: "IT",
-  work_type: "Remote",
-  age_range: "25-34",
-  email_volume: "10–25",
-  confidence: "Somewhat confident",
-  prior_training: "No",
-  goal: "Stop clicking bad links",
+  work_mode: "Remote",
 };
 
 // The real OnboardingSurvey's own validation/rendering is already covered by
@@ -28,12 +36,15 @@ mock.module("@/components/onboarding-survey", () => ({
   OnboardingSurvey: ({
     onComplete,
     initialAnswers,
+    presetDepartment,
   }: {
     onComplete: (answers: typeof STUB_SURVEY_ANSWERS) => void;
     initialAnswers?: Partial<typeof STUB_SURVEY_ANSWERS>;
+    presetDepartment?: string | null;
   }) => (
     <div>
       <div data-testid="survey-department-value">{initialAnswers?.department ?? "(empty)"}</div>
+      <div data-testid="survey-preset-department">{presetDepartment ?? "(none)"}</div>
       <button onClick={() => onComplete(STUB_SURVEY_ANSWERS)}>Continue to diagnostic (stub)</button>
     </div>
   ),
@@ -152,7 +163,7 @@ describe("Onboarding page", () => {
     expect(screen.getByText("Question 1 of 2")).toBeTruthy();
   });
 
-  it("submits department/workType/ageRange from the survey alongside the quiz answers", async () => {
+  it("submits the survey as a feature vector alongside the quiz answers", async () => {
     renderPage();
     completeSurvey();
     await waitFor(() => expect(screen.getByText("Q1 subject")).toBeTruthy());
@@ -163,14 +174,40 @@ describe("Onboarding page", () => {
     expect(submittedPayloads).toHaveLength(1);
     expect(submittedPayloads[0]).toMatchObject({
       data: {
-        department: "IT",
-        workType: "Remote",
-        ageRange: "25-34",
+        features: {
+          emails_per_day: 40,
+          suspicious_emails_per_day: 3,
+          password_length: 14,
+          reuses_passwords: 1,
+          uses_password_manager: 0,
+          mfa_familiar: 1,
+          mfa_enabled: 1,
+          security_training: 0,
+          clicks_links: 60,
+          opens_attachments: 25,
+          verifies_links: 40,
+          reports_suspicious: 10,
+          has_antivirus: 1,
+          uses_vpn: 0,
+          department: "IT",
+          work_mode: "Remote",
+        },
         answers: [
           { scenarioId: "q1", verdict: true },
           { scenarioId: "q2", verdict: false },
         ],
       },
     });
+  });
+
+  it("passes a department already on the account through to the survey, which then skips it", () => {
+    apiClientMockState.currentUser = { onboardingCompleted: false, department: "Legal" };
+    renderPage();
+    expect(screen.getByTestId("survey-preset-department").textContent).toBe("Legal");
+  });
+
+  it("has no preset department for someone who wasn't invited with one", () => {
+    renderPage();
+    expect(screen.getByTestId("survey-preset-department").textContent).toBe("(none)");
   });
 });

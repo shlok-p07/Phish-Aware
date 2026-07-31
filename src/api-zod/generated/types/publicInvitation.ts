@@ -11,6 +11,11 @@ export interface PublicInvitation {
   orgName: string;
   email: string;
   role: OrgRole;
+  /**
+     * Pinned by the inviting admin. Carried onto the account on accept, which is what lets the intro survey skip the question.
+     * @nullable
+     */
+  department: string | null;
   /** @nullable */
   expiresAt: Date | null;
   ssoAvailable: boolean;

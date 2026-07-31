@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import { getCollection } from "../client";
+import type { SurveyFeatures } from "@/lib/onboarding-survey";
 import type { SpecConventions } from "./specConventions";
 
 export type OrgRole = "admin" | "manager" | "employee";
@@ -22,9 +23,14 @@ export interface UserDoc extends SpecConventions {
   // From the intro onboarding survey -- used to target generated scenarios
   // (department/persuasion-tactic mapping, see src/server/attackProfiles.ts).
   // Null until onboarding is completed (or for guests, who skip it).
+  // `department` is the one exception: an org invitation can pin it up front,
+  // in which case the survey doesn't ask and this is set at accept time.
   department: string | null;
   workType: string | null;
-  ageRange: string | null;
+  // The whole intro survey in feature form. department/workType above are
+  // denormalized out of it because the scenario generator reads them on every
+  // request; the rest is kept whole for the risk model.
+  surveyFeatures: SurveyFeatures | null;
   // Derived from onboarding diagnostic accuracy; drives generated-scenario
   // difficulty. Distinct from calibrationScore (confidence-vs-correctness).
   phishingAwarenessScore: number;

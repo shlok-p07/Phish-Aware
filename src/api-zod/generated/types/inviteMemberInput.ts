@@ -5,10 +5,13 @@
  * PhishAware API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { Department } from './department';
 import type { OrgRole } from './orgRole';
 
 export interface InviteMemberInput {
   name?: string;
   email: string;
   role?: OrgRole;
+  /** Optional. When set, the invited user is created with this department and the intro survey stops asking for it. */
+  department?: Department;
 }

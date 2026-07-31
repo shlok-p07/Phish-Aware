@@ -14,6 +14,7 @@ import { normalizeEmail } from "@/server/sso/domain";
 import { generateInviteToken, invitationExpiry, invitationState } from "@/server/invitations";
 import { inviteUrl } from "@/server/siteUrl";
 import { seatUsage, hasSeatAvailable } from "@/server/org";
+import { isDepartment } from "@/lib/onboarding-survey";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ function memberRow(member: UserDoc, accuracy: number) {
     name: member.name,
     email: member.email,
     role: member.role,
+    department: member.department,
     status: member.status,
     joinedAt: member.status === "active" ? member.createdAt.toISOString() : null,
     expiresAt: null,
@@ -39,6 +41,7 @@ function invitationRow(invitation: InvitationDoc) {
     name: invitation.name ?? invitation.email.split("@")[0]!,
     email: invitation.email,
     role: invitation.role,
+    department: invitation.department,
     status: "invited" as const,
     joinedAt: null,
     expiresAt: invitation.expiresAt?.toISOString() ?? null,
@@ -87,7 +90,12 @@ export const GET = withErrorHandling(async () => {
  */
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const admin = await requireOrgAdmin();
-  const body = (await req.json()) as { name?: string; email?: string; role?: OrgRole };
+  const body = (await req.json()) as {
+    name?: string;
+    email?: string;
+    role?: OrgRole;
+    department?: string;
+  };
 
   const rawEmail = body.email?.trim();
   if (!rawEmail) {
@@ -99,6 +107,13 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   }
   const name = body.name?.trim() || null;
   const role: OrgRole = body.role === "admin" ? "admin" : "employee";
+  // Optional. Anything outside the survey's enum is rejected rather than
+  // stored, since it would silently break the department -> attack-type
+  // mapping the generator relies on.
+  if (body.department !== undefined && body.department !== "" && !isDepartment(body.department)) {
+    return error(400, "That isn't a department we recognize");
+  }
+  const department = isDepartment(body.department) ? body.department : null;
 
   const [users, invitations] = await Promise.all([
     usersCollection(),
@@ -128,6 +143,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     name,
     role,
     departmentId: null,
+    department,
     token: generateInviteToken(),
     status: "pending",
     invitedBy: admin._id,

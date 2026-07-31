@@ -32,7 +32,7 @@ export const POST = withErrorHandling(async () => {
     calibrationScore: 0,
     department: null,
     workType: null,
-    ageRange: null,
+    surveyFeatures: null,
     phishingAwarenessScore: 0,
     lastLoginAt: null,
     onboardingCompleted: false,

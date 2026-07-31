@@ -31,6 +31,11 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   // which measures confidence-vs-correctness, not raw detection accuracy.
   const phishingAwarenessScore = accuracy;
 
+  // The intro survey arrives as a feature vector (see src/lib/onboarding-survey.ts).
+  // department/workType are denormalized out of it because the scenario
+  // generator reads them on every practice request.
+  const features = body.features ?? null;
+
   const users = await usersCollection();
   await users.updateOne(
     { _id: userId },
@@ -40,9 +45,16 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
         level,
         onboardingCompleted: true,
         phishingAwarenessScore,
-        department: body.department ?? null,
-        workType: body.workType ?? null,
-        ageRange: body.ageRange ?? null,
+        // Absent only if a client submits the diagnostic without the survey.
+        // Leave the stored values alone rather than clearing a department the
+        // org pinned to the invitation.
+        ...(features
+          ? {
+              surveyFeatures: features,
+              department: features.department,
+              workType: features.work_mode,
+            }
+          : {}),
       },
     },
   );

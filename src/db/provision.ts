@@ -125,7 +125,8 @@ export async function ensureSchema(db: Db): Promise<void> {
     jobRole: str, managerId: oidOrNull,
     status: { enum: ["invited", "active", "disabled"] },
     lastLoginAt: dateOrNull,
-    department: strOrNull, workType: strOrNull, ageRange: strOrNull,
+    department: strOrNull, workType: strOrNull,
+    surveyFeatures: { bsonType: ["object", "null"] },
     phishingAwarenessScore: num,
   });
 
@@ -214,6 +215,7 @@ export async function ensureSchema(db: Db): Promise<void> {
   // `name` and `acceptedUserId` are app extras beyond the shared spec.
   await make(db, "invitations", ["orgId", "email", "token", "status", "invitedBy"], {
     orgId: oid, email: str, role: { enum: ROLE }, departmentId: oidOrNull,
+    department: strOrNull,
     token: str, status: { enum: INVITATION_STATUS }, invitedBy: oid,
     expiresAt: dateOrNull, acceptedAt: dateOrNull,
     name: strOrNull, acceptedUserId: oidOrNull,

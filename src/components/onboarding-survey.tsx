@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -13,11 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
 import {
-  ONBOARDING_SURVEY_QUESTIONS,
   stripEmpty,
   validateSurveyAnswers,
+  visibleQuestions,
+  visibleSections,
   type OnboardingSurveyAnswerMap,
   type SurveyQuestion,
 } from "@/lib/onboarding-survey";
@@ -27,11 +29,26 @@ type Props = {
   isSubmitting?: boolean;
   /** Pre-fills previously-entered answers when someone navigates back to this step. */
   initialAnswers?: OnboardingSurveyAnswerMap;
+  /**
+   * Set when the org pinned a department to this user's invitation. The
+   * department question is then skipped -- see visibleQuestions().
+   */
+  presetDepartment?: string | null;
 };
 
-export function OnboardingSurvey({ onComplete, isSubmitting, initialAnswers }: Props) {
+export function OnboardingSurvey({
+  onComplete,
+  isSubmitting,
+  initialAnswers,
+  presetDepartment,
+}: Props) {
   const [draft, setDraft] = useState<OnboardingSurveyAnswerMap>(initialAnswers ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const context = { presetDepartment };
+  const sections = visibleSections(draft, context);
+  const asked = visibleQuestions(draft, context);
+  const answered = asked.filter((q) => (draft[q.id] ?? "") !== "").length;
 
   const setAnswer = (id: string, value: string) => {
     setDraft((prev) => ({ ...prev, [id]: value }));
@@ -40,10 +57,10 @@ export function OnboardingSurvey({ onComplete, isSubmitting, initialAnswers }: P
   };
 
   const handleSubmit = () => {
-    const found = validateSurveyAnswers(draft);
+    const found = validateSurveyAnswers(draft, context);
     setErrors(found);
     if (Object.keys(found).length > 0) {
-      const first = ONBOARDING_SURVEY_QUESTIONS.find((q) => found[q.id]);
+      const first = asked.find((q) => found[q.id]);
       if (first) {
         document
           .getElementById(`question-${first.id}`)
@@ -54,21 +71,41 @@ export function OnboardingSurvey({ onComplete, isSubmitting, initialAnswers }: P
     onComplete(stripEmpty(draft));
   };
 
+  // Numbering runs across sections so it reads as one survey, not five.
+  let questionNumber = 0;
+
   return (
     <Card className="border shadow-sm animate-in slide-in-from-bottom-8 duration-300">
-      <CardContent className="p-6 md:p-8 space-y-8">
-        {ONBOARDING_SURVEY_QUESTIONS.map((question, idx) => (
-          <QuestionField
-            key={question.id}
-            question={question}
-            index={idx}
-            value={draft[question.id] ?? ""}
-            error={errors[question.id]}
-            onChange={(value) => setAnswer(question.id, value)}
-          />
+      <CardContent className="p-6 md:p-8 space-y-10">
+        {sections.map((section) => (
+          <section key={section.id} className="space-y-6">
+            <div className="space-y-1 border-b pb-3">
+              <h2 className="text-lg font-display font-bold">{section.title}</h2>
+              <p className="text-sm font-medium text-muted-foreground">{section.blurb}</p>
+            </div>
+            {section.questions.map((question) => {
+              questionNumber += 1;
+              return (
+                <QuestionField
+                  key={question.id}
+                  question={question}
+                  number={questionNumber}
+                  value={draft[question.id] ?? ""}
+                  error={errors[question.id]}
+                  onChange={(value) => setAnswer(question.id, value)}
+                />
+              );
+            })}
+          </section>
         ))}
       </CardContent>
-      <CardFooter className="border-t bg-background p-6 rounded-b-xl">
+      <CardFooter className="border-t bg-background p-6 rounded-b-xl flex-col gap-4 items-stretch">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground">
+            {answered} of {asked.length} answered
+          </p>
+          <Progress value={(answered / asked.length) * 100} className="h-2" />
+        </div>
         <Button
           size="lg"
           className="w-full py-6 text-lg font-bold rounded-lg shadow-sm group"
@@ -85,26 +122,21 @@ export function OnboardingSurvey({ onComplete, isSubmitting, initialAnswers }: P
 
 type FieldProps = {
   question: SurveyQuestion;
-  index: number;
+  number: number;
   value: string;
   error?: string;
   onChange: (value: string) => void;
 };
 
-function QuestionField({ question, index, value, error, onChange }: FieldProps) {
+function QuestionField({ question, number, value, error, onChange }: FieldProps) {
   const inputId = `survey-${question.id}`;
 
   return (
     <div id={`question-${question.id}`} className="space-y-3">
       <div className="space-y-1">
         <Label htmlFor={inputId} className="text-base font-bold leading-snug">
-          <span className="text-muted-foreground mr-2">{index + 1}.</span>
+          <span className="text-muted-foreground mr-2">{number}.</span>
           {question.prompt}
-          {!question.required && (
-            <span className="ml-2 text-xs font-medium text-muted-foreground">
-              (optional)
-            </span>
-          )}
         </Label>
         {question.helper && (
           <p className="text-sm font-medium text-muted-foreground">
@@ -128,48 +160,61 @@ function QuestionField({ question, index, value, error, onChange }: FieldProps) 
         </Select>
       )}
 
-      {question.type === "radio" && (
-        <RadioGroup value={value} onValueChange={onChange} className="space-y-2">
-          {question.options.map((option) => (
-            <div key={option} className="flex items-center gap-3">
-              <RadioGroupItem
-                value={option}
-                id={`${inputId}-${slug(option)}`}
-              />
-              <Label
-                htmlFor={`${inputId}-${slug(option)}`}
-                className="font-medium cursor-pointer"
-              >
-                {option}
+      {question.type === "boolean" && (
+        <RadioGroup value={value} onValueChange={onChange} className="flex gap-6">
+          {[
+            { answer: "1", label: question.yesLabel ?? "Yes" },
+            { answer: "0", label: question.noLabel ?? "No" },
+          ].map(({ answer, label }) => (
+            <div key={answer} className="flex items-center gap-2">
+              <RadioGroupItem value={answer} id={`${inputId}-${answer}`} />
+              <Label htmlFor={`${inputId}-${answer}`} className="font-medium cursor-pointer">
+                {label}
               </Label>
             </div>
           ))}
         </RadioGroup>
       )}
 
-      {question.type === "text" && (
-        <Input
-          id={inputId}
-          value={value}
-          maxLength={question.maxLength}
-          placeholder={question.placeholder}
-          onChange={(e) => onChange(e.target.value)}
-        />
+      {question.type === "integer" && (
+        <div className="flex items-center gap-3">
+          <Input
+            id={inputId}
+            type="number"
+            inputMode="numeric"
+            min={question.min}
+            max={question.max}
+            value={value}
+            placeholder="0"
+            className="max-w-32"
+            // Strip anything that isn't a digit so the stored answer stays
+            // parseable -- number inputs happily accept "1e5" and "-".
+            onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, ""))}
+          />
+          <span className="text-sm font-medium text-muted-foreground">{question.unit}</span>
+        </div>
       )}
 
-      {question.type === "textarea" && (
-        <div className="space-y-1">
-          <Textarea
+      {question.type === "scale" && (
+        <div className="max-w-md space-y-2">
+          <Slider
             id={inputId}
-            value={value}
-            maxLength={question.maxLength}
-            placeholder={question.placeholder}
-            rows={4}
-            onChange={(e) => onChange(e.target.value)}
+            // Unanswered sliders park at the midpoint but stay unset until
+            // touched, so nobody is silently credited with a 50.
+            value={[value === "" ? 50 : Number(value)]}
+            min={0}
+            max={100}
+            step={5}
+            aria-label={question.prompt}
+            onValueChange={([next]) => onChange(String(next))}
           />
-          <p className="text-xs font-medium text-muted-foreground text-right">
-            {value.length}/{question.maxLength}
-          </p>
+          <div className="flex justify-between text-xs font-medium text-muted-foreground">
+            <span>{question.lowLabel}</span>
+            <span className="font-bold text-foreground">
+              {value === "" ? "Not answered" : `${value}%`}
+            </span>
+            <span>{question.highLabel}</span>
+          </div>
         </div>
       )}
 
@@ -178,8 +223,4 @@ function QuestionField({ question, index, value, error, onChange }: FieldProps) 
       )}
     </div>
   );
-}
-
-function slug(option: string) {
-  return option.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 }

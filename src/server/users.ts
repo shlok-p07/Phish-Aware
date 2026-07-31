@@ -18,6 +18,8 @@ export function buildUserDoc(fields: {
   status?: UserStatus;
   isGuest?: boolean;
   lastLoginAt?: Date | null;
+  /** Pinned by the org invitation, when there was one -- see the accept route. */
+  department?: string | null;
   now?: Date;
 }): UserDoc {
   const now = fields.now ?? new Date();
@@ -36,9 +38,9 @@ export function buildUserDoc(fields: {
     lastActiveDate: null,
     badges: [],
     calibrationScore: 0,
-    department: null,
+    department: fields.department ?? null,
     workType: null,
-    ageRange: null,
+    surveyFeatures: null,
     phishingAwarenessScore: 0,
     onboardingCompleted: false,
     role: fields.role ?? "employee",

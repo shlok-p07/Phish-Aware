@@ -68,7 +68,7 @@ export async function seedIfEmpty(): Promise<void> {
           calibrationScore: 0.7,
           department: null,
           workType: null,
-          ageRange: null,
+          surveyFeatures: null,
           phishingAwarenessScore: 0.7,
           lastLoginAt: null,
           onboardingCompleted: true,

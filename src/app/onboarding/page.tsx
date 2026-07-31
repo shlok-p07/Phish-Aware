@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { OnboardingSurvey } from "@/components/onboarding-survey";
-import type { OnboardingSurveyAnswerMap } from "@/lib/onboarding-survey";
+import { toSurveyFeatures, type OnboardingSurveyAnswerMap } from "@/lib/onboarding-survey";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -29,9 +29,12 @@ export default function OnboardingPage() {
   // Which step is showing. Kept separate from surveyAnswers (below) so going
   // back to the survey doesn't wipe out what was already entered there.
   const [showSurvey, setShowSurvey] = useState(true);
-  // Persisted (department/work_type/age_range) once the quiz submits below.
+  // The raw answer map, turned into the API's feature vector at submit time.
   // Never reset to null after the first save -- see showSurvey above.
   const [surveyAnswers, setSurveyAnswers] = useState<OnboardingSurveyAnswerMap | null>(null);
+  // An org that pinned a department to this user's invitation has already
+  // answered that question, so the survey drops it.
+  const presetDepartment = user?.department ?? null;
 
   // If already onboarded, send away.
   useEffect(() => {
@@ -80,6 +83,7 @@ export default function OnboardingPage() {
           <OnboardingSurvey
             onComplete={handleSurveyComplete}
             initialAnswers={surveyAnswers ?? undefined}
+            presetDepartment={presetDepartment}
           />
 
         </div>
@@ -118,13 +122,12 @@ export default function OnboardingPage() {
     if (currentStep < quizQuestions.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
-      // Submit the quiz
+      // Submit the quiz alongside the survey in feature form -- the survey
+      // was already validated before we got here, so this can't throw.
       submitQuiz.mutate({
         data: {
           answers: newAnswers,
-          department: surveyAnswers.department,
-          workType: surveyAnswers.work_type,
-          ageRange: surveyAnswers.age_range,
+          features: toSurveyFeatures(surveyAnswers, { presetDepartment }),
         },
       }, {
         onSuccess: (res) => {
