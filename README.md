@@ -82,16 +82,21 @@ cp .env.example .env
 bun run dev
 ```
 
-The app runs at [http://localhost:3000](http://localhost:3000). On first
-boot, a Next.js
-[instrumentation hook](https://nextjs.org/docs/app/guides/instrumentation)
-(`src/instrumentation.ts`) automatically applies the schema (collections +
-`$jsonSchema` validators + indexes, see `src/db/provision.ts`) and seeds
-lessons/practice scenarios/sample leaderboard users if the database is
-empty — nobody needs to run a setup script by hand, whether that's a
-teammate's laptop, CI, Docker, or a Render deploy. It's idempotent, so it's
-safe to run against an already-provisioned cluster every time the server
-starts.
+The app runs at [http://localhost:3000](http://localhost:3000). The first
+time anything actually queries the database (any API route — not
+necessarily the homepage, which can render without touching Mongo), the
+Mongo client (`src/db/client.ts`) automatically applies the schema
+(collections + `$jsonSchema` validators + indexes, see
+`src/db/provision.ts`) and seeds lessons/practice scenarios/sample
+leaderboard users if the database is empty, once per process, in the
+background without blocking that request — nobody needs to run a setup
+script by hand, whether that's a teammate's laptop, CI, Docker, or a Render
+deploy. It's idempotent, so it's safe to run against an already-provisioned
+cluster every time the server starts. (This used to run from a Next.js
+instrumentation hook, but that gets compiled for the Edge runtime too,
+which can't resolve mongodb's optional Node-only encryption submodule —
+that failure surfaced as a 500 on every route, not just a warning, so the
+logic now lives in the client module every route already imports safely.)
 
 `bun run db:init`/`bun run db:seed` still exist as standalone mongosh/CLI
 equivalents (handy for debugging or for teammates working from
