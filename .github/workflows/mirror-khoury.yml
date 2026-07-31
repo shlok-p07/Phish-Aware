@@ -28,15 +28,16 @@ jobs:
         run: |
           GIT_SSH_COMMAND="ssh -i ~/.ssh/khoury_deploy_key -o IdentitiesOnly=yes" \
             git clone --depth 1 --branch main \
-            git@github.khoury.northeastern.edu:CS4530-Summer-2-2026/Phish-Aware.git khoury-src
+            git@github.khoury.northeastern.edu:CS4530-Summer-2-2026/Phish-Aware.git \
+            "${{ runner.temp }}/khoury-src"
 
       - name: Sync working tree from Khoury (keep .git and this workflow dir untouched)
         run: |
           rsync -a --delete \
             --exclude='.git/' \
             --exclude='.github/workflows/' \
-            khoury-src/ ./
-          rm -rf khoury-src
+            "${{ runner.temp }}/khoury-src/" ./
+          rm -rf "${{ runner.temp }}/khoury-src"
 
       - name: Commit and push if anything changed
         run: |
