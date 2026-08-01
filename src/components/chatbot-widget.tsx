@@ -18,13 +18,30 @@ interface ChatMessage {
 }
 
 interface ChatbotContextValue {
-  /** Opens the widget and, if given, sends `prompt` as the first turn immediately. */
+  /** Opens the floating widget and, if given, sends `prompt` as the first turn immediately. */
   askAbout: (prompt: string) => void;
+  /**
+   * Sends `prompt` as a user turn WITHOUT opening the floating popup, and
+   * returns the index the assistant's reply will occupy in `messages`. Lets a
+   * page (e.g. practice results) surface that one answer inline as its own card
+   * instead of taking over the screen with the bubble. Returns null if a send
+   * is already in flight.
+   */
+  sendSeeded: (prompt: string) => number | null;
+  /** The shared conversation, so an inline surface can render the same thread. */
+  messages: ChatMessage[];
+  /** Draft input value + setter for a controlled inline composer. */
+  draft: string;
+  setDraft: (v: string) => void;
+  /** Submit the current draft (or a passed string) as a user turn. */
+  submitMessage: (content: string) => void;
+  /** True while awaiting an assistant reply. */
+  isPending: boolean;
 }
 
 const ChatbotContext = createContext<ChatbotContextValue | null>(null);
 
-/** Lets any page (e.g. the practice reveal panel) open the assistant pre-seeded with context. */
+/** Lets any page (e.g. the practice reveal panel) drive or render the assistant. */
 export function useChatbot(): ChatbotContextValue {
   const ctx = useContext(ChatbotContext);
   if (!ctx) throw new Error("useChatbot must be used within ChatbotProvider");
@@ -99,13 +116,36 @@ export function ChatbotProvider({ children }: { children: ReactNode }) {
     submitMessage(prompt);
   };
 
+  // Same as submitMessage but leaves the floating popup closed and hands back
+  // the slot the assistant reply will land in, so an inline surface can show
+  // just that answer. Appends both the user turn and (async) the reply.
+  const sendSeeded: ChatbotContextValue["sendSeeded"] = (prompt) => {
+    const trimmed = prompt.trim();
+    if (!trimmed || send.isPending) return null;
+    const next = [...messages, { role: "user" as const, content: trimmed }];
+    setMessages(next);
+    sendTurn(next);
+    // The assistant reply is appended after `next`, so it will be at index next.length.
+    return next.length;
+  };
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     submitMessage(draft);
   };
 
+  const contextValue: ChatbotContextValue = {
+    askAbout,
+    sendSeeded,
+    messages,
+    draft,
+    setDraft,
+    submitMessage,
+    isPending: send.isPending,
+  };
+
   return (
-    <ChatbotContext.Provider value={{ askAbout }}>
+    <ChatbotContext.Provider value={contextValue}>
       {children}
 
       <div className="fixed bottom-20 md:bottom-6 right-2 sm:right-4 md:right-6 z-50 flex flex-col items-end">
@@ -134,25 +174,7 @@ export function ChatbotProvider({ children }: { children: ReactNode }) {
             </div>
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3">
-              <div className="space-y-3">
-                {messages.map((m, i) => (
-                  <div
-                    key={i}
-                    className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
-                      m.role === "user"
-                        ? "ml-auto bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground"
-                    }`}
-                  >
-                    {m.content}
-                  </div>
-                ))}
-                {send.isPending && (
-                  <div className="bg-muted text-muted-foreground max-w-[85%] rounded-lg px-3 py-2 text-sm">
-                    Thinking…
-                  </div>
-                )}
-              </div>
+              <ChatMessageList messages={messages} isPending={send.isPending} />
 
               {/* One-tap starter prompts -- hassle-free discovery of value before anyone's typed a word. */}
               {messages.length === 1 && !send.isPending && (
@@ -170,18 +192,12 @@ export function ChatbotProvider({ children }: { children: ReactNode }) {
               )}
             </div>
 
-            <form onSubmit={handleSubmit} className="border-t border-border p-3 flex gap-2">
-              <input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Ask about a red flag…"
-                aria-label="Message"
-                className="flex-1 min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-              <Button type="submit" size="icon" disabled={send.isPending || !draft.trim()} aria-label="Send">
-                <Send className="w-4 h-4" />
-              </Button>
-            </form>
+            <ChatComposer
+              draft={draft}
+              setDraft={setDraft}
+              onSubmit={handleSubmit}
+              disabled={send.isPending}
+            />
           </div>
         )}
 
@@ -198,5 +214,64 @@ export function ChatbotProvider({ children }: { children: ReactNode }) {
         </Button>
       </div>
     </ChatbotContext.Provider>
+  );
+}
+
+/** Shared message-list rendering used by both the floating popup and inline panels. */
+export function ChatMessageList({
+  messages,
+  isPending,
+}: {
+  messages: ChatMessage[];
+  isPending: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      {messages.map((m, i) => (
+        <div
+          key={i}
+          className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
+            m.role === "user"
+              ? "ml-auto bg-primary text-primary-foreground"
+              : "bg-muted text-foreground"
+          }`}
+        >
+          {m.content}
+        </div>
+      ))}
+      {isPending && (
+        <div className="bg-muted text-muted-foreground max-w-[85%] rounded-lg px-3 py-2 text-sm">
+          Thinking…
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Shared composer (text input + send button) used by both the popup and inline panels. */
+export function ChatComposer({
+  draft,
+  setDraft,
+  onSubmit,
+  disabled,
+}: {
+  draft: string;
+  setDraft: (v: string) => void;
+  onSubmit: (e: FormEvent) => void;
+  disabled: boolean;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="border-t border-border p-3 flex gap-2">
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Ask about a red flag…"
+        aria-label="Message"
+        className="flex-1 min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      />
+      <Button type="submit" size="icon" disabled={disabled || !draft.trim()} aria-label="Send">
+        <Send className="w-4 h-4" />
+      </Button>
+    </form>
   );
 }

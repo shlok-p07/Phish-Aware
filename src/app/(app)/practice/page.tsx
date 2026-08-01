@@ -18,8 +18,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useChatbot } from "@/components/chatbot-widget";
+import { useChatbot, ChatMessageList, ChatComposer } from "@/components/chatbot-widget";
+import type { CueId } from "@/server/cues";
+import { CUE_REGION, findBodyMatch, highlightClass } from "@/components/practice/cue-highlight";
 
 // Define the steps of the practice loop
 type PracticeStep = 'inspect' | 'cues' | 'confidence' | 'feedback';
@@ -54,7 +55,7 @@ export default function PracticePage() {
   const { data: scenario, isLoading: isScenarioLoading, isError: isScenarioError } = useGetNextPracticeScenario();
   const { data: availableCues, isLoading: isCuesLoading } = useListCueOptions();
   const submitAttempt = useSubmitAttempt();
-  const { askAbout } = useChatbot();
+  const chat = useChatbot();
 
   // Local state
   const [step, setStep] = useState<PracticeStep>('inspect');
@@ -62,6 +63,13 @@ export default function PracticePage() {
   const [selectedCues, setSelectedCues] = useState<string[]>([]);
   const [confidence, setConfidence] = useState<number>(50);
   const [result, setResult] = useState<any>(null);
+  // The red flag currently being hovered on the results screen -- drives the
+  // highlight in the email (mirrors the landing page's InboxPreview mechanic).
+  const [activeCue, setActiveCue] = useState<string | null>(null);
+  // Index into the shared chat conversation where the scenario-specific
+  // explanation reply will land, so we can surface just that answer inline as
+  // its own card instead of opening the floating popup. Null until requested.
+  const [explainIndex, setExplainIndex] = useState<number | null>(null);
 
   if (isScenarioLoading || isCuesLoading) {
     return (
@@ -131,6 +139,8 @@ export default function PracticePage() {
     setVerdict(null);
     setSelectedCues([]);
     setConfidence(50);
+    setActiveCue(null);
+    setExplainIndex(null);
     setStep('inspect');
     queryClient.invalidateQueries({ queryKey: getGetNextPracticeScenarioQueryKey() });
   };
@@ -138,15 +148,19 @@ export default function PracticePage() {
   // Helper to get cue label
   const getCueLabel = (id: string) => availableCues.find(c => c.id === id)?.label || id;
 
-  // Seeds the assistant with this exact scenario's outcome so its first
-  // answer is specific rather than a generic "what is phishing" reply.
+  // Seeds the assistant with this exact scenario's outcome so its answer is
+  // specific rather than a generic "what is phishing" reply. Unlike the old
+  // flow, this does NOT open the floating popup -- it sends the turn into the
+  // shared conversation and remembers where the reply will land so we can show
+  // that one answer inline as its own card on the results screen.
   const askAboutScenario = () => {
     if (!result) return;
     const missed = result.missedCues.map(getCueLabel).join(", ") || "none";
     const caught = result.caughtCues.map(getCueLabel).join(", ") || "none";
-    askAbout(
+    const idx = chat.sendSeeded(
       `I just practiced on an email with the subject "${scenario.subject}". I judged it ${verdict ? "phishing" : "legitimate"}, and I was ${result.correct ? "correct" : "incorrect"}. Cues I caught: ${caught}. Cues I missed: ${missed}. Can you explain why those missed cues mattered here and how to spot that pattern next time?`,
     );
+    if (idx !== null) setExplainIndex(idx);
   };
 
   const { name: senderName, email: senderEmail } = parseSender(scenario.sender);
@@ -155,7 +169,7 @@ export default function PracticePage() {
   const snippet = scenario.body.replace(/\s+/g, " ").trim().slice(0, 64);
 
   // Toolbar shown at the top of the reading pane (decorative mail actions).
-  const ReadingPaneToolbar = () => (
+  const readingPaneToolbar = () => (
     <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/30 shrink-0 text-muted-foreground">
       {[Archive, Trash2, CornerUpLeft].map((Icon, i) => (
         <span key={i} className="p-2 rounded-lg hover:bg-muted transition-colors" aria-hidden>
@@ -176,12 +190,43 @@ export default function PracticePage() {
     </div>
   );
 
+  // Is a given region currently the target of the hovered red flag? Structured
+  // cues (sender/links/attachments) light up their whole region; body cues are
+  // handled separately by renderBody below.
+  const regionActive = (region: 'sender' | 'links' | 'attachments') =>
+    activeCue !== null && CUE_REGION[activeCue as CueId] === region;
+
+  // Renders the body, wrapping the phrase the hovered body-cue points at (if we
+  // can find one) in a highlight. Falls back to the plain string when the active
+  // cue isn't a body cue or no keyword matches -- the chip still self-highlights.
+  const renderBody = () => {
+    const cueId = activeCue as CueId | null;
+    if (cueId && CUE_REGION[cueId] === 'body') {
+      const match = findBodyMatch(scenario.body, cueId);
+      if (match) {
+        return (
+          <>
+            {scenario.body.slice(0, match.start)}
+            <span className={highlightClass(true)}>
+              {scenario.body.slice(match.start, match.end)}
+            </span>
+            {scenario.body.slice(match.end)}
+          </>
+        );
+      }
+    }
+    return scenario.body;
+  };
+
   // The email reading pane — styled like a real mail client. Shown in all states.
-  const MailClient = () => {
+  // Rendered as a function call ({mailClient()}), not <MailClient/>, so React
+  // reconciles it in place instead of remounting the whole subtree every time
+  // activeCue changes on hover (which caused the scroll jump / shake).
+  const mailClient = () => {
     const compact = step !== 'inspect';
     return (
     <Card className={`border shadow-sm flex flex-col p-0 overflow-hidden ${compact ? 'h-auto max-h-[70vh]' : 'h-[62vh] max-h-160'} transition-all duration-500`}>
-      <ReadingPaneToolbar />
+      {readingPaneToolbar()}
 
       {/* Subject line */}
       <div className={`px-5 md:px-6 shrink-0 ${compact ? 'pt-3 pb-2' : 'pt-5 pb-3'}`}>
@@ -200,7 +245,7 @@ export default function PracticePage() {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-sm text-foreground truncate">{senderName}</span>
             {senderEmail && (
-              <span className="text-xs font-medium text-muted-foreground truncate">&lt;{senderEmail}&gt;</span>
+              <span className={`text-xs font-medium text-muted-foreground truncate ${highlightClass(regionActive('sender'))}`}>&lt;{senderEmail}&gt;</span>
             )}
           </div>
           <p className="text-xs font-medium text-muted-foreground">to me</p>
@@ -210,10 +255,10 @@ export default function PracticePage() {
 
       {/* Body */}
       <CardContent className="flex-1 min-h-0 px-5 md:px-6 py-5 text-sm leading-relaxed overflow-y-auto whitespace-pre-wrap bg-background text-foreground/90">
-        {scenario.body}
+        {renderBody()}
 
         {scenario.links.length > 0 && (
-          <div className="mt-6 space-y-2 border-t border-dashed border-border pt-4">
+          <div className={`mt-6 space-y-2 border-t border-dashed border-border pt-4 px-2 -mx-2 rounded transition-colors duration-150 ${regionActive('links') ? 'ring-1 ring-destructive/50 bg-destructive/5' : ''}`}>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Links in this message</p>
             {scenario.links.map((link, idx) => (
               <div key={idx} className="bg-muted/30 border border-border p-2 rounded-lg text-primary text-xs break-all relative group cursor-help transition-colors hover:bg-muted/50">
@@ -231,7 +276,7 @@ export default function PracticePage() {
       {scenario.attachments.length > 0 && (
         <div className="px-5 md:px-6 py-3 border-t border-border bg-muted/20 shrink-0 space-y-2">
           {scenario.attachments.map((attachment, idx) => (
-            <div key={idx} className="inline-flex items-center gap-2 text-sm font-semibold bg-background border border-border px-3 py-2 rounded-lg text-foreground max-w-full">
+            <div key={idx} className={`inline-flex items-center gap-2 text-sm font-semibold bg-background border px-3 py-2 rounded-lg text-foreground max-w-full transition-colors duration-150 ${regionActive('attachments') ? 'ring-1 ring-destructive/50 border-destructive/40 bg-destructive/5' : 'border-border'}`}>
               <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
               <span className="truncate">{attachment.name}</span>
             </div>
@@ -243,7 +288,7 @@ export default function PracticePage() {
   };
 
   // A faux inbox list — the current scenario sits at the top as the selected, unread message.
-  const InboxList = () => (
+  const inboxList = () => (
     <Card className="border shadow-sm p-0 overflow-hidden flex flex-col h-[62vh] max-h-160">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30 shrink-0">
         <Inbox className="w-5 h-5 text-primary" />
@@ -281,8 +326,169 @@ export default function PracticePage() {
     </Card>
   );
 
+  // A caught/missed/false red flag rendered as a hover trigger: hovering (or
+  // focusing) it highlights the matching part of the email. Mirrors the landing
+  // page InboxPreview's chip handlers, including the functional-update guard so
+  // leaving one chip doesn't clear a highlight another chip just set.
+  const cueTrigger = (id: string, tone: 'caught' | 'missed' | 'false') => {
+    const toneClass =
+      tone === 'caught'
+        ? 'bg-success/10 text-success border-success/30'
+        : tone === 'missed'
+          ? 'bg-destructive/10 text-destructive border-destructive/30'
+          : 'bg-orange-500/10 text-orange-600 border-orange-500/30';
+    return (
+      <button
+        key={id}
+        type="button"
+        onMouseEnter={() => setActiveCue(id)}
+        onMouseLeave={() => setActiveCue((a) => (a === id ? null : a))}
+        onFocus={() => setActiveCue(id)}
+        onBlur={() => setActiveCue((a) => (a === id ? null : a))}
+        className="cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      >
+        <Badge variant="outline" className={`font-bold transition-colors ${toneClass} ${activeCue === id ? 'ring-2 ring-destructive/50' : ''}`}>
+          {getCueLabel(id)}
+        </Badge>
+      </button>
+    );
+  };
+
+  // The graded-result card: correctness header, explanation, hover-highlight red
+  // flags, calibration, rewards, and Next. Rendered in the right column beside
+  // the email (no overlay modal). Called as {resultCard()} for stable reconcile.
+  const resultCard = () => (
+    <Card className="border shadow-sm p-0 overflow-hidden flex flex-col animate-in slide-in-from-right-8 duration-300">
+      {/* Header colored by correctness */}
+      <div className={`pt-8 pb-5 px-6 text-center relative shrink-0 ${result.correct ? 'bg-success text-success-foreground' : 'bg-destructive text-destructive-foreground'}`}>
+        {result.leveledUp && <Sparkles className="absolute top-4 right-4 w-6 h-6 opacity-40" />}
+        <div className="bg-background text-foreground w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm border border-background/20">
+          {result.correct ? <CheckCircle2 className="w-7 h-7 text-success" /> : <XCircle className="w-7 h-7 text-destructive" />}
+        </div>
+        <h2 className="text-2xl font-display font-bold mb-1 text-inherit">
+          {result.correct ? "Correct" : "Incorrect"}
+        </h2>
+        <p className="font-medium opacity-90">
+          {result.correctVerdict ? "You correctly identified the message." : "You missed the true intent of this message."}
+        </p>
+      </div>
+
+      <div className="p-6 space-y-6 bg-background">
+        {/* Explanation */}
+        <div className="bg-muted/30 p-4 rounded-lg border border-border text-sm font-medium leading-relaxed">
+          <p>{result.explanation}</p>
+        </div>
+
+        {/* Cue Feedback -- each flag is a hover trigger that highlights the email */}
+        {verdict && (result.caughtCues.length > 0 || result.missedCues.length > 0 || result.falseCues.length > 0) && (
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              Your Analysis
+              <span className="text-[11px] font-normal normal-case tracking-normal text-muted-foreground">(hover a flag to see it in the email)</span>
+            </h4>
+
+            {result.caughtCues.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-success mb-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Caught</p>
+                <div className="flex flex-wrap gap-1">
+                  {result.caughtCues.map((id: string) => cueTrigger(id, "caught"))}
+                </div>
+              </div>
+            )}
+
+            {result.missedCues.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-destructive mb-1 flex items-center gap-1"><XCircle className="w-3 h-3"/> Missed</p>
+                <div className="flex flex-wrap gap-1">
+                  {result.missedCues.map((id: string) => cueTrigger(id, "missed"))}
+                </div>
+              </div>
+            )}
+
+            {result.falseCues.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-orange-500 mb-1 flex items-center gap-1"><Info className="w-3 h-3"/> Incorrectly Flagged</p>
+                <div className="flex flex-wrap gap-1">
+                  {result.falseCues.map((id: string) => cueTrigger(id, "false"))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Calibration */}
+        <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 flex items-start gap-3 text-sm font-medium text-foreground">
+          <Target className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+          <p>{result.calibrationNote}</p>
+        </div>
+
+        {/* Rewards */}
+        <div className="flex items-center justify-between border-t pt-4">
+          <div className="space-y-0.5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Points earned</p>
+            <p className="text-2xl font-display font-bold text-primary">+{result.xpAwarded}</p>
+          </div>
+          {result.leveledUp && (
+            <Badge className="bg-primary hover:bg-primary font-semibold px-3 py-1 text-sm shadow-sm">Level {result.level}</Badge>
+          )}
+        </div>
+      </div>
+
+      <div className="p-4 bg-muted/20 border-t shrink-0">
+        <Button className="w-full py-6 text-lg font-bold rounded-lg shadow-sm group" onClick={resetAndNext}>
+          Next Scenario
+          <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+        </Button>
+      </div>
+    </Card>
+  );
+
+  // The assistant surface, placed under the email in the LEFT column so it's
+  // reachable without scrolling past the tall result card. Contains an on-page
+  // answer card (when you tap "explain further") and the shared-conversation
+  // chat. Called as {assistantColumn()} for stable reconcile.
+  const assistantColumn = () => (
+    <Card className="border shadow-sm p-0 overflow-hidden flex flex-col">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-primary/5">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-primary" />
+          <p className="font-display font-semibold text-sm">Ask the assistant</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="font-semibold h-7 text-xs"
+          onClick={askAboutScenario}
+          disabled={chat.isPending || explainIndex !== null}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          {explainIndex !== null ? "Explained" : "Explain this scenario"}
+        </Button>
+      </div>
+
+      {/* The assistant's scenario-specific answer surfaced on-page (no popup). */}
+      {explainIndex !== null && (
+        <div className="px-4 py-3 border-b border-border bg-muted/20 text-sm leading-relaxed whitespace-pre-wrap text-foreground animate-in fade-in slide-in-from-bottom-2 duration-300">
+          {chat.messages[explainIndex]?.content ?? (
+            <span className="text-muted-foreground">Thinking…</span>
+          )}
+        </div>
+      )}
+
+      <div className="max-h-80 min-h-40 overflow-y-auto px-4 py-3">
+        <ChatMessageList messages={chat.messages} isPending={chat.isPending} />
+      </div>
+      <ChatComposer
+        draft={chat.draft}
+        setDraft={chat.setDraft}
+        onSubmit={(e) => { e.preventDefault(); chat.submitMessage(chat.draft); }}
+        disabled={chat.isPending}
+      />
+    </Card>
+  );
+
   return (
-    <div className="max-w-5xl mx-auto h-full flex flex-col relative pb-12 animate-in fade-in duration-500">
+    <div className={`${step === 'feedback' ? 'max-w-6xl' : 'max-w-5xl'} mx-auto h-full flex flex-col relative pb-12 animate-in fade-in duration-500 transition-[max-width] duration-500`}>
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -296,9 +502,9 @@ export default function PracticePage() {
         <>
           <div className="grid gap-6 lg:grid-cols-[320px_1fr] items-start">
             <div className="hidden lg:block">
-              <InboxList />
+              {inboxList()}
             </div>
-            <MailClient />
+            {mailClient()}
           </div>
 
           {/* Verdict controls */}
@@ -329,8 +535,22 @@ export default function PracticePage() {
           </div>
         </>
       ) : (
-        <div className="grid gap-6 md:grid-cols-[1fr_400px] items-start">
-          <MailClient />
+        <div className={`grid gap-6 items-start ${step === 'feedback' ? 'md:grid-cols-[1fr_440px]' : 'md:grid-cols-[1fr_400px]'}`}>
+          {/* Left column: the email, plus (on feedback) the assistant right below
+              it so it's reachable without scrolling past the tall result card. */}
+          <div className="space-y-6">
+            {mailClient()}
+            {step === 'feedback' && result && assistantColumn()}
+          </div>
+
+          {/* Right column on feedback: the graded result, beside the email so you
+              can compare against the message, and hover red flags to locate them
+              in it -- all with no covering modal. */}
+          {step === 'feedback' && result && (
+            <div className="md:sticky md:top-24">
+              {resultCard()}
+            </div>
+          )}
 
           {/* Side Panel for controls depending on step */}
           {step !== 'feedback' && (
@@ -421,98 +641,6 @@ export default function PracticePage() {
           )}
         </div>
       )}
-
-      {/* Feedback Dialog */}
-      <Dialog open={step === 'feedback'} onOpenChange={() => {}}>
-        <DialogContent className="max-w-md p-0 border overflow-hidden rounded-lg gap-0 flex flex-col max-h-[90vh] [&>button]:hidden">
-          {result && (
-            <>
-              {/* Header colored by correctness */}
-              <div className={`pt-10 pb-6 px-6 text-center relative shrink-0 ${result.correct ? 'bg-success text-success-foreground' : 'bg-destructive text-destructive-foreground'}`}>
-                {result.leveledUp && <Sparkles className="absolute top-4 right-4 w-6 h-6 opacity-40" />}
-                <div className="bg-background text-foreground w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-background/20">
-                  {result.correct ? <CheckCircle2 className={`w-8 h-8 text-success`} /> : <XCircle className={`w-8 h-8 text-destructive`} />}
-                </div>
-                <DialogTitle className="text-3xl font-display font-bold mb-1 text-inherit">
-                  {result.correct ? "Correct" : "Incorrect"}
-                </DialogTitle>
-                <p className="font-medium opacity-90 text-lg">
-                  {result.correctVerdict ? "You correctly identified the message." : "You missed the true intent of this message."}
-                </p>
-              </div>
-
-              <div className="p-6 space-y-6 flex-1 min-h-0 overflow-y-auto bg-background">
-                {/* AI Explanation */}
-                <div className="bg-muted/30 p-4 rounded-lg border border-border text-sm font-medium leading-relaxed space-y-3">
-                  <p>{result.explanation}</p>
-                  <Button variant="outline" size="sm" className="font-semibold" onClick={askAboutScenario}>
-                    <Sparkles className="w-4 h-4" />
-                    Ask the assistant to explain further
-                  </Button>
-                </div>
-
-                {/* Cue Feedback (Only if it was a phishing scenario and they had to pick cues) */}
-                {verdict && (
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Your Analysis</h4>
-
-                    {result.caughtCues.length > 0 && (
-                      <div>
-                        <p className="text-xs font-semibold text-success mb-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Caught</p>
-                        <div className="flex flex-wrap gap-1">
-                          {result.caughtCues.map((id: string) => <Badge key={id} variant="outline" className="bg-success/10 text-success border-success/30 font-bold">{getCueLabel(id)}</Badge>)}
-                        </div>
-                      </div>
-                    )}
-
-                    {result.missedCues.length > 0 && (
-                      <div>
-                        <p className="text-xs font-semibold text-destructive mb-1 flex items-center gap-1"><XCircle className="w-3 h-3"/> Missed</p>
-                        <div className="flex flex-wrap gap-1">
-                          {result.missedCues.map((id: string) => <Badge key={id} variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 font-bold">{getCueLabel(id)}</Badge>)}
-                        </div>
-                      </div>
-                    )}
-
-                    {result.falseCues.length > 0 && (
-                      <div>
-                        <p className="text-xs font-semibold text-orange-500 mb-1 flex items-center gap-1"><Info className="w-3 h-3"/> Incorrectly Flagged</p>
-                        <div className="flex flex-wrap gap-1">
-                          {result.falseCues.map((id: string) => <Badge key={id} variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 font-bold">{getCueLabel(id)}</Badge>)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Calibration */}
-                <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 flex items-start gap-3 text-sm font-medium text-foreground">
-                  <Target className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                  <p>{result.calibrationNote}</p>
-                </div>
-
-                {/* Rewards */}
-                <div className="flex items-center justify-between border-t pt-4">
-                  <div className="space-y-0.5">
-                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Points earned</p>
-                     <p className="text-2xl font-display font-bold text-primary">+{result.xpAwarded}</p>
-                  </div>
-                  {result.leveledUp && (
-                     <Badge className="bg-primary hover:bg-primary font-semibold px-3 py-1 text-sm shadow-sm">Level {result.level}</Badge>
-                  )}
-                </div>
-              </div>
-
-              <DialogFooter className="p-4 bg-muted/20 border-t shrink-0">
-                <Button className="w-full py-6 text-lg font-bold rounded-lg shadow-sm group" onClick={resetAndNext}>
-                  Next Scenario
-                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
 
     </div>
   );
