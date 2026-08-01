@@ -2,8 +2,10 @@ import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { installApiClientMock, apiClientMockState, resetApiClientMockState } from "@/test/mock-api-client";
+import { installNextNavigationMock } from "@/test/mock-next-navigation";
 
 installApiClientMock();
+installNextNavigationMock();
 
 const FAKE_QUESTIONS = [
   { id: "q1", vector: "email" as const, sender: "IT <it@corp.com>", subject: "Q1 subject", body: "Q1 body", links: [] },
@@ -51,10 +53,6 @@ mock.module("@/components/onboarding-survey", () => ({
 }));
 
 let submittedPayloads: unknown[] = [];
-
-mock.module("next/navigation", () => ({
-  useRouter: () => ({ push: () => {} }),
-}));
 
 mock.module("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: () => {} }),

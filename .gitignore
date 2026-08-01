@@ -44,3 +44,6 @@ Thumbs.db
 /.dev-logs/
 
 .vercel
+
+# AWS CLI output from `aws lambda invoke ... response.json`-style local testing
+response.json

@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach, mock } from "bun:test";
+import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import { render, screen, cleanup, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -6,12 +6,10 @@ import {
   apiClientMockState,
   resetApiClientMockState,
 } from "@/test/mock-api-client";
+import { installNextNavigationMock } from "@/test/mock-next-navigation";
 
 installApiClientMock();
-
-mock.module("next/navigation", () => ({
-  useRouter: () => ({ replace: () => {}, push: () => {} }),
-}));
+installNextNavigationMock();
 
 // The auth card animates its height between tabs via ResizeObserver, which
 // happy-dom doesn't implement.

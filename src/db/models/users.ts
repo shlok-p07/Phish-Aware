@@ -40,6 +40,11 @@ export interface UserDoc extends SpecConventions {
   // In the shared spec's validator but was never actually typed/set anywhere
   // in this app's code until now -- set on every successful login.
   lastLoginAt: Date | null;
+  // Password-reset flow: a hashed 6-digit code (same scrypt hash/verify as
+  // passwordHash, see src/server/password.ts) plus its expiry. Both null
+  // whenever there's no reset in progress. Never store the raw code.
+  passwordResetCodeHash: string | null;
+  passwordResetExpiresAt: Date | null;
 }
 
 export type InsertUser = Omit<UserDoc, "_id">;

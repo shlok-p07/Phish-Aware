@@ -28,6 +28,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetOrg,
+  useGetCurrentUser,
   useListOrgMembers,
   useInviteOrgMember,
   useRemoveOrgMember,
@@ -84,7 +85,9 @@ function CopyableLink({ url }: { url: string }) {
 
 export default function AdminMembersPage() {
   const { data: org } = useGetOrg({ query: { retry: false } });
+  const { data: currentUser } = useGetCurrentUser({ query: { retry: false } });
   const { data: members = [] } = useListOrgMembers();
+  const adminCount = members.filter((m) => m.kind !== "invitation" && m.role === "admin").length;
   const queryClient = useQueryClient();
   const invalidateMembers = () => queryClient.invalidateQueries({ queryKey: getListOrgMembersQueryKey() });
   const inviteMemberMutation = useInviteOrgMember();
@@ -140,8 +143,30 @@ export default function AdminMembersPage() {
     );
   };
 
-  const removeMember = (id: string) => removeMemberMutation.mutate({ id }, { onSuccess: invalidateMembers });
-  const revokeInvitation = (id: string) => revokeInvitationMutation.mutate({ id }, { onSuccess: invalidateMembers });
+  const removeMember = (id: string, name: string) =>
+    removeMemberMutation.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          invalidateMembers();
+          toast({ title: `${name} removed` });
+        },
+        onError: (err) =>
+          toast({ title: "Couldn't remove member", description: err.message, variant: "destructive" }),
+      },
+    );
+  const revokeInvitation = (id: string, name: string) =>
+    revokeInvitationMutation.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          invalidateMembers();
+          toast({ title: `Invitation for ${name} revoked` });
+        },
+        onError: (err) =>
+          toast({ title: "Couldn't revoke invitation", description: err.message, variant: "destructive" }),
+      },
+    );
   const setMemberRole = (id: string, newRole: OrgRole) =>
     setMemberRoleMutation.mutate({ id, data: { role: newRole } }, { onSuccess: invalidateMembers });
 
@@ -337,6 +362,24 @@ export default function AdminMembersPage() {
                         <span className="text-xs font-semibold text-muted-foreground capitalize">
                           {m.role === "admin" ? "Admin" : "Member"}
                         </span>
+                      ) : m.role === "admin" && adminCount <= 1 && currentUser?.id === m.id ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Select value={m.role} disabled>
+                                <SelectTrigger className="h-8 w-28 rounded-lg text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            You&apos;re the only admin -- promote someone else before stepping down.
+                          </TooltipContent>
+                        </Tooltip>
                       ) : (
                         <Select value={m.role} onValueChange={(v) => setMemberRole(m.id, v as OrgRole)}>
                           <SelectTrigger className="h-8 w-28 rounded-lg text-xs">
@@ -436,11 +479,9 @@ export default function AdminMembersPage() {
                                 className="bg-destructive text-white hover:bg-destructive/90"
                                 onClick={() => {
                                   if (isInvitation) {
-                                    revokeInvitation(m.id);
-                                    toast({ title: `Invitation for ${m.name} revoked` });
+                                    revokeInvitation(m.id, m.name);
                                   } else {
-                                    removeMember(m.id);
-                                    toast({ title: `${m.name} removed` });
+                                    removeMember(m.id, m.name);
                                   }
                                 }}
                               >

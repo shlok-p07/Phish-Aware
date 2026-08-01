@@ -162,6 +162,7 @@ export const POST = withErrorHandling(
     }
 
     await createSession(user._id);
+
     return json(toUserDto(user), { status: 201 });
   },
 );

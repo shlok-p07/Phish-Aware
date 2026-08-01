@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useChatbot } from "@/components/chatbot-widget";
 
 // Define the steps of the practice loop
 type PracticeStep = 'inspect' | 'cues' | 'confidence' | 'feedback';
@@ -53,6 +54,7 @@ export default function PracticePage() {
   const { data: scenario, isLoading: isScenarioLoading, isError: isScenarioError } = useGetNextPracticeScenario();
   const { data: availableCues, isLoading: isCuesLoading } = useListCueOptions();
   const submitAttempt = useSubmitAttempt();
+  const { askAbout } = useChatbot();
 
   // Local state
   const [step, setStep] = useState<PracticeStep>('inspect');
@@ -135,6 +137,17 @@ export default function PracticePage() {
 
   // Helper to get cue label
   const getCueLabel = (id: string) => availableCues.find(c => c.id === id)?.label || id;
+
+  // Seeds the assistant with this exact scenario's outcome so its first
+  // answer is specific rather than a generic "what is phishing" reply.
+  const askAboutScenario = () => {
+    if (!result) return;
+    const missed = result.missedCues.map(getCueLabel).join(", ") || "none";
+    const caught = result.caughtCues.map(getCueLabel).join(", ") || "none";
+    askAbout(
+      `I just practiced on an email with the subject "${scenario.subject}". I judged it ${verdict ? "phishing" : "legitimate"}, and I was ${result.correct ? "correct" : "incorrect"}. Cues I caught: ${caught}. Cues I missed: ${missed}. Can you explain why those missed cues mattered here and how to spot that pattern next time?`,
+    );
+  };
 
   const { name: senderName, email: senderEmail } = parseSender(scenario.sender);
   const initial = (senderName || "?").charAt(0).toUpperCase();
@@ -430,8 +443,12 @@ export default function PracticePage() {
 
               <div className="p-6 space-y-6 flex-1 min-h-0 overflow-y-auto bg-background">
                 {/* AI Explanation */}
-                <div className="bg-muted/30 p-4 rounded-lg border border-border text-sm font-medium leading-relaxed">
-                  {result.explanation}
+                <div className="bg-muted/30 p-4 rounded-lg border border-border text-sm font-medium leading-relaxed space-y-3">
+                  <p>{result.explanation}</p>
+                  <Button variant="outline" size="sm" className="font-semibold" onClick={askAboutScenario}>
+                    <Sparkles className="w-4 h-4" />
+                    Ask the assistant to explain further
+                  </Button>
                 </div>
 
                 {/* Cue Feedback (Only if it was a phishing scenario and they had to pick cues) */}

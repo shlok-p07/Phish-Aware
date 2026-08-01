@@ -7,11 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQueryClient } from "@tanstack/react-query";
-import { useGetOrg, useCreateOrg, getGetOrgQueryKey } from "@/api-client";
+import { useCreateOrg, getGetOrgQueryKey, getGetCurrentUserQueryKey } from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CreateOrgPage() {
-  const { data: org } = useGetOrg({ query: { retry: false } });
   const createOrg = useCreateOrg();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -25,6 +24,17 @@ export default function CreateOrgPage() {
       { data: { name, ssoDomain: domain } },
       {
         onSuccess: () => {
+          // Patch the cached current-user synchronously, before navigating --
+          // /admin's layout guard reads user.hasOrg/role to decide whether to
+          // bounce a visitor to /dashboard. Without this, that guard still
+          // sees the pre-creation "no org" user for one render (the
+          // invalidation below is a background refetch, not instant), and
+          // redirects the person who just became this org's admin straight
+          // back out again.
+          queryClient.setQueryData(getGetCurrentUserQueryKey(), (old: unknown) =>
+            old && typeof old === "object" ? { ...old, hasOrg: true, role: "admin" } : old,
+          );
+          queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetOrgQueryKey() });
           toast({
             title: "Organization created",
@@ -53,9 +63,7 @@ export default function CreateOrgPage() {
         <CardHeader className="bg-muted/30 border-b pb-4">
           <CardTitle className="text-lg">Organization details</CardTitle>
           <CardDescription className="text-sm font-medium">
-            {org
-              ? "You already belong to an organization, so this won't go through."
-              : "You'll become the admin and can invite your team afterward."}
+            You&apos;ll become the admin and can invite your team afterward.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">

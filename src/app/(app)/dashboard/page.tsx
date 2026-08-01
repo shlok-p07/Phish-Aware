@@ -139,7 +139,7 @@ export default function DashboardPage() {
 								{summary.strongCues.map((cue) => (
 									<div
 										key={cue.id}
-										className="flex items-center gap-3 p-2 rounded-lg bg-success/10 border border-success/20 text-success-foreground"
+										className="flex items-center gap-3 p-2 rounded-lg bg-success/10 border border-success/20 text-success"
 									>
 										<ShieldCheck className="w-5 h-5" />
 										<span className="font-semibold text-sm">{cue.label}</span>
@@ -167,7 +167,7 @@ export default function DashboardPage() {
 								{summary.weakCues.map((cue) => (
 									<div
 										key={cue.id}
-										className="flex items-center gap-3 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive-foreground"
+										className="flex items-center gap-3 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive"
 									>
 										<ShieldAlert className="w-5 h-5" />
 										<span className="font-semibold text-sm">{cue.label}</span>

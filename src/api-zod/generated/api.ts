@@ -105,6 +105,36 @@ export const LoginResponse = zod.object({
 
 
 /**
+ * There's no email delivery in this app -- the code (if the account exists) is returned directly and shown in the UI.
+ * @summary Request a password reset code
+ */
+export const RequestPasswordResetBody = zod.object({
+  "email": zod.string()
+})
+
+export const RequestPasswordResetResponse = zod.object({
+  "ok": zod.boolean(),
+  "code": zod.string().nullish()
+})
+
+
+/**
+ * @summary Confirm a password reset with the emailed code and set a new password
+ */
+export const confirmPasswordResetBodyNewPasswordMin = 8;
+
+
+
+export const ConfirmPasswordResetBody = zod.object({
+  "email": zod.string(),
+  "code": zod.string(),
+  "newPassword": zod.string().min(confirmPasswordResetBodyNewPasswordMin)
+})
+
+export const ConfirmPasswordResetResponse = zod.unknown()
+
+
+/**
  * @summary Start a guest session
  */
 export const ContinueAsGuestResponse = zod.object({
@@ -324,6 +354,25 @@ export const SubmitAttemptResponse = zod.object({
   "leveledUp": zod.boolean(),
   "streak": zod.number().int(),
   "badgesEarned": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Send a message to the security-awareness assistant and get a reply
+ */
+export const sendChatbotMessageBodyMessagesMax = 20;
+
+
+
+export const SendChatbotMessageBody = zod.object({
+  "messages": zod.array(zod.object({
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string()
+})).min(1).max(sendChatbotMessageBodyMessagesMax)
+})
+
+export const SendChatbotMessageResponse = zod.object({
+  "reply": zod.string()
 })
 
 

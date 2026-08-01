@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach, mock } from "bun:test";
+import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import { render, screen, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -6,12 +6,10 @@ import {
   apiClientMockState,
   resetApiClientMockState,
 } from "@/test/mock-api-client";
+import { installNextNavigationMock } from "@/test/mock-next-navigation";
 
 installApiClientMock();
-
-mock.module("next/navigation", () => ({
-  useRouter: () => ({ replace: () => {}, push: () => {} }),
-}));
+installNextNavigationMock();
 
 const { InviteContent } = await import("./invite-content");
 

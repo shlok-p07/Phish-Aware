@@ -20,3 +20,9 @@ export function verifyPassword(password: string, stored: string): boolean {
   }
   return timingSafeEqual(derivedKey, storedKey);
 }
+
+/** A 6-digit code for the password-reset flow. Stored as a hash (hashPassword), never in plain text. */
+export function generateResetCode(): string {
+  const n = randomBytes(3).readUIntBE(0, 3) % 1_000_000;
+  return n.toString().padStart(6, "0");
+}

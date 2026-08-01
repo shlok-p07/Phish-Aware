@@ -6,6 +6,7 @@ import { useGetCurrentUser, useLogout, getGetCurrentUserQueryKey } from "@/api-c
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { GuestBanner } from "@/components/guest-banner";
+import { ChatbotProvider } from "@/components/chatbot-widget";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetOrg } from "@/api-client";
 
@@ -82,6 +83,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   ];
 
   return (
+    <ChatbotProvider>
     <div className="min-h-dvh flex flex-col md:flex-row bg-background">
       {/* Desktop Sidebar */}
       <aside className={`hidden md:flex ${collapsed ? "w-20" : "w-72"} flex-col border-r border-border bg-card px-4 py-6 sticky top-0 h-dvh overflow-hidden transition-[width] duration-300 ease-in-out`}>
@@ -188,5 +190,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         })}
       </nav>
     </div>
+    </ChatbotProvider>
   );
 }

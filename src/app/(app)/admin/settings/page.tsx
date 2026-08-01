@@ -17,6 +17,7 @@ import {
   useUpdateOrgSettings,
   useDeleteOrg,
   getGetOrgQueryKey,
+  getGetCurrentUserQueryKey,
 } from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
 import { SsoCard } from "./sso-card";
@@ -60,6 +61,14 @@ export default function AdminSettingsPage() {
   const resetOrg = () =>
     deleteOrgMutation.mutate(undefined, {
       onSuccess: () => {
+        // Same reasoning as create-org's onSuccess: patch the cached
+        // current-user synchronously so nothing reads stale
+        // hasOrg/role -- e.g. the sidebar still offering "Admin" nav for an
+        // org that no longer exists -- before the background refetch lands.
+        queryClient.setQueryData(getGetCurrentUserQueryKey(), (old: unknown) =>
+          old && typeof old === "object" ? { ...old, hasOrg: false, role: "employee" } : old,
+        );
+        queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetOrgQueryKey() });
         toast({ title: "Organization deleted" });
         router.push("/dashboard");

@@ -74,6 +74,8 @@ export async function seedIfEmpty(): Promise<void> {
           onboardingCompleted: true,
           role: "employee" as const,
           status: "active" as const,
+          passwordResetCodeHash: null,
+          passwordResetExpiresAt: null,
           ...specDefaults(),
         };
       }),

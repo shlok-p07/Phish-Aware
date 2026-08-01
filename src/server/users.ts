@@ -46,6 +46,8 @@ export function buildUserDoc(fields: {
     role: fields.role ?? "employee",
     status: fields.status ?? "active",
     lastLoginAt: fields.lastLoginAt ?? null,
+    passwordResetCodeHash: null,
+    passwordResetExpiresAt: null,
     ...specDefaults(now),
   };
 }

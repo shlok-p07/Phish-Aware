@@ -22,6 +22,7 @@ export const apiClientMockState = {
   submitOnboardingQuiz: noopMutate,
   // Org / invitations / SSO
   org: null as unknown,
+  createOrg: noopMutate,
   orgMembers: [] as unknown[],
   invitation: null as unknown,
   invitationError: null as unknown,
@@ -40,6 +41,9 @@ export const apiClientMockState = {
   signup: noopMutate,
   continueAsGuest: noopMutate,
   logout: noopMutate,
+  sendChatbotMessage: noopMutate,
+  requestPasswordReset: noopMutate,
+  confirmPasswordReset: noopMutate,
 };
 
 export function resetApiClientMockState() {
@@ -50,6 +54,7 @@ export function resetApiClientMockState() {
   apiClientMockState.currentUser = null;
   apiClientMockState.submitOnboardingQuiz = noopMutate;
   apiClientMockState.org = null;
+  apiClientMockState.createOrg = noopMutate;
   apiClientMockState.orgMembers = [];
   apiClientMockState.invitation = null;
   apiClientMockState.invitationError = null;
@@ -68,6 +73,9 @@ export function resetApiClientMockState() {
   apiClientMockState.signup = noopMutate;
   apiClientMockState.continueAsGuest = noopMutate;
   apiClientMockState.logout = noopMutate;
+  apiClientMockState.sendChatbotMessage = noopMutate;
+  apiClientMockState.requestPasswordReset = noopMutate;
+  apiClientMockState.confirmPasswordReset = noopMutate;
 }
 
 /** Orval shapes mutations as { isPending, mutate }; this keeps that uniform. */
@@ -100,6 +108,7 @@ export function installApiClientMock() {
     useSubmitOnboardingQuiz: mutation(() => apiClientMockState.submitOnboardingQuiz),
 
     useGetOrg: () => ({ data: apiClientMockState.org }),
+    useCreateOrg: mutation(() => apiClientMockState.createOrg),
     useListOrgMembers: () => ({ data: apiClientMockState.orgMembers }),
     useGetInvitation: () => ({
       data: apiClientMockState.invitation,
@@ -124,6 +133,9 @@ export function installApiClientMock() {
     useSignup: mutation(() => apiClientMockState.signup),
     useContinueAsGuest: mutation(() => apiClientMockState.continueAsGuest),
     useLogout: mutation(() => apiClientMockState.logout),
+    useSendChatbotMessage: mutation(() => apiClientMockState.sendChatbotMessage),
+    useRequestPasswordReset: mutation(() => apiClientMockState.requestPasswordReset),
+    useConfirmPasswordReset: mutation(() => apiClientMockState.confirmPasswordReset),
 
     getGetNextPracticeScenarioQueryKey: () => ["next-practice-scenario"],
     getGetDashboardQueryKey: () => ["dashboard"],

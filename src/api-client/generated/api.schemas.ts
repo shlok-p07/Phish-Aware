@@ -105,6 +105,22 @@ export interface AuthLoginInput {
   password: string;
 }
 
+export interface PasswordResetRequestInput {
+  email: string;
+}
+
+export interface PasswordResetRequestOutput {
+  ok: boolean;
+  code?: string | null;
+}
+
+export interface PasswordResetConfirmInput {
+  email: string;
+  code: string;
+  /** @minLength 8 */
+  newPassword: string;
+}
+
 export interface ScenarioLink {
   text: string;
   isSuspicious: boolean;
@@ -282,6 +298,31 @@ export interface PracticeScenario {
      * @maximum 5
      */
   difficulty: number;
+}
+
+export type ChatbotMessageRole = typeof ChatbotMessageRole[keyof typeof ChatbotMessageRole];
+
+
+export const ChatbotMessageRole = {
+  user: 'user',
+  assistant: 'assistant',
+} as const;
+
+export interface ChatbotMessage {
+  role: ChatbotMessageRole;
+  content: string;
+}
+
+export interface ChatbotRequest {
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  messages: ChatbotMessage[];
+}
+
+export interface ChatbotResponse {
+  reply: string;
 }
 
 export interface SubmitAttemptInput {

@@ -58,6 +58,7 @@ import {
 	MIN_PASSWORD_SCORE,
 } from "@/components/password-strength";
 import { ssoErrorMessage } from "@/lib/sso-errors";
+import { ForgotPasswordDialog } from "@/components/forgot-password-dialog";
 
 const loginSchema = z.object({
 	email: z.string().email("Please enter a valid email"),
@@ -71,7 +72,7 @@ const signupSchema = z.object({
 		.string()
 		.min(8, "Password must be at least 8 characters")
 		.refine((pw) => zxcvbn(pw).score >= MIN_PASSWORD_SCORE, {
-			message: "Password is too weak — try adding more words or symbols",
+			message: "Password is too weak, try adding more words or symbols",
 		}),
 });
 
@@ -90,6 +91,7 @@ export default function AuthPage() {
 	const discoverSso = useDiscoverSso();
 
 	const [ssoError, setSsoError] = useState<string | null>(null);
+	const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
 	// Identifier-first sign-in: ask for the email, look up whether its domain
 	// has an identity provider, and only fall back to a password field when it
 	// doesn't. Saves SSO users from ever seeing a password box they can't use
@@ -420,6 +422,15 @@ export default function AuthPage() {
 											</FormItem>
 										)}
 									/>
+									<div className="text-right">
+										<button
+											type="button"
+											onClick={() => setForgotPasswordOpen(true)}
+											className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors hover:cursor-pointer"
+										>
+											Forgot your password?
+										</button>
+									</div>
 								</div>
 
 								<Button
@@ -534,7 +545,7 @@ export default function AuthPage() {
 																			A strong, unique password is your first
 																			line of defense. Weak or reused passwords
 																			are cracked in seconds and are the
-																			#1 way attackers hijack accounts —
+																			#1 way attackers hijack accounts,
 																			often the first step in a phishing
 																			attack. Mix length and unpredictable
 																			words for the best protection.
@@ -611,6 +622,7 @@ export default function AuthPage() {
 					</div>
 				)}
 			</div>
+			<ForgotPasswordDialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen} />
 		</div>
 	);
 }

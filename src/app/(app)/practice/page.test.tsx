@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { installApiClientMock, apiClientMockState, resetApiClientMockState } from "@/test/mock-api-client";
+import { ChatbotProvider } from "@/components/chatbot-widget";
 
 installApiClientMock();
 
@@ -45,7 +46,9 @@ function renderPage() {
   const queryClient = new QueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <PracticePage />
+      <ChatbotProvider>
+        <PracticePage />
+      </ChatbotProvider>
     </QueryClientProvider>,
   );
 }

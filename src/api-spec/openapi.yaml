@@ -30,6 +30,8 @@ tags:
     description: Org invitations — issuing them (admin) and accepting them (public)
   - name: sso
     description: Per-organization OIDC single sign-on
+  - name: chatbot
+    description: Groq-powered security-awareness assistant
 paths:
   # NOTE — Browser-navigation endpoints deliberately absent from this spec:
   #   GET /auth/sso/start     302 -> the org's identity provider
@@ -109,6 +111,43 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           description: Invalid credentials
+
+  /auth/password-reset/request:
+    post:
+      operationId: requestPasswordReset
+      tags: [auth]
+      summary: Request a password reset code
+      description: There's no email delivery in this app -- the code (if the account exists) is returned directly and shown in the UI.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetRequestInput"
+      responses:
+        "200":
+          description: The reset code, if an account exists for that email (null otherwise)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasswordResetRequestOutput"
+
+  /auth/password-reset/confirm:
+    post:
+      operationId: confirmPasswordReset
+      tags: [auth]
+      summary: Confirm a password reset with the emailed code and set a new password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetConfirmInput"
+      responses:
+        "200":
+          description: Password updated
+        "400":
+          description: Invalid or expired code
 
   /auth/guest:
     post:
@@ -254,6 +293,29 @@ paths:
           description: Not authenticated
         "404":
           description: Scenario not found
+
+  /chatbot:
+    post:
+      operationId: sendChatbotMessage
+      tags: [chatbot]
+      summary: Send a message to the security-awareness assistant and get a reply
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatbotRequest"
+      responses:
+        "200":
+          description: Assistant reply
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatbotResponse"
+        "401":
+          description: Not authenticated
+        "503":
+          description: Assistant temporarily unavailable
 
   /dashboard:
     get:
@@ -899,6 +961,35 @@ components:
         password:
           type: string
 
+    PasswordResetRequestInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+
+    PasswordResetRequestOutput:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+        code:
+          type: string
+          nullable: true
+
+    PasswordResetConfirmInput:
+      type: object
+      required: [email, code, newPassword]
+      properties:
+        email:
+          type: string
+        code:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+
     ScenarioLink:
       type: object
       required: [text, isSuspicious]
@@ -1144,6 +1235,34 @@ components:
           type: integer
           minimum: 1
           maximum: 5
+
+    ChatbotMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+
+    ChatbotRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/ChatbotMessage"
+
+    ChatbotResponse:
+      type: object
+      required: [reply]
+      properties:
+        reply:
+          type: string
 
     SubmitAttemptInput:
       type: object

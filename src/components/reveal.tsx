@@ -8,7 +8,16 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
  * degrades to "just visible" rather than skipping the motion but leaving
  * the element stuck at opacity: 0.
  */
-export function Reveal({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Reveal({
+  children,
+  className = "",
+  delayMs = 0,
+}: {
+  children: ReactNode;
+  className?: string;
+  /** Staggers a group of Reveals (e.g. a card grid) so they cascade in instead of popping in all at once. */
+  delayMs?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -29,7 +38,11 @@ export function Reveal({ children, className = "" }: { children: ReactNode; clas
   }, []);
 
   return (
-    <div ref={ref} className={`reveal ${visible ? "reveal-visible" : ""} ${className}`}>
+    <div
+      ref={ref}
+      style={delayMs ? { transitionDelay: `${delayMs}ms` } : undefined}
+      className={`reveal ${visible ? "reveal-visible" : ""} ${className}`}
+    >
       {children}
     </div>
   );
