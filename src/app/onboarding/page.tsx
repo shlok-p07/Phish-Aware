@@ -36,12 +36,15 @@ export default function OnboardingPage() {
   // answered that question, so the survey drops it.
   const presetDepartment = user?.department ?? null;
 
-  // If already onboarded, send away.
+  // If already onboarded, send away -- but only for someone who arrived here
+  // already complete. Submitting flips onboardingCompleted server-side, and the
+  // refetch that follows would otherwise yank the results screen away before
+  // they've read it. Once there's a result, leaving is their call.
   useEffect(() => {
-    if (user?.onboardingCompleted) {
+    if (user?.onboardingCompleted && !result) {
       router.push("/dashboard");
     }
-  }, [user, router]);
+  }, [user, router, result]);
 
   const handleSurveyComplete = (answers: OnboardingSurveyAnswerMap) => {
     setSurveyAnswers(answers);

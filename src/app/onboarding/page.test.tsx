@@ -2,7 +2,11 @@ import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { installApiClientMock, apiClientMockState, resetApiClientMockState } from "@/test/mock-api-client";
-import { installNextNavigationMock } from "@/test/mock-next-navigation";
+import {
+  installNextNavigationMock,
+  nextNavigationMockState,
+  resetNextNavigationMockState,
+} from "@/test/mock-next-navigation";
 
 installApiClientMock();
 installNextNavigationMock();
@@ -73,9 +77,16 @@ function completeSurvey() {
   fireEvent.click(screen.getByRole("button", { name: /Continue to diagnostic \(stub\)/i }));
 }
 
+let pushedRoutes: string[] = [];
+
 beforeEach(() => {
   resetApiClientMockState();
+  resetNextNavigationMockState();
   submittedPayloads = [];
+  pushedRoutes = [];
+  nextNavigationMockState.push = (href) => {
+    pushedRoutes.push(href);
+  };
   apiClientMockState.onboardingQuizQuestions = FAKE_QUESTIONS;
   apiClientMockState.currentUser = { onboardingCompleted: false };
   apiClientMockState.submitOnboardingQuiz = (payload, handlers) => {
@@ -196,6 +207,54 @@ describe("Onboarding page", () => {
         ],
       },
     });
+  });
+
+  // Submitting flips onboardingCompleted server-side, so the refetch that
+  // follows makes the current user look "already onboarded" -- which must not
+  // trip the redirect and yank the results away before they've read them.
+  it("keeps the results on screen after the submit marks onboarding complete", async () => {
+    apiClientMockState.submitOnboardingQuiz = (payload, handlers) => {
+      submittedPayloads.push(payload);
+      apiClientMockState.currentUser = { onboardingCompleted: true };
+      handlers.onSuccess?.({ level: "beginner", correctCount: 1, totalCount: 2 });
+    };
+
+    renderPage();
+    completeSurvey();
+    await waitFor(() => expect(screen.getByText("Q1 subject")).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: /Phishing/i })); // Q1 -> Q2
+    fireEvent.click(screen.getByRole("button", { name: /Legitimate/i })); // Q2 -> submits
+
+    await waitFor(() => expect(screen.getByText("Diagnostic complete")).toBeTruthy());
+    expect(screen.getByText(/You scored 1 out of 2/i)).toBeTruthy();
+    expect(pushedRoutes).toEqual([]);
+  });
+
+  it("leaves the results screen only when the user clicks through", async () => {
+    apiClientMockState.submitOnboardingQuiz = (payload, handlers) => {
+      submittedPayloads.push(payload);
+      apiClientMockState.currentUser = { onboardingCompleted: true };
+      handlers.onSuccess?.({ level: "beginner", correctCount: 1, totalCount: 2 });
+    };
+
+    renderPage();
+    completeSurvey();
+    await waitFor(() => expect(screen.getByText("Q1 subject")).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: /Phishing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Legitimate/i }));
+
+    await waitFor(() => expect(screen.getByText("Diagnostic complete")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Go to Dashboard/i }));
+
+    expect(pushedRoutes).toEqual(["/dashboard"]);
+  });
+
+  it("still redirects someone who arrives already onboarded", async () => {
+    apiClientMockState.currentUser = { onboardingCompleted: true };
+    renderPage();
+    await waitFor(() => expect(pushedRoutes).toEqual(["/dashboard"]));
   });
 
   it("passes a department already on the account through to the survey, which then skips it", () => {
