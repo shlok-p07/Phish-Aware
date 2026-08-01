@@ -31,9 +31,12 @@ export interface UserDoc extends SpecConventions {
   // denormalized out of it because the scenario generator reads them on every
   // request; the rest is kept whole for the risk model.
   surveyFeatures: SurveyFeatures | null;
-  // Derived from onboarding diagnostic accuracy; drives generated-scenario
-  // difficulty. Distinct from calibrationScore (confidence-vs-correctness).
+  // Predicted from onboarding survey + diagnostic results; drives the initial
+  // user level and generated-scenario difficulty. Distinct from calibration.
   phishingAwarenessScore: number;
+  /** Optional for legacy rows created before model provenance was recorded. */
+  phishingAwarenessModelVersion?: string | null;
+  phishingAwarenessComputedAt?: Date | null;
   onboardingCompleted: boolean;
   role: OrgRole;
   status: UserStatus;

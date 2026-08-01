@@ -1,5 +1,10 @@
 import { describe, it, expect } from "bun:test";
-import { levelForXp, xpProgress } from "./leveling";
+import {
+  levelForAwarenessScore,
+  levelForXp,
+  minimumXpForLevel,
+  xpProgress,
+} from "./leveling";
 
 describe("levelForXp", () => {
   it("returns beginner from 0 up to (not including) 150", () => {
@@ -30,5 +35,28 @@ describe("xpProgress", () => {
 
   it("caps out at the advanced band with no next level", () => {
     expect(xpProgress(500)).toEqual({ xpIntoLevel: 100, xpToNextLevel: 0 });
+  });
+});
+
+describe("levelForAwarenessScore", () => {
+  it("maps awareness bands to the initial user level", () => {
+    expect(levelForAwarenessScore(0)).toBe("beginner");
+    expect(levelForAwarenessScore(0.39)).toBe("beginner");
+    expect(levelForAwarenessScore(0.4)).toBe("intermediate");
+    expect(levelForAwarenessScore(0.64)).toBe("intermediate");
+    expect(levelForAwarenessScore(0.65)).toBe("advanced");
+    expect(levelForAwarenessScore(1)).toBe("advanced");
+  });
+
+  it("fails closed to beginner for a non-finite score", () => {
+    expect(levelForAwarenessScore(Number.NaN)).toBe("beginner");
+  });
+});
+
+describe("minimumXpForLevel", () => {
+  it("returns the XP floor that prevents a starting-level demotion", () => {
+    expect(minimumXpForLevel("beginner")).toBe(0);
+    expect(minimumXpForLevel("intermediate")).toBe(150);
+    expect(minimumXpForLevel("advanced")).toBe(400);
   });
 });

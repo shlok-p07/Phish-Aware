@@ -15,6 +15,18 @@ export function levelForXp(xp: number): Level {
   return "advanced";
 }
 
+/** Assign the initial level from the normalized 0-1 ML awareness score. */
+export function levelForAwarenessScore(score: number): Level {
+  if (!Number.isFinite(score) || score < 0.4) return "beginner";
+  if (score < 0.65) return "intermediate";
+  return "advanced";
+}
+
+/** Start at the level floor so later XP awards preserve normal progression. */
+export function minimumXpForLevel(level: Level): number {
+  return THRESHOLDS.find((threshold) => threshold.level === level)?.min ?? 0;
+}
+
 export function xpProgress(xp: number): { xpIntoLevel: number; xpToNextLevel: number } {
   const current = THRESHOLDS.find((t) => xp >= t.min && (t.max === null || xp < t.max)) ?? THRESHOLDS[2]!;
   if (current.max === null) {

@@ -42,6 +42,8 @@ export function buildUserDoc(fields: {
     workType: null,
     surveyFeatures: null,
     phishingAwarenessScore: 0,
+    phishingAwarenessModelVersion: null,
+    phishingAwarenessComputedAt: null,
     onboardingCompleted: false,
     role: fields.role ?? "employee",
     status: fields.status ?? "active",

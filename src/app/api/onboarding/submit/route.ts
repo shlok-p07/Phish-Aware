@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { scenariosCollection, usersCollection } from "@/db";
 import { SubmitOnboardingQuizBody, SubmitOnboardingQuizResponse } from "@/api-zod";
-import { levelForXp } from "@/server/leveling";
+import { levelForAwarenessScore, minimumXpForLevel } from "@/server/leveling";
+import { predictAwareness } from "@/server/mlClient";
 import { json, requireUserId, withErrorHandling } from "@/server/http";
 
 export const dynamic = "force-dynamic";
@@ -22,19 +23,35 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const totalCount = body.answers.length;
   const accuracy = totalCount > 0 ? correctCount / totalCount : 0;
 
-  // Starting level based on diagnostic accuracy, with a small XP head start.
-  const startingXp = Math.round(accuracy * 120);
-  const level = levelForXp(startingXp);
-  // Phase 1 of the adaptive scenario generator: awareness score starts as
-  // diagnostic accuracy. It's what maps to generated-scenario difficulty
-  // (see src/server/attackProfiles.ts) -- distinct from calibrationScore,
-  // which measures confidence-vs-correctness, not raw detection accuracy.
-  const phishingAwarenessScore = accuracy;
+  // The ML score selects both the initial level and generated-scenario
+  // difficulty. Diagnostic accuracy remains the resilient fallback.
+  let phishingAwarenessScore = accuracy;
+  let phishingAwarenessModelVersion = "diagnostic-accuracy-v0";
+  let phishingAwarenessComputedAt = new Date();
 
   // The intro survey arrives as a feature vector (see src/lib/onboarding-survey.ts).
   // department/workType are denormalized out of it because the scenario
   // generator reads them on every practice request.
   const features = body.features ?? null;
+
+  // Model inference is an enhancement, never a gate on onboarding. A missing
+  // artifact, deployment outage, timeout, or invalid response falls back to
+  // the deterministic diagnostic accuracy users received before ML existed.
+  if (features) {
+    try {
+      const prediction = await predictAwareness(features, accuracy);
+      phishingAwarenessScore = prediction.awareness_score;
+      phishingAwarenessModelVersion = prediction.model_version;
+      phishingAwarenessComputedAt = new Date();
+    } catch (cause) {
+      console.warn("Awareness prediction unavailable; using diagnostic accuracy", cause);
+    }
+  }
+
+  const level = levelForAwarenessScore(phishingAwarenessScore);
+  // Existing gameplay promotes users from XP thresholds. Initializing XP at
+  // the assigned level's floor prevents the first attempt from demoting them.
+  const startingXp = minimumXpForLevel(level);
 
   const users = await usersCollection();
   await users.updateOne(
@@ -45,6 +62,8 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
         level,
         onboardingCompleted: true,
         phishingAwarenessScore,
+        phishingAwarenessModelVersion,
+        phishingAwarenessComputedAt,
         // Absent only if a client submits the diagnostic without the survey.
         // Leave the stored values alone rather than clearing a department the
         // org pinned to the invitation.

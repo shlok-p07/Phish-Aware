@@ -135,6 +135,8 @@ make("users", ["orgId", "email", "name", "role"], {
   department: strOrNull, workType: strOrNull,
   surveyFeatures: { bsonType: ["object", "null"] },
   phishingAwarenessScore: num,
+  phishingAwarenessModelVersion: strOrNull,
+  phishingAwarenessComputedAt: dateOrNull,
   // App-specific, spec-unlisted: password-reset flow (see
   // src/app/api/auth/password-reset/**).
   passwordResetCodeHash: strOrNull, passwordResetExpiresAt: dateOrNull,

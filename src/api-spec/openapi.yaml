@@ -931,7 +931,7 @@ components:
           type: ["string", "null"]
         phishingAwarenessScore:
           type: number
-          description: Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.
+          description: Predicted from onboarding survey and diagnostic results; drives initial level and generated-scenario difficulty.
         onboardingCompleted:
           type: boolean
         createdAt:

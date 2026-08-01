@@ -128,6 +128,8 @@ export async function ensureSchema(db: Db): Promise<void> {
     department: strOrNull, workType: strOrNull,
     surveyFeatures: { bsonType: ["object", "null"] },
     phishingAwarenessScore: num,
+    phishingAwarenessModelVersion: strOrNull,
+    phishingAwarenessComputedAt: dateOrNull,
   });
 
   await make(db, "profiles", ["userId", "orgId"], {

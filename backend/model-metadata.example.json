@@ -1,0 +1,33 @@
+{
+  "model_name": "Phishing Awareness Score",
+  "model_version": "awareness-v1.0.0",
+  "artifact": "phishing_awareness_v1.joblib",
+  "artifact_sha256": "e85a944c1572cf4af961764ab9d1de2e3fc3bdc9f82744c4959de94a806c9e42",
+  "framework": "sklearn.pipeline",
+  "framework_version": "1.6.1",
+  "input_features": [
+    "department",
+    "work_mode",
+    "daily_email_count",
+    "suspicious_email_frequency",
+    "password_length",
+    "password_reuse",
+    "password_manager_usage",
+    "mfa_enabled",
+    "cybersecurity_training",
+    "security_quiz_score",
+    "link_click_tendency",
+    "attachment_open_rate",
+    "verification_before_click",
+    "reporting_suspicious_email",
+    "antivirus_installed",
+    "vpn_usage"
+  ],
+  "output_name": "phishing_awareness_score",
+  "raw_output_min": 0,
+  "raw_output_max": 100,
+  "higher_is_better": true,
+  "production_normalization": "raw_score / 100",
+  "stored_output_min": 0,
+  "stored_output_max": 1
+}
