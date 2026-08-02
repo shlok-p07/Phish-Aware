@@ -1,9 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
   pickAttackProfile,
+  pickVector,
+  pickIsPhish,
   difficultyForAwarenessScore,
   DEPARTMENT_ATTACK_TYPES,
   PERSUASION_TACTIC_LABELS,
+  PRACTICE_VECTORS,
   type AttackTypeId,
 } from "./attackProfiles";
 import { DEPARTMENTS } from "@/lib/onboarding-survey";
@@ -109,6 +112,62 @@ describe("pickAttackProfile", () => {
         expect(DEPARTMENT_ATTACK_TYPES[department]).toContain(id);
       }
     }
+  });
+});
+
+describe("pickVector", () => {
+  it("always returns a value from the supported vector list", () => {
+    for (let i = 0; i < 200; i++) {
+      expect(PRACTICE_VECTORS).toContain(pickVector());
+    }
+  });
+
+  it("eventually draws more than one distinct vector (not narrowed to a single value)", () => {
+    const seen = new Set(Array.from({ length: 200 }, () => pickVector()));
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it("honors an explicit 'email' preference every time", () => {
+    for (let i = 0; i < 50; i++) {
+      expect(pickVector("email")).toBe("email");
+    }
+  });
+
+  it("honors an explicit 'sms' preference every time", () => {
+    for (let i = 0; i < 50; i++) {
+      expect(pickVector("sms")).toBe("sms");
+    }
+  });
+
+  it("honors an explicit 'voice' preference every time", () => {
+    for (let i = 0; i < 50; i++) {
+      expect(pickVector("voice")).toBe("voice");
+    }
+  });
+
+  it("'mixed' preference behaves like the random draw, not a fixed vector", () => {
+    const seen = new Set(Array.from({ length: 200 }, () => pickVector("mixed")));
+    expect(seen.size).toBeGreaterThan(1);
+  });
+});
+
+describe("pickIsPhish", () => {
+  it("always returns a boolean", () => {
+    for (let i = 0; i < 200; i++) {
+      expect(typeof pickIsPhish()).toBe("boolean");
+    }
+  });
+
+  it("draws both true and false over many rounds (not always phishing)", () => {
+    const seen = new Set(Array.from({ length: 200 }, () => pickIsPhish()));
+    expect(seen.size).toBe(2);
+  });
+
+  it("skews toward phishing (~65/35) rather than an even coin flip or all-one-value", () => {
+    const draws = Array.from({ length: 1000 }, () => pickIsPhish());
+    const phishRatio = draws.filter(Boolean).length / draws.length;
+    expect(phishRatio).toBeGreaterThan(0.5);
+    expect(phishRatio).toBeLessThan(0.85);
   });
 });
 

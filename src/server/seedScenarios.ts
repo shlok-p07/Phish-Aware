@@ -1,9 +1,9 @@
 import type { InsertScenario, SpecConventions } from "@/db";
 
-// Raw seed content -- scenarioId and the spec-convention fields (metadata/
-// timestamps) are generated per-document in src/server/seed.ts at insert
-// time, not part of this static data.
-type SeedScenario = Omit<InsertScenario, "scenarioId" | keyof SpecConventions>;
+// Raw seed content -- scenarioId, source, and the spec-convention fields
+// (metadata/timestamps) are stamped in src/server/seed.ts at insert time,
+// not part of this static data.
+type SeedScenario = Omit<InsertScenario, "scenarioId" | "source" | keyof SpecConventions>;
 
 // Cue ids and severity match the shared phishaware-db schema spec's 8-value
 // `cueType` enum + numeric severity (see src/server/cues.ts). Severity scale:
@@ -185,6 +185,152 @@ export const SEED_SCENARIOS: SeedScenario[] = [
       { type: "urgency_language", severity: 3, explanation: "'asap' and 'can't talk right now' pressure a fast, unverified reply." },
     ],
     difficulty: 5,
+    isOnboarding: false,
+  },
+  // SMS practice pool (fallback used only if the Groq generator is
+  // unavailable -- "subject" is unused for this vector, texts don't have
+  // one, so it's left blank rather than faked).
+  {
+    vector: "sms",
+    isPhish: true,
+    sender: "+1 (302) 555-0148",
+    subject: "",
+    body: "USPS: Your package has a $2.99 customs fee due. Pay now to avoid return to sender: usps-tracking.info/pay",
+    links: [{ text: "usps-tracking.info/pay", isSuspicious: true }],
+    attachments: [],
+    cues: [
+      { type: "mismatched_link", severity: 2, explanation: "'usps-tracking.info' isn't USPS's real domain (usps.com)." },
+      { type: "urgency_language", severity: 2, explanation: "Threatens the package will be returned if you don't pay immediately." },
+    ],
+    difficulty: 1,
+    isOnboarding: false,
+  },
+  {
+    vector: "sms",
+    isPhish: false,
+    sender: "+1 (617) 555-0102",
+    subject: "",
+    body: "Reminder: Your dentist appointment with Dr. Alvarez is tomorrow at 10:00 AM. Reply C to confirm or call the office to reschedule.",
+    links: [],
+    attachments: [],
+    cues: [],
+    difficulty: 1,
+    isOnboarding: false,
+  },
+  {
+    vector: "sms",
+    isPhish: true,
+    sender: "Chase-Alerts",
+    subject: "",
+    body: "Chase: We noticed unusual activity on your card ending in 4471. Verify now to avoid a temporary hold: chse-secure.com/verify",
+    links: [{ text: "chse-secure.com/verify", isSuspicious: true }],
+    attachments: [],
+    cues: [
+      { type: "sender_domain", severity: 2, explanation: "'chse-secure.com' misspells Chase's real domain." },
+      { type: "urgency_language", severity: 2, explanation: "Warns of an account hold unless you act now." },
+      { type: "credential_request", severity: 2, explanation: "Asks you to 'verify' your account through the link." },
+    ],
+    difficulty: 3,
+    isOnboarding: false,
+  },
+  {
+    vector: "sms",
+    isPhish: false,
+    sender: "28107",
+    subject: "",
+    body: "Your Google verification code is 482913. Don't share this code with anyone.",
+    links: [],
+    attachments: [],
+    cues: [],
+    difficulty: 1,
+    isOnboarding: false,
+  },
+  {
+    vector: "sms",
+    isPhish: true,
+    sender: "+1 (415) 555-0199",
+    subject: "",
+    body: "Congrats! You've been selected for a free $500 Amazon gift card. Claim before midnight: amzn-rewards.co/claim",
+    links: [{ text: "amzn-rewards.co/claim", isSuspicious: true }],
+    attachments: [],
+    cues: [
+      { type: "mismatched_link", severity: 2, explanation: "'amzn-rewards.co' isn't an Amazon domain." },
+      { type: "urgency_language", severity: 2, explanation: "'Claim before midnight' pressures a fast click." },
+    ],
+    difficulty: 1,
+    isOnboarding: false,
+  },
+  {
+    vector: "sms",
+    isPhish: true,
+    sender: "IT-Helpdesk",
+    subject: "",
+    body: "IT Helpdesk: We detected repeated login attempts on your account. Reply with the 6-digit code we just sent to cancel the lockout.",
+    links: [],
+    attachments: [],
+    cues: [
+      { type: "credential_request", severity: 3, explanation: "Asks you to relay a one-time code, effectively handing over MFA access." },
+      { type: "urgency_language", severity: 2, explanation: "Implies an account lockout is imminent." },
+    ],
+    difficulty: 3,
+    isOnboarding: false,
+  },
+  // Voice-call practice pool (fallback used only if live generation is
+  // unavailable -- "subject" is unused for this vector, calls don't have one).
+  {
+    vector: "voice",
+    isPhish: true,
+    sender: "Bank Security",
+    subject: "",
+    body: "Caller: Hi, this is Northline Bank Fraud Prevention.\nCaller: We detected unusual activity and need to secure your account right now.\nCaller: Please confirm your online banking password so I can cancel the lock.\nCaller: If we don't verify in the next few minutes, your account will be frozen.",
+    links: [],
+    attachments: [],
+    cues: [
+      { type: "urgency_language", severity: 3, explanation: "Pushes immediate action with threats of account freeze." },
+      { type: "credential_request", severity: 3, explanation: "Directly asks for your banking password over the phone." },
+      { type: "generic_greeting", severity: 1, explanation: "Uses a broad institutional intro instead of verifying your identity safely." },
+    ],
+    difficulty: 3,
+    isOnboarding: false,
+  },
+  {
+    vector: "voice",
+    isPhish: false,
+    sender: "+1 (617) 555-0129",
+    subject: "",
+    body: "Caller: Hi, this is Mia from Lakeside Dental.\nCaller: Just a reminder that your cleaning is tomorrow at 10:00 AM.\nCaller: If you need to reschedule, call us back at the number on your appointment card.\nCaller: Thanks, and see you tomorrow.",
+    links: [],
+    attachments: [],
+    cues: [],
+    difficulty: 1,
+    isOnboarding: false,
+  },
+  {
+    vector: "voice",
+    isPhish: true,
+    sender: "IT Helpdesk",
+    subject: "",
+    body: "Caller: Hey, this is IT Support.\nCaller: We're fixing a major VPN outage and need to re-authenticate your account now.\nCaller: Read me your one-time MFA code and we'll restore access immediately.\nCaller: This is faster than the portal, and your access will expire if you wait.",
+    links: [],
+    attachments: [],
+    cues: [
+      { type: "credential_request", severity: 3, explanation: "Requests a one-time MFA code, which should never be shared." },
+      { type: "urgency_language", severity: 2, explanation: "Claims your access will expire if you don't comply immediately." },
+      { type: "generic_greeting", severity: 1, explanation: "No verification details beyond a vague 'IT Support' identity." },
+    ],
+    difficulty: 3,
+    isOnboarding: false,
+  },
+  {
+    vector: "voice",
+    isPhish: false,
+    sender: "City Utilities",
+    subject: "",
+    body: "Caller: Hello, this is the City Utilities automated reminder.\nCaller: Your payment is scheduled and no action is needed.\nCaller: For account questions, please use the phone number listed on your monthly statement.",
+    links: [],
+    attachments: [],
+    cues: [],
+    difficulty: 1,
     isOnboarding: false,
   },
 ];

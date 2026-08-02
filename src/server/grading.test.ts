@@ -20,6 +20,7 @@ function makeScenario(overrides: Partial<ScenarioDoc> = {}): ScenarioDoc {
     cues: [],
     difficulty: 1,
     isOnboarding: false,
+    source: "library",
     metadata: {},
     createdAt: now,
     updatedAt: now,

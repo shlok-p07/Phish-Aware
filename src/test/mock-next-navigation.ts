@@ -12,12 +12,14 @@ import { mock } from "bun:test";
  */
 export const nextNavigationMockState = {
   pathname: "/",
+  searchParams: new URLSearchParams(),
   replace: (() => {}) as (href: string) => void,
   push: (() => {}) as (href: string) => void,
 };
 
 export function resetNextNavigationMockState() {
   nextNavigationMockState.pathname = "/";
+  nextNavigationMockState.searchParams = new URLSearchParams();
   nextNavigationMockState.replace = () => {};
   nextNavigationMockState.push = () => {};
 }
@@ -30,6 +32,7 @@ export function installNextNavigationMock() {
   installed = true;
   mock.module("next/navigation", () => ({
     usePathname: () => nextNavigationMockState.pathname,
+    useSearchParams: () => nextNavigationMockState.searchParams,
     useRouter: () => ({
       replace: (href: string) => nextNavigationMockState.replace(href),
       push: (href: string) => nextNavigationMockState.push(href),

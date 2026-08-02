@@ -34,7 +34,7 @@ export const GetCurrentUserResponse = zod.object({
   "calibrationScore": zod.number(),
   "department": zod.string().nullish(),
   "workType": zod.string().nullish(),
-  "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
+  "phishingAwarenessScore": zod.number().optional().describe('Predicted from onboarding survey and diagnostic results; drives initial level and generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -70,7 +70,7 @@ export const SignupResponse = zod.object({
   "calibrationScore": zod.number(),
   "department": zod.string().nullish(),
   "workType": zod.string().nullish(),
-  "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
+  "phishingAwarenessScore": zod.number().optional().describe('Predicted from onboarding survey and diagnostic results; drives initial level and generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -98,7 +98,7 @@ export const LoginResponse = zod.object({
   "calibrationScore": zod.number(),
   "department": zod.string().nullish(),
   "workType": zod.string().nullish(),
-  "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
+  "phishingAwarenessScore": zod.number().optional().describe('Predicted from onboarding survey and diagnostic results; drives initial level and generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -151,7 +151,7 @@ export const ContinueAsGuestResponse = zod.object({
   "calibrationScore": zod.number(),
   "department": zod.string().nullish(),
   "workType": zod.string().nullish(),
-  "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
+  "phishingAwarenessScore": zod.number().optional().describe('Predicted from onboarding survey and diagnostic results; drives initial level and generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -303,6 +303,10 @@ export const ListCueOptionsResponse = zod.array(ListCueOptionsResponseItem)
 /**
  * @summary Get the next recommended practice scenario for the current user
  */
+export const GetNextPracticeScenarioQueryParams = zod.object({
+  "vector": zod.enum(['email', 'sms', 'voice', 'mixed']).optional().describe('Which vector to practice -- a specific one, or \"mixed\" (default) to keep randomizing every round.')
+})
+
 export const getNextPracticeScenarioResponseDifficultyMax = 5;
 
 
@@ -628,7 +632,7 @@ export const AcceptInvitationResponse = zod.object({
   "calibrationScore": zod.number(),
   "department": zod.string().nullish(),
   "workType": zod.string().nullish(),
-  "phishingAwarenessScore": zod.number().optional().describe('Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty.'),
+  "phishingAwarenessScore": zod.number().optional().describe('Predicted from onboarding survey and diagnostic results; drives initial level and generated-scenario difficulty.'),
   "onboardingCompleted": zod.boolean(),
   "createdAt": zod.coerce.date()
 })

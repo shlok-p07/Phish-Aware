@@ -63,7 +63,7 @@ export default function LearnPage() {
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-4 lg:gap-6 mt-8">
         {lessons.map((lesson, idx) => {
-          const isWip = lesson.vector !== "email";
+          const isWip = lesson.vector !== "email" && lesson.vector !== "sms" && lesson.vector !== "voice";
 
           const card = (
             <Card className={`group border shadow-sm h-full overflow-hidden flex flex-col ${isWip ? "opacity-60 cursor-not-allowed" : "hover:shadow-md hover:border-primary transition-all cursor-pointer"}`} style={{ animationDelay: `${idx * 50}ms` }}>

@@ -36,6 +36,7 @@ import type {
   CreateTrainingInput,
   CueOption,
   DashboardSummary,
+  GetNextPracticeScenarioParams,
   HealthStatus,
   InvitationLink,
   InviteMemberInput,
@@ -1194,20 +1195,27 @@ export function useListCueOptions<TData = Awaited<ReturnType<typeof listCueOptio
 
 
 
-export const getGetNextPracticeScenarioUrl = () => {
+export const getGetNextPracticeScenarioUrl = (params?: GetNextPracticeScenarioParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/practice/next`
+  return stringifiedParams.length > 0 ? `/api/practice/next?${stringifiedParams}` : `/api/practice/next`
 }
 
 /**
  * @summary Get the next recommended practice scenario for the current user
  */
-export const getNextPracticeScenario = async ( options?: Parameters<typeof customFetch>[1]): Promise<PracticeScenario> => {
+export const getNextPracticeScenario = async (params?: GetNextPracticeScenarioParams, options?: Parameters<typeof customFetch>[1]): Promise<PracticeScenario> => {
 
-  return customFetch<PracticeScenario>(getGetNextPracticeScenarioUrl(),
+  return customFetch<PracticeScenario>(getGetNextPracticeScenarioUrl(params),
   {
     ...options,
     method: 'GET'
@@ -1220,23 +1228,23 @@ export const getNextPracticeScenario = async ( options?: Parameters<typeof custo
 
 
 
-export const getGetNextPracticeScenarioQueryKey = () => {
+export const getGetNextPracticeScenarioQueryKey = (params?: GetNextPracticeScenarioParams,) => {
     return [
-    `/api/practice/next`
+    `/api/practice/next`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetNextPracticeScenarioQueryOptions = <TData = Awaited<ReturnType<typeof getNextPracticeScenario>>, TError = ErrorType<void>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextPracticeScenario>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetNextPracticeScenarioQueryOptions = <TData = Awaited<ReturnType<typeof getNextPracticeScenario>>, TError = ErrorType<void>>(params?: GetNextPracticeScenarioParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextPracticeScenario>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetNextPracticeScenarioQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetNextPracticeScenarioQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNextPracticeScenario>>> = ({ signal }) => getNextPracticeScenario({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNextPracticeScenario>>> = ({ signal }) => getNextPracticeScenario(params, { signal, ...requestOptions });
 
 
 
@@ -1250,7 +1258,7 @@ export type GetNextPracticeScenarioQueryError = ErrorType<void>
 
 
 export function useGetNextPracticeScenario<TData = Awaited<ReturnType<typeof getNextPracticeScenario>>, TError = ErrorType<void>>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextPracticeScenario>>, TError, TData>> & Pick<
+ params: undefined |  GetNextPracticeScenarioParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextPracticeScenario>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getNextPracticeScenario>>,
           TError,
@@ -1260,7 +1268,7 @@ export function useGetNextPracticeScenario<TData = Awaited<ReturnType<typeof get
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetNextPracticeScenario<TData = Awaited<ReturnType<typeof getNextPracticeScenario>>, TError = ErrorType<void>>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextPracticeScenario>>, TError, TData>> & Pick<
+ params?: GetNextPracticeScenarioParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextPracticeScenario>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getNextPracticeScenario>>,
           TError,
@@ -1270,7 +1278,7 @@ export function useGetNextPracticeScenario<TData = Awaited<ReturnType<typeof get
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetNextPracticeScenario<TData = Awaited<ReturnType<typeof getNextPracticeScenario>>, TError = ErrorType<void>>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextPracticeScenario>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ params?: GetNextPracticeScenarioParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextPracticeScenario>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1278,11 +1286,11 @@ export function useGetNextPracticeScenario<TData = Awaited<ReturnType<typeof get
  */
 
 export function useGetNextPracticeScenario<TData = Awaited<ReturnType<typeof getNextPracticeScenario>>, TError = ErrorType<void>>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextPracticeScenario>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ params?: GetNextPracticeScenarioParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextPracticeScenario>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetNextPracticeScenarioQueryOptions(options)
+  const queryOptions = getGetNextPracticeScenarioQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

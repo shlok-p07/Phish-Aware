@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetNextPracticeScenario,
@@ -7,12 +8,14 @@ import {
   useListCueOptions,
   getGetNextPracticeScenarioQueryKey,
   getGetDashboardQueryKey,
-  getGetCurrentUserQueryKey
+  getGetCurrentUserQueryKey,
+  type GetNextPracticeScenarioVector
 } from "@/api-client";
 import {
   ShieldAlert, ShieldCheck, ArrowRight, Target,
   CheckCircle2, XCircle, Info, Sparkles,
-  Inbox, Star, Archive, Trash2, CornerUpLeft, MoreVertical, Paperclip, Search
+  Inbox, Star, Archive, Trash2, CornerUpLeft, MoreVertical, Paperclip, Search,
+  MessageSquare, Phone, Link as LinkIcon, Mail, Shuffle, PhoneCall, PhoneIncoming
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -21,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { useChatbot, ChatMessageList, ChatComposer } from "@/components/chatbot-widget";
 import type { CueId } from "@/server/cues";
 import { CUE_REGION, findBodyMatch, highlightClass } from "@/components/practice/cue-highlight";
+import { VoiceCall } from "@/components/practice/voice-call";
 
 // Define the steps of the practice loop
 type PracticeStep = 'inspect' | 'cues' | 'confidence' | 'feedback';
@@ -48,11 +52,47 @@ const DECOYS = [
   { name: "Spotify", subject: "Your Wrapped is almost here", snippet: "A year of listening, wrapped up for you.", time: "Mon" },
 ];
 
+// Decoy conversation rows to sell the messaging-app metaphor for sms scenarios.
+const MESSAGE_DECOYS = [
+  { name: "Mom", snippet: "Don't forget to call grandma this weekend!", time: "9:12 AM" },
+  { name: "Uber", snippet: "Your driver is 3 minutes away.", time: "Yesterday" },
+  { name: "Chase Bank", snippet: "Your statement is ready to view.", time: "Mon" },
+];
+
+const CALL_LOG_DECOYS = [
+  { name: "City Utilities", snippet: "Scheduled payment reminder.", time: "Yesterday" },
+  { name: "Pharmacy Refill", snippet: "Your refill is ready for pickup.", time: "Mon" },
+  { name: "School Office", snippet: "Attendance follow-up call.", time: "Mon" },
+];
+
+// A sender that reads as a phone number/short code gets a phone glyph instead
+// of an initial -- an initial from "+1 (302)..." would just show "+".
+const isNumericSender = (name: string) => /^[+\d]/.test(name.trim());
+
+// What to practice: a specific vector, or "mixed" to keep randomizing every
+// round (the original behavior). A lesson's "Put it to practice" link can
+// preselect one via ?vector=sms.
+const VECTOR_FILTER_OPTIONS: { value: GetNextPracticeScenarioVector; label: string; icon: typeof Mail }[] = [
+  { value: "mixed", label: "Mixed", icon: Shuffle },
+  { value: "email", label: "Email", icon: Mail },
+  { value: "sms", label: "SMS", icon: MessageSquare },
+  { value: "voice", label: "Voice", icon: PhoneCall },
+];
+
 export default function PracticePage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+
+  // Which vector to serve -- read once from the URL (so a lesson's "Put it
+  // to practice" link can land directly in that mode), then owned by the
+  // toggle below for the rest of the session.
+  const [vectorFilter, setVectorFilter] = useState<GetNextPracticeScenarioVector>(() => {
+    const fromUrl = searchParams.get("vector");
+    return fromUrl === "email" || fromUrl === "sms" || fromUrl === "voice" ? fromUrl : "mixed";
+  });
 
   // Data hooks
-  const { data: scenario, isLoading: isScenarioLoading, isError: isScenarioError } = useGetNextPracticeScenario();
+  const { data: scenario, isLoading: isScenarioLoading, isError: isScenarioError } = useGetNextPracticeScenario({ vector: vectorFilter });
   const { data: availableCues, isLoading: isCuesLoading } = useListCueOptions();
   const submitAttempt = useSubmitAttempt();
   const chat = useChatbot();
@@ -70,6 +110,13 @@ export default function PracticePage() {
   // explanation reply will land, so we can surface just that answer inline as
   // its own card instead of opening the floating popup. Null until requested.
   const [explainIndex, setExplainIndex] = useState<number | null>(null);
+
+  // Hoisted above the loading/error early-returns below so these hooks run on
+  // every render regardless of which branch is taken -- conditionally calling
+  // them only once `scenario` was loaded violated the Rules of Hooks (hook
+  // order changed between the loading render and the loaded render).
+  const isSms = scenario?.vector === "sms";
+  const isVoice = scenario?.vector === "voice";
 
   if (isScenarioLoading || isCuesLoading) {
     return (
@@ -134,6 +181,8 @@ export default function PracticePage() {
     });
   };
 
+  // The call pane silences itself on unmount, and it remounts per scenario id,
+  // so nothing here needs to stop audio explicitly.
   const resetAndNext = () => {
     setResult(null);
     setVerdict(null);
@@ -143,6 +192,20 @@ export default function PracticePage() {
     setExplainIndex(null);
     setStep('inspect');
     queryClient.invalidateQueries({ queryKey: getGetNextPracticeScenarioQueryKey() });
+  };
+
+  // Switching what to practice restarts the current round rather than
+  // leaving a half-answered verdict pointed at a scenario that's about to
+  // change out from under it.
+  const handleVectorFilterChange = (next: GetNextPracticeScenarioVector) => {
+    setVectorFilter(next);
+    setResult(null);
+    setVerdict(null);
+    setSelectedCues([]);
+    setConfidence(50);
+    setActiveCue(null);
+    setExplainIndex(null);
+    setStep('inspect');
   };
 
   // Helper to get cue label
@@ -157,8 +220,13 @@ export default function PracticePage() {
     if (!result) return;
     const missed = result.missedCues.map(getCueLabel).join(", ") || "none";
     const caught = result.caughtCues.map(getCueLabel).join(", ") || "none";
+    const mediumDescription = isVoice
+      ? `a phone call transcript from "${scenario.sender}"`
+      : isSms
+        ? `a text message from "${scenario.sender}"`
+        : `an email with the subject "${scenario.subject}"`;
     const idx = chat.sendSeeded(
-      `I just practiced on an email with the subject "${scenario.subject}". I judged it ${verdict ? "phishing" : "legitimate"}, and I was ${result.correct ? "correct" : "incorrect"}. Cues I caught: ${caught}. Cues I missed: ${missed}. Can you explain why those missed cues mattered here and how to spot that pattern next time?`,
+      `I just practiced on ${mediumDescription}. I judged it ${verdict ? "phishing" : "legitimate"}, and I was ${result.correct ? "correct" : "incorrect"}. Cues I caught: ${caught}. Cues I missed: ${missed}. Can you explain why those missed cues mattered here and how to spot that pattern next time?`,
     );
     if (idx !== null) setExplainIndex(idx);
   };
@@ -167,11 +235,14 @@ export default function PracticePage() {
   const initial = (senderName || "?").charAt(0).toUpperCase();
   const timestamp = TIMES[parseInt(scenario.id.slice(-6), 16) % TIMES.length];
   const snippet = scenario.body.replace(/\s+/g, " ").trim().slice(0, 64);
+  // Text-message senders are phone numbers/short codes -- an initial from
+  // "+1 (302)..." would just show "+", so those get a phone glyph instead.
+  const avatarGlyph = isSms && isNumericSender(senderName) ? <Phone className="w-4 h-4" /> : initial;
 
-  // Toolbar shown at the top of the reading pane (decorative mail actions).
+  // Toolbar shown at the top of the reading pane (decorative mail/message actions).
   const readingPaneToolbar = () => (
     <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/30 shrink-0 text-muted-foreground">
-      {[Archive, Trash2, CornerUpLeft].map((Icon, i) => (
+      {((isVoice ? [PhoneCall, Trash2, CornerUpLeft] : isSms ? [Phone, Trash2, CornerUpLeft] : [Archive, Trash2, CornerUpLeft])).map((Icon, i) => (
         <span key={i} className="p-2 rounded-lg hover:bg-muted transition-colors" aria-hidden>
           <Icon className="w-4 h-4" />
         </span>
@@ -287,6 +358,59 @@ export default function PracticePage() {
     );
   };
 
+  // The sms reading pane — styled like a phone messaging thread, mirroring
+  // mailClient()'s layout/hover-highlight mechanics but as a single incoming
+  // bubble instead of a subject/sender/attachments layout. Also called as a
+  // function ({smsThread()}) for the same stable-reconcile reason.
+  const smsThread = () => {
+    const compact = step !== 'inspect';
+    return (
+    <Card className={`border shadow-sm flex flex-col p-0 overflow-hidden ${compact ? 'h-auto max-h-[70vh]' : 'h-[62vh] max-h-160'} transition-all duration-500`}>
+      {readingPaneToolbar()}
+
+      {/* Contact header */}
+      <div className={`px-5 md:px-6 flex flex-col items-center gap-2 border-b border-border shrink-0 ${compact ? 'py-3' : 'py-5'}`}>
+        <div className={`rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center shrink-0 ${compact ? 'w-10 h-10 text-base' : 'w-14 h-14 text-xl'}`}>
+          {avatarGlyph}
+        </div>
+        <span className={`font-semibold text-sm text-foreground ${highlightClass(regionActive('sender'))}`}>{senderName}</span>
+      </div>
+
+      {/* Thread body */}
+      <CardContent className="flex-1 min-h-0 px-5 md:px-6 py-6 overflow-y-auto bg-muted/10 flex flex-col items-start gap-2">
+        <span className="self-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Today · {timestamp}</span>
+
+        <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-muted px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-foreground shadow-sm">
+          {renderBody()}
+        </div>
+
+        {scenario.links.length > 0 && (
+          <div className={`max-w-[85%] space-y-1.5 rounded-xl border p-2.5 text-xs break-all transition-colors duration-150 ${regionActive('links') ? 'ring-1 ring-destructive/50 bg-destructive/5 border-destructive/30' : 'bg-background border-border'}`}>
+            {scenario.links.map((link, idx) => (
+              <div key={idx} className="flex items-center gap-1.5 text-primary">
+                <LinkIcon className="w-3.5 h-3.5 shrink-0" />
+                <span className="underline decoration-dashed decoration-primary/50">{link.text}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+    );
+  };
+
+  // Keyed by scenario id so a new round mounts a fresh call -- that resets the
+  // phase back to "ringing" and cancels any speech still in flight.
+  const voiceCallPane = () => (
+    <VoiceCall
+      key={scenario.id}
+      scenario={scenario}
+      senderName={senderName}
+      reviewing={step !== "inspect"}
+      senderHighlighted={regionActive("sender")}
+    />
+  );
+
   // A faux inbox list — the current scenario sits at the top as the selected, unread message.
   const inboxList = () => (
     <Card className="border shadow-sm p-0 overflow-hidden flex flex-col h-[62vh] max-h-160">
@@ -320,6 +444,102 @@ export default function PracticePage() {
             </div>
             <p className="font-medium text-sm text-foreground truncate">{d.subject}</p>
             <p className="text-xs font-medium text-muted-foreground truncate">{d.snippet}</p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+
+  // The sms sidebar counterpart to inboxList() — a faux conversation list,
+  // current scenario pinned at the top as the active thread.
+  const messagesList = () => (
+    <Card className="border shadow-sm p-0 overflow-hidden flex flex-col h-[62vh] max-h-160">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30 shrink-0">
+        <MessageSquare className="w-5 h-5 text-primary" />
+        <span className="font-display font-bold text-base">Messages</span>
+        <Badge className="ml-auto bg-primary hover:bg-primary text-primary-foreground font-bold text-[10px] px-2 py-0.5">1 new</Badge>
+      </div>
+      <div className="px-3 py-2 border-b border-border shrink-0">
+        <div className="flex items-center gap-2 bg-muted/40 rounded-lg px-3 py-2 text-muted-foreground">
+          <Search className="w-4 h-4" />
+          <span className="text-xs font-medium">Search messages</span>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto divide-y divide-border">
+        {/* Active (current scenario) row */}
+        <div className="px-4 py-3 bg-primary/10 border-l-2 border-primary cursor-default flex items-center gap-3">
+          <div className="rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center shrink-0 w-9 h-9 text-sm">
+            {avatarGlyph}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="font-semibold text-sm text-foreground truncate">{senderName}</span>
+              <span className="text-[11px] font-bold text-primary shrink-0">{timestamp}</span>
+            </div>
+            <p className="text-xs font-medium text-muted-foreground truncate">{snippet}…</p>
+          </div>
+        </div>
+        {/* Decoys */}
+        {MESSAGE_DECOYS.map((d, i) => (
+          <div key={i} className="px-4 py-3 opacity-60 cursor-default select-none flex items-center gap-3">
+            <div className="rounded-full bg-muted text-muted-foreground font-bold flex items-center justify-center shrink-0 w-9 h-9 text-sm">
+              {d.name.charAt(0)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="font-medium text-sm text-foreground truncate">{d.name}</span>
+                <span className="text-[11px] font-medium text-muted-foreground shrink-0">{d.time}</span>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground truncate">{d.snippet}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+
+  const callLogList = () => (
+    <Card className="border shadow-sm p-0 overflow-hidden flex flex-col h-[62vh] max-h-160">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30 shrink-0">
+        <PhoneCall className="w-5 h-5 text-primary" />
+        <span className="font-display font-bold text-base">Recent Calls</span>
+        <Badge className="ml-auto bg-primary hover:bg-primary text-primary-foreground font-bold text-[10px] px-2 py-0.5">1 new</Badge>
+      </div>
+      <div className="px-3 py-2 border-b border-border shrink-0">
+        <div className="flex items-center gap-2 bg-muted/40 rounded-lg px-3 py-2 text-muted-foreground">
+          <Search className="w-4 h-4" />
+          <span className="text-xs font-medium">Search calls</span>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto divide-y divide-border">
+        <div className="px-4 py-3 bg-primary/10 border-l-2 border-primary cursor-default flex items-center gap-3">
+          <div className="rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center shrink-0 w-9 h-9 text-sm">
+            <PhoneIncoming className="w-4 h-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="font-semibold text-sm text-foreground truncate">{senderName}</span>
+              <span className="text-[11px] font-bold text-primary shrink-0">{timestamp}</span>
+            </div>
+            {/* Deliberately metadata only, not a transcript snippet: a real
+                call log can't tell you what was said, and previewing the
+                caller's opening line here would let the learner read it
+                instead of listening for the tells in the delivery. */}
+            <p className="text-xs font-medium text-muted-foreground truncate">Incoming call</p>
+          </div>
+        </div>
+        {CALL_LOG_DECOYS.map((d, i) => (
+          <div key={i} className="px-4 py-3 opacity-60 cursor-default select-none flex items-center gap-3">
+            <div className="rounded-full bg-muted text-muted-foreground font-bold flex items-center justify-center shrink-0 w-9 h-9 text-sm">
+              {d.name.charAt(0)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="font-medium text-sm text-foreground truncate">{d.name}</span>
+                <span className="text-[11px] font-medium text-muted-foreground shrink-0">{d.time}</span>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground truncate">{d.snippet}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -491,20 +711,40 @@ export default function PracticePage() {
     <div className={`${step === 'feedback' ? 'max-w-6xl' : 'max-w-5xl'} mx-auto h-full flex flex-col relative pb-12 animate-in fade-in duration-500 transition-[max-width] duration-500`}>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
         <h1 className="text-3xl font-display font-bold flex items-center gap-3">
           <Target className="w-8 h-8 text-primary" />
           Practice
         </h1>
+
+        {/* What to practice -- a specific vector, or Mixed to keep the
+            original random-every-round behavior. */}
+        <div className="inline-flex items-center gap-1 p-1 rounded-lg border border-border bg-muted/30">
+          {VECTOR_FILTER_OPTIONS.map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => handleVectorFilterChange(value)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+                vectorFilter === value
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {step === 'inspect' ? (
         <>
           <div className="grid gap-6 lg:grid-cols-[320px_1fr] items-start">
             <div className="hidden lg:block">
-              {inboxList()}
+              {isVoice ? callLogList() : isSms ? messagesList() : inboxList()}
             </div>
-            {mailClient()}
+            {isVoice ? voiceCallPane() : isSms ? smsThread() : mailClient()}
           </div>
 
           {/* Verdict controls */}
@@ -539,7 +779,7 @@ export default function PracticePage() {
           {/* Left column: the email, plus (on feedback) the assistant right below
               it so it's reachable without scrolling past the tall result card. */}
           <div className="space-y-6">
-            {mailClient()}
+            {isVoice ? voiceCallPane() : isSms ? smsThread() : mailClient()}
             {step === 'feedback' && result && assistantColumn()}
           </div>
 

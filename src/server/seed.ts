@@ -15,15 +15,34 @@ const SAMPLE_LEADERBOARD_USERS = [
 
 export async function seedIfEmpty(): Promise<void> {
   const scenarios = await scenariosCollection();
-  const existingScenarios = await scenarios.countDocuments({}, { limit: 1 });
-  if (existingScenarios === 0) {
-    await scenarios.insertMany(
-      SEED_SCENARIOS.map((s) => {
-        const id = new ObjectId();
-        return { ...s, _id: id, scenarioId: id, orgId: s.orgId ?? null, ...specDefaults() };
-      }),
-    );
-    console.log(`Seeded ${SEED_SCENARIOS.length} practice scenarios`);
+  // Upsert each seed entry individually (keyed on its own content, since the
+  // static list has no id of its own) rather than skipping the whole step
+  // once the collection is non-empty -- otherwise entries added to
+  // SEED_SCENARIOS after the first deploy (e.g. the voice-call pool) would
+  // silently never make it into an already-seeded database.
+  const result = await scenarios.bulkWrite(
+    SEED_SCENARIOS.map((s) => {
+      const id = new ObjectId();
+      return {
+        updateOne: {
+          filter: { source: "library" as const, sender: s.sender, subject: s.subject, body: s.body },
+          update: {
+            $setOnInsert: {
+              ...s,
+              _id: id,
+              scenarioId: id,
+              orgId: s.orgId ?? null,
+              source: "library" as const,
+              ...specDefaults(),
+            },
+          },
+          upsert: true,
+        },
+      };
+    }),
+  );
+  if (result.upsertedCount > 0) {
+    console.log(`Seeded ${result.upsertedCount} practice scenarios`);
   }
 
   const lessons = await lessonsCollection();

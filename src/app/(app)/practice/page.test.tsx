@@ -2,9 +2,11 @@ import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { installApiClientMock, apiClientMockState, resetApiClientMockState } from "@/test/mock-api-client";
+import { installNextNavigationMock, resetNextNavigationMockState } from "@/test/mock-next-navigation";
 import { ChatbotProvider } from "@/components/chatbot-widget";
 
 installApiClientMock();
+installNextNavigationMock();
 
 const FAKE_SCENARIO = {
   id: "scenario-1",
@@ -15,6 +17,28 @@ const FAKE_SCENARIO = {
   links: [],
   attachments: [],
   difficulty: 3,
+};
+
+const FAKE_SMS_SCENARIO = {
+  id: "scenario-2",
+  vector: "sms",
+  sender: "+1 (302) 555-0148",
+  subject: "",
+  body: "USPS: Your package has a $2.99 customs fee due. Pay now: usps-tracking.info/pay",
+  links: [{ text: "usps-tracking.info/pay", isSuspicious: true }],
+  attachments: [],
+  difficulty: 1,
+};
+
+const FAKE_VOICE_SCENARIO = {
+  id: "scenario-3",
+  vector: "voice",
+  sender: "Bank Security",
+  subject: "",
+  body: "Caller: We detected unusual activity.\nCaller: Share your password now to prevent account lock.",
+  links: [],
+  attachments: [],
+  difficulty: 2,
 };
 
 const FAKE_CUES = [
@@ -54,7 +78,32 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  if (!(globalThis as any).speechSynthesis) {
+    (globalThis as any).speechSynthesis = {
+      speak: () => {},
+      cancel: () => {},
+      getVoices: () => [{ name: "Test Voice", lang: "en-US" }],
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+  } else {
+    (globalThis as any).speechSynthesis.getVoices ??= () => [{ name: "Test Voice", lang: "en-US" }];
+    (globalThis as any).speechSynthesis.addEventListener ??= () => {};
+    (globalThis as any).speechSynthesis.removeEventListener ??= () => {};
+  }
+  if (!(globalThis as any).SpeechSynthesisUtterance) {
+    (globalThis as any).SpeechSynthesisUtterance = class {
+      text: string;
+      rate = 1;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(text: string) {
+        this.text = text;
+      }
+    };
+  }
   resetApiClientMockState();
+  resetNextNavigationMockState();
   submittedPayloads = [];
   submitShouldSucceed = true;
   apiClientMockState.nextPracticeScenario = FAKE_SCENARIO;
@@ -119,7 +168,7 @@ describe("Practice page", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /Phishing/i }));
     fireEvent.click(screen.getByRole("button", { name: "Mismatched sender domain" }));
-    fireEvent.click(screen.getByRole("button", { name: /^Next/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Next$/i }));
     expect(screen.getByText("How confident are you?")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /^Back$/i }));
@@ -133,7 +182,7 @@ describe("Practice page", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /Phishing/i }));
     fireEvent.click(screen.getByRole("button", { name: "Mismatched sender domain" }));
-    fireEvent.click(screen.getByRole("button", { name: /^Next/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Next$/i }));
     fireEvent.click(screen.getByRole("button", { name: /Submit Verdict/i }));
 
     expect(submittedPayloads).toHaveLength(1);
@@ -165,5 +214,65 @@ describe("Practice page", () => {
 
     expect(screen.queryByText("Correct")).toBeNull();
     expect(screen.queryByText("Incorrect")).toBeNull();
+  });
+
+  describe("sms scenario", () => {
+    beforeEach(() => {
+      apiClientMockState.nextPracticeScenario = FAKE_SMS_SCENARIO;
+    });
+
+    it("renders the messaging-thread UI instead of the mail client", () => {
+      renderPage();
+      expect(screen.getByText("Messages")).toBeTruthy();
+      expect(screen.queryByText("Inbox")).toBeNull();
+      expect(screen.getAllByText(FAKE_SMS_SCENARIO.sender).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/USPS: Your package/).length).toBeGreaterThan(0);
+    });
+
+    it("still runs the full verdict/cues/confidence/submit flow", () => {
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: /Phishing/i }));
+      fireEvent.click(screen.getByRole("button", { name: "Mismatched sender domain" }));
+      fireEvent.click(screen.getByRole("button", { name: /^Next$/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Submit Verdict/i }));
+
+      expect(submittedPayloads).toHaveLength(1);
+      expect(submittedPayloads[0]).toMatchObject({
+        data: { scenarioId: "scenario-2", verdict: true, selectedCues: ["sender_domain"] },
+      });
+    });
+
+    describe("voice scenario", () => {
+      beforeEach(() => {
+        apiClientMockState.nextPracticeScenario = FAKE_VOICE_SCENARIO;
+      });
+
+      it("renders the call log sidebar and an unanswered incoming call", () => {
+        renderPage();
+        expect(screen.getByText("Recent Calls")).toBeTruthy();
+        expect(screen.getByRole("button", { name: /Answer call/i })).toBeTruthy();
+        expect(screen.queryByText("Inbox")).toBeNull();
+      });
+
+      // The transcript is withheld until the caller actually speaks it, so the
+      // learner has to listen rather than read ahead.
+      it("does not hand over the transcript before the call is answered", () => {
+        renderPage();
+        expect(screen.queryByText(/We detected unusual activity/)).toBeNull();
+      });
+
+      it("still runs the full verdict/cues/confidence/submit flow", () => {
+        renderPage();
+        fireEvent.click(screen.getByRole("button", { name: /Phishing/i }));
+        fireEvent.click(screen.getByRole("button", { name: "Mismatched sender domain" }));
+        fireEvent.click(screen.getByRole("button", { name: /^Next$/i }));
+        fireEvent.click(screen.getByRole("button", { name: /Submit Verdict/i }));
+
+        expect(submittedPayloads).toHaveLength(1);
+        expect(submittedPayloads[0]).toMatchObject({
+          data: { scenarioId: "scenario-3", verdict: true, selectedCues: ["sender_domain"] },
+        });
+      });
+    });
   });
 });

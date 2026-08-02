@@ -13,6 +13,8 @@ installLlmProviderMocks();
 const { generatePhishingScenario } = await import("./scenarioGenerator");
 
 const BASE_PARAMS: GenerateScenarioParams = {
+  vector: "email",
+  isPhish: true,
   department: "Finance",
   workType: "Remote",
   difficulty: 3,
@@ -185,5 +187,81 @@ describe("generatePhishingScenario", () => {
     llmMockState.groqClient = groqThrowing("network down");
     const result = await generatePhishingScenario(BASE_PARAMS);
     expect(result).toBeNull();
+  });
+
+  describe("sms vector", () => {
+    const SMS_PARAMS: GenerateScenarioParams = { ...BASE_PARAMS, vector: "sms" };
+
+    it("returns vector 'sms' and strips any attachment the model tried to include", async () => {
+      llmMockState.groqClient = groqReturningInOrder(
+        draftJson({ subject: "" }),
+        refinedJson({
+          subject: "",
+          sender: "+1 (302) 555-0148",
+          attachments: [{ name: "invoice.pdf", isSuspicious: true }],
+          cues: [
+            { type: "urgency_language", severity: 3, explanation: "Creates time pressure." },
+            { type: "unexpected_attachment", severity: 2, explanation: "Shouldn't be possible over SMS." },
+          ],
+        }),
+      );
+      const result = await generatePhishingScenario(SMS_PARAMS);
+      expect(result).not.toBeNull();
+      expect(result!.vector).toBe("sms");
+      expect(result!.attachments).toEqual([]);
+      expect(result!.cues.map((c) => c.type)).toEqual(["urgency_language"]);
+    });
+  });
+
+  describe("voice vector", () => {
+    const VOICE_PARAMS: GenerateScenarioParams = { ...BASE_PARAMS, vector: "voice" };
+
+    it("returns vector 'voice', strips links/attachments, and keeps only the allowed voice cue subset", async () => {
+      llmMockState.groqClient = groqReturningInOrder(
+        draftJson({ subject: "" }),
+        refinedJson({
+          subject: "",
+          sender: "Bank Security",
+          body: "Caller: We need to verify your account now.\nYou: Why?\nCaller: Read your password to avoid a lock.",
+          links: [{ text: "http://evil.example/verify", isSuspicious: true }],
+          attachments: [{ name: "statement.pdf", isSuspicious: true }],
+          cues: [
+            { type: "urgency_language", severity: 3, explanation: "Creates time pressure." },
+            { type: "credential_request", severity: 3, explanation: "Requests a password." },
+            { type: "mismatched_link", severity: 2, explanation: "Should be filtered for voice." },
+          ],
+        }),
+      );
+      const result = await generatePhishingScenario(VOICE_PARAMS);
+      expect(result).not.toBeNull();
+      expect(result!.vector).toBe("voice");
+      expect(result!.links).toEqual([]);
+      expect(result!.attachments).toEqual([]);
+      expect(result!.cues.map((c) => c.type)).toEqual(["urgency_language", "credential_request"]);
+    });
+  });
+
+  describe("legitimate (isPhish: false) scenarios", () => {
+    const LEGIT_PARAMS: GenerateScenarioParams = { ...BASE_PARAMS, isPhish: false };
+
+    it("returns isPhish: false and forces cues to [] even if the model included some", async () => {
+      llmMockState.groqClient = groqReturningInOrder(
+        draftJson({ redFlags: undefined }),
+        refinedJson({
+          cues: [{ type: "urgency_language", severity: 2, explanation: "Model invented a red flag anyway." }],
+        }),
+      );
+      const result = await generatePhishingScenario(LEGIT_PARAMS);
+      expect(result).not.toBeNull();
+      expect(result!.isPhish).toBe(false);
+      expect(result!.cues).toEqual([]);
+    });
+
+    it("does not require any cues to succeed (unlike a phishing scenario)", async () => {
+      llmMockState.groqClient = groqReturningInOrder(draftJson({ redFlags: undefined }), refinedJson({ cues: [] }));
+      const result = await generatePhishingScenario(LEGIT_PARAMS);
+      expect(result).not.toBeNull();
+      expect(result!.isPhish).toBe(false);
+    });
   });
 });

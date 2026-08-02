@@ -16,5 +16,10 @@ export function getGeminiClient(): GoogleGenAI | null {
   return globalForGemini._geminiClient;
 }
 
-/** Backup provider for when Groq is unconfigured, rate-limited, or erroring. */
-export const GEMINI_MODEL = "gemini-2.5-flash";
+/**
+ * Backup provider for when Groq is unconfigured, rate-limited, or erroring.
+ * Pinned versions (e.g. "gemini-2.5-flash") get cut off from new
+ * projects/keys over time -- "-latest" is Google's alias that always
+ * resolves to whatever flash model is currently open to new users.
+ */
+export const GEMINI_MODEL = "gemini-flash-latest";

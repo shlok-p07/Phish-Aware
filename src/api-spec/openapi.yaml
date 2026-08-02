@@ -261,6 +261,14 @@ paths:
       operationId: getNextPracticeScenario
       tags: [practice]
       summary: Get the next recommended practice scenario for the current user
+      parameters:
+        - name: vector
+          in: query
+          required: false
+          description: Which vector to practice -- a specific one, or "mixed" (default) to keep randomizing every round.
+          schema:
+            type: string
+            enum: [email, sms, voice, mixed]
       responses:
         "200":
           description: Next practice scenario (answer withheld)

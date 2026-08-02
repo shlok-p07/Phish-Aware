@@ -81,18 +81,27 @@ async function completeWithGemini(options: CompleteOptions): Promise<string | nu
  * unconfigured or both fail -- callers already have their own null-safe
  * fallback (the static scenario pool / a friendly chat error message).
  */
+// Groq/Gemini failures here are routine (rate limits, transient provider
+// overload) and already handled by the fallback/cooldown logic around this
+// function -- a full error object (headers, stack, retry-after, ...) is
+// noise for something this expected, so just the message is logged, at
+// warn rather than error since nothing is actually broken.
+function shortMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export async function complete(options: CompleteOptions): Promise<string | null> {
   try {
     const groqResult = await completeWithGroq(options);
     if (groqResult) return groqResult;
   } catch (err) {
-    console.error("[llm] Groq call failed, falling back to Gemini:", err);
+    console.warn("[llm] Groq call failed, falling back to Gemini:", shortMessage(err));
   }
 
   try {
     return await completeWithGemini(options);
   } catch (err) {
-    console.error("[llm] Gemini call failed (no more providers to fall back to):", err);
+    console.warn("[llm] Gemini call failed (no more providers to fall back to):", shortMessage(err));
     return null;
   }
 }

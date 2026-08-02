@@ -22,6 +22,8 @@ export * from './cueId';
 export * from './cueOption';
 export * from './dashboardSummary';
 export * from './department';
+export * from './getNextPracticeScenarioParams';
+export * from './getNextPracticeScenarioVector';
 export * from './healthStatus';
 export * from './invitationLink';
 export * from './inviteMemberInput';

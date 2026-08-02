@@ -85,7 +85,7 @@ export interface User {
   department?: string | null;
   /** @nullable */
   workType?: string | null;
-  /** Derived from onboarding diagnostic accuracy; drives generated-scenario difficulty. */
+  /** Predicted from onboarding survey and diagnostic results; drives initial level and generated-scenario difficulty. */
   phishingAwarenessScore?: number;
   onboardingCompleted: boolean;
   createdAt: string;
@@ -651,4 +651,21 @@ export interface SsoTestResult {
   ok: boolean;
   checks: SsoTestCheck[];
 }
+
+export type GetNextPracticeScenarioParams = {
+/**
+ * Which vector to practice -- a specific one, or "mixed" (default) to keep randomizing every round.
+ */
+vector?: GetNextPracticeScenarioVector;
+};
+
+export type GetNextPracticeScenarioVector = typeof GetNextPracticeScenarioVector[keyof typeof GetNextPracticeScenarioVector];
+
+
+export const GetNextPracticeScenarioVector = {
+  email: 'email',
+  sms: 'sms',
+  voice: 'voice',
+  mixed: 'mixed',
+} as const;
 

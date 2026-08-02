@@ -3,11 +3,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useGetLesson } from "@/api-client";
-import { ArrowLeft, ArrowRight, CheckCircle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle, ShieldAlert, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { titleCase } from "@/lib/utils";
+import { useChatbot } from "@/components/chatbot-widget";
 
 export default function LessonPage() {
 	const params = useParams();
@@ -15,6 +16,7 @@ export default function LessonPage() {
 
 	const { data: lesson, isLoading, isError } = useGetLesson(id);
 	const [currentStep, setCurrentStep] = useState(0);
+	const chat = useChatbot();
 
 	if (isLoading) {
 		return (
@@ -36,7 +38,7 @@ export default function LessonPage() {
 		);
 	}
 
-	if (lesson.vector !== "email") {
+	if (lesson.vector !== "email" && lesson.vector !== "sms" && lesson.vector !== "voice") {
 		return (
 			<div className="max-w-2xl mx-auto text-center space-y-4 pt-12">
 				<ShieldAlert className="w-12 h-12 text-amber-500 mx-auto" />
@@ -58,6 +60,19 @@ export default function LessonPage() {
 	const nextStep = () =>
 		setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
 	const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
+
+	// Opens the floating assistant and seeds it with a request for deeper,
+	// scenario-agnostic detail on this lesson's vector -- mirrors the practice
+	// page's "explain this scenario" pattern instead of just linking back to
+	// the library the learner already came from.
+	const askForMore = () => {
+		const flags = lesson.redFlags.length > 0
+			? lesson.redFlags.map((f) => titleCase(f.replaceAll("_", " "))).join(", ")
+			: "the tactics described in this lesson";
+		chat.askAbout(
+			`I just finished the "${lesson.title}" lesson (a ${lesson.vector} phishing vector). It covered these red flags: ${flags}. Can you share more facts, real-world examples, or advanced detection tips about this type of attack beyond what the lesson covered?`,
+		);
+	};
 
 	const progress = ((currentStep + 1) / totalSteps) * 100;
 
@@ -151,16 +166,17 @@ export default function LessonPage() {
 								variant="secondary"
 								size="lg"
 								className="rounded-lg font-bold w-2/3 shadow-sm text-lg"
-								asChild
+								onClick={askForMore}
 							>
-								<Link href="/learn">Learn more</Link>
+								<Sparkles className="w-5 h-5 mr-2" />
+								Learn more
 							</Button>
 							<Button
 								size="lg"
 								className="rounded-lg font-bold w-2/3 shadow-sm text-lg"
 								asChild
 							>
-								<Link href="/practice">Put it to practice</Link>
+								<Link href={`/practice?vector=${lesson.vector}`}>Put it to practice</Link>
 							</Button>
 						</div>
 					) : (

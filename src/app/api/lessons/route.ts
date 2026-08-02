@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const GET = withErrorHandling(async () => {
   const lessons = await (await lessonsCollection())
     .find({}, { projection: { vector: 1, title: 1, summary: 1 } })
-    .sort({ sortOrder: 1 })
+    .sort({ order: 1 })
     .toArray();
   return json(
     ListLessonsResponse.parse(

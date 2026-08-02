@@ -14,10 +14,14 @@ import {
   Repeat,
   Bot,
   TrendingUp,
+  Zap,
+  Shuffle,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { InboxPreview } from "@/components/inbox-preview";
+import { VectorPreviewToggle } from "@/components/vector-preview-toggle";
+import { ComparisonTable } from "@/components/comparison-table";
 import { Reveal } from "@/components/reveal";
 import { getUserIdFromRequest } from "@/server/session";
 
@@ -26,35 +30,41 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: { absolute: "PhishAware" },
   description:
-    "PhishAware trains employees to catch the phishing emails that get past filters, using realistic, fully simulated scenarios with instant feedback and analytics that prove detection skills are improving.",
+    "PhishAware trains employees to catch the phishing that gets past filters, across email, text message, and voice call. Fully simulated scenarios, generated in real time, graded cue by cue, with analytics that prove detection skills are improving.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "PhishAware: Email phishing training that actually sticks",
+    title: "PhishAware: Phishing training for email, text, and voice",
     description:
-      "Realistic, fully simulated phishing-email scenarios with instant feedback. No real emails, links, or credentials involved.",
+      "Realistic, fully simulated phishing scenarios across all three channels attackers actually use, with instant cue-by-cue feedback. No real emails, links, or credentials involved.",
     url: "/",
     type: "website",
   },
 };
 
-const WHY_EMAIL = [
+const WHY_VECTORS = [
+  {
+    icon: Shuffle,
+    stat: "3",
+    label: "attack channels",
+    body: "Email, text message, and voice call — including a simulated phone call your team has to listen to, not read. Most training still stops at the inbox.",
+  },
   {
     icon: Sparkles,
     stat: "8",
     label: "phishing cues",
-    body: "The tell-tale signs attackers count on: spoofed senders, urgency, mismatched links, and more.",
+    body: "The tell-tale signs attackers count on: spoofed senders, urgency, mismatched links, and more. Every attempt is graded cue by cue, not pass/fail.",
   },
   {
     icon: Gauge,
     stat: "Instant",
     label: "feedback loop",
-    body: "Each attempt is scored the moment it's submitted, cue by cue, caught or missed.",
+    body: "Each attempt is scored the moment it's submitted, with the reasoning attached and your confidence checked against your accuracy.",
   },
   {
     icon: Repeat,
-    stat: "Personalized",
-    label: "to your role",
-    body: "Scenarios track your department, and difficulty rises with your accuracy. No two people work through the same set.",
+    stat: "Adaptive",
+    label: "to every person",
+    body: "Scenarios follow each person's department and greet them by name, and difficulty climbs as accuracy does. No two people work the same set.",
   },
 ];
 
@@ -72,7 +82,7 @@ const FEATURES = [
   {
     icon: Target,
     title: "Scenarios shaped by the job",
-    body: "Finance sees invoice fraud. IT sees fake help-desk requests. Each one plays out in a simulated inbox, judged the way it happens at work.",
+    body: "Finance sees invoice fraud. IT sees fake help-desk requests. Each one plays out where it would really land — an inbox, a message thread, or a ringing phone.",
   },
   {
     icon: BarChart3,
@@ -85,9 +95,14 @@ const FEATURES = [
     body: "Streaks, levels, and a team leaderboard turn recurring training into something people return to, not a box to check.",
   },
   {
+    icon: Lock,
+    title: "Rolls out to the whole organization",
+    body: "Single sign-on through Okta, Microsoft Entra, Google, or any OIDC provider. Invite by email, pin people to a department, and manage admin and member roles from one place.",
+  },
+  {
     icon: TrendingUp,
     title: "Sharper the longer your team uses it",
-    body: "Results feed directly into your organization's own risk profile, not an industry average. Within months, PhishAware knows precisely where your team is exposed, and keeps adjusting to close it.",
+    body: "Every attempt feeds your organization's own risk picture, not an industry average — per-person accuracy, risk level, and how much of your team is actually participating.",
   },
 ];
 
@@ -152,14 +167,16 @@ export default async function LandingPage() {
         <section className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 pt-16 md:pt-24 pb-16 md:pb-24">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <div>
-              <h1 className="text-4xl sm:text-5xl md:text-[3.25rem] font-display font-bold tracking-tight leading-[1.08]">
-                Train your team to catch the phishing emails your filters miss
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold tracking-tight leading-[1.05]">
+                Train your team to catch the{" "}
+                <span className="text-primary">phishing your filters miss</span>
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground mt-6 leading-relaxed">
                 Spam filters stop most phishing attempts before they reach an
                 inbox. The ones that get through are built to fool a person,
-                not a filter. PhishAware trains your team on exactly that:
-                scenarios matched to each person's role, scored the moment
+                not a filter. PhishAware trains your team on exactly that,
+                across <strong className="text-foreground font-semibold">email, text, and voice</strong>{" "}
+                &mdash; scenarios matched to each person's role, scored the moment
                 they respond, with the data to prove your team is getting
                 sharper.
               </p>
@@ -170,17 +187,60 @@ export default async function LandingPage() {
                     <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="font-semibold w-full sm:w-auto">
-                  <Link href="/auth">Try as a guest</Link>
-                </Button>
               </div>
               <p className="text-sm text-muted-foreground mt-4">
                 No credit card required. Free to start.
               </p>
             </div>
             <div className="flex justify-center lg:justify-end">
-              <InboxPreview />
+              <VectorPreviewToggle />
             </div>
+          </div>
+        </section>
+
+        {/* No demo request -- the real product is one click away as a guest */}
+        <section className="bg-muted/40 border-y border-border">
+          <div className="max-w-5xl mx-auto px-4 md:px-8 py-16 md:py-20">
+            <Reveal className="rounded-2xl border border-primary/20 bg-card shadow-sm p-8 md:p-12 grid lg:grid-cols-[1.2fr_1fr] gap-10 items-center">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">No demo request required</p>
+                <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight leading-tight">
+                  Most training platforms make you book a call before you see anything.
+                  <span className="text-primary"> We just let you in.</span>
+                </h2>
+                <p className="text-muted-foreground text-lg font-medium mt-5 leading-relaxed">
+                  Guest mode isn&apos;t a limited preview -- it&apos;s the real product:
+                  the same AI-generated scenarios, the same instant grading, the
+                  same dashboard a paying team sees. No sales call, no credit
+                  card, no waiting on someone else&apos;s calendar.
+                </p>
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 mt-8">
+                  <Button asChild size="lg" className="font-semibold group w-full sm:w-auto">
+                    <Link href="/auth">
+                      <Zap className="w-4 h-4 mr-1" />
+                      Try it now as a guest
+                      <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
+                    </Link>
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground mt-4">
+                  Takes about 10 seconds. Nothing to install, nothing to schedule.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {[
+                  "The full practice loop -- email, text, and voice scenarios, judged instantly",
+                  "Real-time AI generation, not a fixed demo script",
+                  "Your own dashboard: accuracy, streaks, focus areas",
+                  "The complete lesson library",
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-3 bg-primary/5 border border-primary/10 rounded-lg p-4">
+                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    <span className="font-medium text-foreground/90 leading-snug">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
           </div>
         </section>
 
@@ -189,16 +249,18 @@ export default async function LandingPage() {
           <div className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 py-16 md:py-20">
             <Reveal className="grid lg:grid-cols-[1fr_1.3fr] gap-10 lg:gap-16 items-center">
               <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Why three channels</p>
                 <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
-                  Email is still the #1 way attackers get in
+                  Attackers stopped limiting themselves to the inbox
                 </h2>
                 <p className="text-muted-foreground text-lg font-medium mt-4">
-                  So that's where PhishAware goes deep, instead of spreading
-                  thin across every channel.
+                  A filter can quarantine a suspicious email. Nothing
+                  quarantines a phone call. PhishAware trains the channels your
+                  security stack can&apos;t cover for you.
                 </p>
               </div>
               <div className="space-y-3">
-                {WHY_EMAIL.map((w, i) => (
+                {WHY_VECTORS.map((w, i) => (
                   <Reveal key={w.label} delayMs={i * 80}>
                     <div className="group flex items-start gap-4 bg-card border border-border rounded-lg p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30">
                       <div className="shrink-0 bg-primary/10 text-primary rounded-lg p-2.5 transition-transform duration-300 group-hover:scale-110">
@@ -227,6 +289,7 @@ export default async function LandingPage() {
         <section className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 py-16 md:py-20">
           <Reveal>
             <div className="text-center max-w-2xl mx-auto mb-12">
+              <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">What you get</p>
               <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
                 Practice changes behavior. A slideshow doesn't.
               </h2>
@@ -258,6 +321,7 @@ export default async function LandingPage() {
           <div className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 py-16 md:py-20">
             <Reveal>
               <div className="text-center max-w-2xl mx-auto mb-12">
+                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">The loop</p>
                 <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
                   How it works
                 </h2>
@@ -283,6 +347,19 @@ export default async function LandingPage() {
           </div>
         </section>
 
+        {/* Old way vs PhishAware */}
+        <section className="max-w-4xl mx-auto px-4 md:px-8 py-16 md:py-20">
+          <Reveal>
+            <div className="text-center max-w-2xl mx-auto mb-10">
+              <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">The difference</p>
+              <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
+                Compliance training vs. actual practice
+              </h2>
+            </div>
+            <ComparisonTable />
+          </Reveal>
+        </section>
+
         {/* Trust / safety + final CTA, side by side */}
         <section className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 py-16 md:py-20">
           <Reveal className="grid lg:grid-cols-2 gap-6 items-stretch">
@@ -295,9 +372,10 @@ export default async function LandingPage() {
               </div>
               <div className="space-y-4">
                 {[
-                  "Every scenario is simulated. Nothing you interact with is real.",
+                  "Nothing is ever sent. No test emails hit your mail server, no texts hit anyone's phone, no calls are placed.",
+                  "Every scenario is rendered inside PhishAware. Links are inert and attachments are props — there is nothing to click through to.",
                   "We never ask for real passwords, payment details, or account access.",
-                  "Guest mode lets you try everything with zero commitment.",
+                  "No deception of your staff outside the exercise, and no surprise 'gotcha' campaigns run against them.",
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-2.5">
                     <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
@@ -312,8 +390,9 @@ export default async function LandingPage() {
                 Give your team practice, not just a policy
               </h2>
               <p className="text-muted-foreground font-medium mt-4">
-                Start free. See how your team performs against real phishing
-                tactics, then add the analytics leadership can act on.
+                Start free, in about ten seconds, with no sales call. Find out
+                today how your team handles a convincing invoice, an urgent
+                text, and a caller who already knows their name.
               </p>
               <Button asChild size="lg" className="font-semibold group mt-6 w-fit">
                 <Link href="/auth">

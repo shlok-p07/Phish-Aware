@@ -90,8 +90,34 @@ function eligibleAttackTypes(department: string | null): AttackTypeId[] {
   return DEPARTMENT_ATTACK_TYPES[department];
 }
 
-function pickRandom<T>(items: T[]): T {
+function pickRandom<T>(items: readonly T[]): T {
   return items[Math.floor(Math.random() * items.length)]!;
+}
+
+/** Vectors the adaptive generator currently knows how to write. */
+export const PRACTICE_VECTORS = ["email", "sms", "voice"] as const;
+export type PracticeVector = (typeof PRACTICE_VECTORS)[number];
+
+/** What the learner asked to practice: a specific vector, or "mixed" for the previous random-every-round behavior. */
+export type VectorPreference = PracticeVector | "mixed";
+
+/** Picks which vector this round's scenario will be. An explicit preference is honored as-is; "mixed" (or omitted) keeps the original random draw. */
+export function pickVector(preference?: VectorPreference): PracticeVector {
+  if (preference === "email" || preference === "sms" || preference === "voice") return preference;
+  return pickRandom(PRACTICE_VECTORS);
+}
+
+/**
+ * ~65% phishing / ~35% legitimate. Keeps the live generator honest -- a
+ * learner who could assume "it's always phishing" isn't actually practicing
+ * judgment -- while matching this product's established ratio in the static
+ * seed pool (src/server/seedScenarios.ts is ~60-70% phish across both vectors).
+ */
+const PHISH_WEIGHTED_DRAW = [true, true, false] as const;
+
+/** Picks whether this round's live-generated scenario should be a phish or a legitimate message. */
+export function pickIsPhish(): boolean {
+  return pickRandom(PHISH_WEIGHTED_DRAW);
 }
 
 /**
