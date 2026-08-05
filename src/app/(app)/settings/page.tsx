@@ -50,7 +50,7 @@ function ToggleRow({
   onCheckedChange: (value: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg bg-muted/30 border border-transparent p-4">
+    <div className="flex items-center justify-between gap-4 rounded-lg bg-muted/60 border border-transparent p-4">
       <div className="space-y-1">
         <Label htmlFor={id} className="text-sm font-semibold">
           {label}
@@ -124,9 +124,9 @@ export default function SettingsPage() {
 
 			{/* Appearance / Theme */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/30 border-b pb-4">
+				<CardHeader className="bg-muted/60 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
-						<Sun className="w-5 h-5 text-secondary" />
+						<Sun className="w-5 h-5 text-primary" />
 						Appearance
 					</CardTitle>
 					<CardDescription className="text-sm font-medium">
@@ -146,7 +146,7 @@ export default function SettingsPage() {
 										"flex flex-col items-center gap-2 rounded-lg border p-4 font-semibold transition-all hover:cursor-pointer",
 										active
 											? "border-primary bg-primary/10 text-primary"
-											: "border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+											: "border-border bg-muted/60 text-muted-foreground hover:border-primary/40 hover:text-foreground",
 									)}
 								>
 									<option.icon className="w-6 h-6" />
@@ -160,7 +160,7 @@ export default function SettingsPage() {
 
 			{/* Text size */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/30 border-b pb-4">
+				<CardHeader className="bg-muted/60 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<Type className="w-5 h-5 text-primary" />
 						Text Size
@@ -182,7 +182,7 @@ export default function SettingsPage() {
 										"flex flex-col items-center gap-2 rounded-lg border p-4 font-semibold transition-all hover:cursor-pointer",
 										active
 											? "border-primary bg-primary/10 text-primary"
-											: "border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+											: "border-border bg-muted/60 text-muted-foreground hover:border-primary/40 hover:text-foreground",
 									)}
 								>
 									<span className={cn("font-bold leading-none", option.sample)}>
@@ -198,7 +198,7 @@ export default function SettingsPage() {
 
 			{/* Reading */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/30 border-b pb-4">
+				<CardHeader className="bg-muted/60 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<BookOpenText className="w-5 h-5 text-primary" />
 						Reading
@@ -220,7 +220,7 @@ export default function SettingsPage() {
 
 			{/* Contrast */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/30 border-b pb-4">
+				<CardHeader className="bg-muted/60 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<Contrast className="w-5 h-5 text-primary" />
 						Contrast
@@ -242,9 +242,9 @@ export default function SettingsPage() {
 
 			{/* Interaction */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/30 border-b pb-4">
+				<CardHeader className="bg-muted/60 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
-						<MousePointerClick className="w-5 h-5 text-secondary" />
+						<MousePointerClick className="w-5 h-5 text-primary" />
 						Interaction
 					</CardTitle>
 					<CardDescription className="text-sm font-medium">
@@ -264,9 +264,9 @@ export default function SettingsPage() {
 
 			{/* Motion */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/30 border-b pb-4">
+				<CardHeader className="bg-muted/60 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
-						<Zap className="w-5 h-5 text-secondary" />
+						<Zap className="w-5 h-5 text-primary" />
 						Motion
 					</CardTitle>
 					<CardDescription className="text-sm font-medium">

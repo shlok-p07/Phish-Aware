@@ -241,7 +241,7 @@ export default function PracticePage() {
 
   // Toolbar shown at the top of the reading pane (decorative mail/message actions).
   const readingPaneToolbar = () => (
-    <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/30 shrink-0 text-muted-foreground">
+    <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/60 shrink-0 text-muted-foreground">
       {((isVoice ? [PhoneCall, Trash2, CornerUpLeft] : isSms ? [Phone, Trash2, CornerUpLeft] : [Archive, Trash2, CornerUpLeft])).map((Icon, i) => (
         <span key={i} className="p-2 rounded-lg hover:bg-muted transition-colors" aria-hidden>
           <Icon className="w-4 h-4" />
@@ -332,7 +332,7 @@ export default function PracticePage() {
           <div className={`mt-6 space-y-2 border-t border-dashed border-border pt-4 px-2 -mx-2 rounded transition-colors duration-150 ${regionActive('links') ? 'ring-1 ring-destructive/50 bg-destructive/5' : ''}`}>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Links in this message</p>
             {scenario.links.map((link, idx) => (
-              <div key={idx} className="bg-muted/30 border border-border p-2 rounded-lg text-primary text-xs break-all relative group cursor-help transition-colors hover:bg-muted/50">
+              <div key={idx} className="bg-muted/60 border border-border p-2 rounded-lg text-primary text-xs break-all relative group cursor-help transition-colors hover:bg-muted">
                 <span className="underline decoration-dashed decoration-primary/50">{link.text}</span>
                 <div className="absolute hidden group-hover:block bottom-full left-0 mb-2 bg-foreground text-background text-xs p-2 rounded-md z-10 break-all w-full shadow-lg">
                   Destination URL: {link.text}
@@ -345,7 +345,7 @@ export default function PracticePage() {
 
       {/* Attachment footer */}
       {scenario.attachments.length > 0 && (
-        <div className="px-5 md:px-6 py-3 border-t border-border bg-muted/20 shrink-0 space-y-2">
+        <div className="px-5 md:px-6 py-3 border-t border-border bg-muted/50 shrink-0 space-y-2">
           {scenario.attachments.map((attachment, idx) => (
             <div key={idx} className={`inline-flex items-center gap-2 text-sm font-semibold bg-background border px-3 py-2 rounded-lg text-foreground max-w-full transition-colors duration-150 ${regionActive('attachments') ? 'ring-1 ring-destructive/50 border-destructive/40 bg-destructive/5' : 'border-border'}`}>
               <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -377,7 +377,7 @@ export default function PracticePage() {
       </div>
 
       {/* Thread body */}
-      <CardContent className="flex-1 min-h-0 px-5 md:px-6 py-6 overflow-y-auto bg-muted/10 flex flex-col items-start gap-2">
+      <CardContent className="flex-1 min-h-0 px-5 md:px-6 py-6 overflow-y-auto bg-muted/40 flex flex-col items-start gap-2">
         <span className="self-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Today · {timestamp}</span>
 
         <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-muted px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-foreground shadow-sm">
@@ -414,7 +414,7 @@ export default function PracticePage() {
   // A faux inbox list — the current scenario sits at the top as the selected, unread message.
   const inboxList = () => (
     <Card className="border shadow-sm p-0 overflow-hidden flex flex-col h-[62vh] max-h-160">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30 shrink-0">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/60 shrink-0">
         <Inbox className="w-5 h-5 text-primary" />
         <span className="font-display font-bold text-base">Inbox</span>
         <Badge className="ml-auto bg-primary hover:bg-primary text-primary-foreground font-bold text-[10px] px-2 py-0.5">1 new</Badge>
@@ -454,7 +454,7 @@ export default function PracticePage() {
   // current scenario pinned at the top as the active thread.
   const messagesList = () => (
     <Card className="border shadow-sm p-0 overflow-hidden flex flex-col h-[62vh] max-h-160">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30 shrink-0">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/60 shrink-0">
         <MessageSquare className="w-5 h-5 text-primary" />
         <span className="font-display font-bold text-base">Messages</span>
         <Badge className="ml-auto bg-primary hover:bg-primary text-primary-foreground font-bold text-[10px] px-2 py-0.5">1 new</Badge>
@@ -500,7 +500,7 @@ export default function PracticePage() {
 
   const callLogList = () => (
     <Card className="border shadow-sm p-0 overflow-hidden flex flex-col h-[62vh] max-h-160">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30 shrink-0">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/60 shrink-0">
         <PhoneCall className="w-5 h-5 text-primary" />
         <span className="font-display font-bold text-base">Recent Calls</span>
         <Badge className="ml-auto bg-primary hover:bg-primary text-primary-foreground font-bold text-[10px] px-2 py-0.5">1 new</Badge>
@@ -556,7 +556,7 @@ export default function PracticePage() {
         ? 'bg-success/10 text-success border-success/30'
         : tone === 'missed'
           ? 'bg-destructive/10 text-destructive border-destructive/30'
-          : 'bg-orange-500/10 text-orange-600 border-orange-500/30';
+          : 'bg-warning/10 text-warning border-warning/30';
     return (
       <button
         key={id}
@@ -595,7 +595,7 @@ export default function PracticePage() {
 
       <div className="p-6 space-y-6 bg-background">
         {/* Explanation */}
-        <div className="bg-muted/30 p-4 rounded-lg border border-border text-sm font-medium leading-relaxed">
+        <div className="bg-muted/60 p-4 rounded-lg border border-border text-sm font-medium leading-relaxed">
           <p>{result.explanation}</p>
         </div>
 
@@ -654,7 +654,7 @@ export default function PracticePage() {
         </div>
       </div>
 
-      <div className="p-4 bg-muted/20 border-t shrink-0">
+      <div className="p-4 bg-muted/50 border-t shrink-0">
         <Button className="w-full py-6 text-lg font-bold rounded-lg shadow-sm group" onClick={resetAndNext}>
           Next Scenario
           <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -688,7 +688,7 @@ export default function PracticePage() {
 
       {/* The assistant's scenario-specific answer surfaced on-page (no popup). */}
       {explainIndex !== null && (
-        <div className="px-4 py-3 border-b border-border bg-muted/20 text-sm leading-relaxed whitespace-pre-wrap text-foreground animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="px-4 py-3 border-b border-border bg-muted/50 text-sm leading-relaxed whitespace-pre-wrap text-foreground animate-in fade-in slide-in-from-bottom-2 duration-300">
           {chat.messages[explainIndex]?.content ?? (
             <span className="text-muted-foreground">Thinking…</span>
           )}
@@ -719,7 +719,7 @@ export default function PracticePage() {
 
         {/* What to practice -- a specific vector, or Mixed to keep the
             original random-every-round behavior. */}
-        <div className="inline-flex items-center gap-1 p-1 rounded-lg border border-border bg-muted/30">
+        <div className="inline-flex items-center gap-1 p-1 rounded-lg border border-border bg-muted/60">
           {VECTOR_FILTER_OPTIONS.map(({ value, label, icon: Icon }) => (
             <button
               key={value}
@@ -795,7 +795,7 @@ export default function PracticePage() {
           {/* Side Panel for controls depending on step */}
           {step !== 'feedback' && (
             <Card className="border shadow-sm animate-in slide-in-from-right-8 duration-300 sticky top-24">
-              <CardHeader className="bg-muted/30 border-b pb-4">
+              <CardHeader className="bg-muted/60 border-b pb-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-2">
                   <span className={step === 'cues' ? 'text-primary' : ''}>1. Verdict</span>
                   <span className="opacity-50">→</span>
@@ -845,7 +845,7 @@ export default function PracticePage() {
 
                 {step === 'confidence' && (
                   <div className="space-y-8">
-                    <div className="flex flex-col items-center justify-center p-6 bg-muted/30 rounded-lg border border-transparent">
+                    <div className="flex flex-col items-center justify-center p-6 bg-muted/60 rounded-lg border border-transparent">
                       <span className="text-5xl font-display font-bold text-primary mb-2">{confidence}%</span>
                       <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Confidence</span>
                     </div>

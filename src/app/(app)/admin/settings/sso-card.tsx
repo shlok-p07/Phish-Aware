@@ -48,7 +48,7 @@ const ISSUER_HINTS: Record<SsoProviderKind, string> = {
 
 const CHECK_ICONS = {
   pass: <CircleCheck className="w-4 h-4 text-success shrink-0 mt-0.5" />,
-  warn: <CircleAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />,
+  warn: <CircleAlert className="w-4 h-4 text-warning shrink-0 mt-0.5" />,
   fail: <CircleX className="w-4 h-4 text-destructive shrink-0 mt-0.5" />,
 };
 
@@ -184,7 +184,7 @@ export function SsoCard() {
 
   return (
     <Card className="border shadow-sm">
-      <CardHeader className="bg-muted/30 border-b pb-4">
+      <CardHeader className="bg-muted/60 border-b pb-4">
         <CardTitle className="text-lg flex items-center gap-2">
           <KeyRound className="w-5 h-5 text-primary" />
           Single sign-on (OIDC)

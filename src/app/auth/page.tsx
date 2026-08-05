@@ -267,7 +267,7 @@ export default function AuthPage() {
 	if (isLoading || (user && !user.isGuest)) return null;
 
 	return (
-		<div className="min-h-dvh flex flex-col items-center justify-center p-4 bg-muted/30">
+		<div className="min-h-dvh flex flex-col items-center justify-center p-4 bg-muted/60">
 			<div className="max-w-md w-full space-y-8">
 				<div className="flex flex-col items-center text-center space-y-4">
 					<div className="bg-primary text-primary-foreground p-4 rounded-lg shadow-md">
@@ -602,7 +602,7 @@ export default function AuthPage() {
 								<span className="w-full border-t border-border" />
 							</div>
 							<div className="relative flex justify-center text-xs uppercase font-semibold tracking-wider">
-								<span className="bg-muted/30 px-4 text-muted-foreground">
+								<span className="bg-muted/60 px-4 text-muted-foreground">
 									Or just try it out
 								</span>
 							</div>

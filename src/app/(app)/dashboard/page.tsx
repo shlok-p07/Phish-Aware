@@ -127,7 +127,7 @@ export default function DashboardPage() {
 			<div className="grid md:grid-cols-2 gap-6 md:flex-1">
 				{/* Strong/Weak Cues */}
 				<Card className="shadow-sm flex flex-col">
-					<CardHeader className="bg-muted/30 border-b border-border pb-4">
+					<CardHeader className="bg-muted/60 border-b border-border pb-4">
 						<CardTitle className="text-lg flex items-center gap-2">
 							<Star className="w-5 h-5 text-primary" />
 							Strengths
@@ -155,7 +155,7 @@ export default function DashboardPage() {
 				</Card>
 
 				<Card className="shadow-sm flex flex-col">
-					<CardHeader className="bg-muted/30 border-b border-border pb-4">
+					<CardHeader className="bg-muted/60 border-b border-border pb-4">
 						<CardTitle className="text-lg flex items-center gap-2">
 							<ShieldAlert className="w-5 h-5 text-destructive" />
 							Focus Areas

@@ -78,7 +78,7 @@ export default function AdminSettingsPage() {
   return (
     <div className="space-y-6">
       <Card className="border shadow-sm">
-        <CardHeader className="bg-muted/30 border-b pb-4">
+        <CardHeader className="bg-muted/60 border-b pb-4">
           <CardTitle className="text-lg">General</CardTitle>
           <CardDescription className="text-sm font-medium">
             Your organization&apos;s name and identity.
@@ -93,7 +93,7 @@ export default function AdminSettingsPage() {
       </Card>
 
       <Card className="border shadow-sm">
-        <CardHeader className="bg-muted/30 border-b pb-4">
+        <CardHeader className="bg-muted/60 border-b pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
             <Building2 className="w-5 h-5 text-primary" />
             Email domain
@@ -115,7 +115,7 @@ export default function AdminSettingsPage() {
       <SsoCard />
 
       <Card className="border shadow-sm">
-        <CardHeader className="bg-muted/30 border-b pb-4">
+        <CardHeader className="bg-muted/60 border-b pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
             Seats

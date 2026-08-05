@@ -43,6 +43,9 @@
   --color-success: hsl(var(--success));
   --color-success-foreground: hsl(var(--success-foreground));
 
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+
   --color-chart-1: hsl(var(--chart-1));
   --color-chart-2: hsl(var(--chart-2));
   --color-chart-3: hsl(var(--chart-3));
@@ -99,8 +102,10 @@
   --secondary: 215 25% 95%;
   --secondary-foreground: 222 47% 15%;
 
-  --muted: 214 28% 96%;
-  --muted-foreground: 215 16% 45%;
+  /* Kept a few steps off white so the low-opacity surface tints used across the
+     app (bg-muted/30 headers, bg-muted/50 inputs) actually read on white cards. */
+  --muted: 214 26% 92%;
+  --muted-foreground: 215 16% 42%;
 
   --accent: 221 55% 95%;
   --accent-foreground: 221 70% 38%;
@@ -108,8 +113,13 @@
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
 
-  --success: 142 64% 40%;
+  /* Dark enough to pass AA as text on light surfaces (text-success/text-warning
+     badges), and still fine as a solid fill under white text. */
+  --success: 142 70% 30%;
   --success-foreground: 0 0% 100%;
+
+  --warning: 30 88% 34%;
+  --warning-foreground: 0 0% 100%;
 
   --border: 214 25% 90%;
   --input: 214 25% 90%;
@@ -194,6 +204,9 @@
 
   --success: 142 60% 45%;
   --success-foreground: 0 0% 100%;
+
+  --warning: 38 95% 60%;
+  --warning-foreground: 30 65% 12%;
 
   --border: 215 18% 19%;
   --input: 215 18% 19%;

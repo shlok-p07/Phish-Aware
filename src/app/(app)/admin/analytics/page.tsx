@@ -8,7 +8,7 @@ import { useGetOrgAnalytics } from "@/api-client";
 
 const riskColor: Record<string, string> = {
   low: "hsl(var(--success))",
-  medium: "hsl(38 92% 50%)",
+  medium: "hsl(var(--warning))",
   high: "hsl(var(--destructive))",
 };
 
@@ -43,7 +43,7 @@ export default function AdminAnalyticsPage() {
       </div>
 
       <Card className="border shadow-sm">
-        <CardHeader className="bg-muted/30 border-b pb-4">
+        <CardHeader className="bg-muted/60 border-b pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
             Accuracy by member
@@ -67,7 +67,9 @@ export default function AdminAnalyticsPage() {
                       border: "1px solid hsl(var(--border))",
                       boxShadow: "var(--shadow-md)",
                       background: "hsl(var(--popover))",
+                      color: "hsl(var(--popover-foreground))",
                     }}
+                    itemStyle={{ color: "hsl(var(--popover-foreground))" }}
                     formatter={(value: number) => [`${value}%`, "Accuracy"]}
                   />
                   <Bar dataKey="accuracy" radius={[6, 6, 0, 0]} maxBarSize={48}>
@@ -87,7 +89,7 @@ export default function AdminAnalyticsPage() {
       </Card>
 
       <Card className="border shadow-sm">
-        <CardHeader className="bg-muted/30 border-b pb-4">
+        <CardHeader className="bg-muted/60 border-b pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
             <ShieldAlert className="w-5 h-5 text-primary" />
             Risk distribution

@@ -87,7 +87,7 @@ export default function LeaderboardPage() {
 
       {/* Cohort standings */}
       <Card className="border shadow-sm overflow-hidden">
-        <CardHeader className="bg-muted/30 border-b border-border pb-4">
+        <CardHeader className="bg-muted/60 border-b border-border pb-4">
           <CardTitle className="text-base flex items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
             Team standings

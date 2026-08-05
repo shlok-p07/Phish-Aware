@@ -58,7 +58,7 @@ export function VoicePreview() {
         </p>
       </div>
 
-      <div className="px-4 sm:px-5 py-4 bg-muted/30">
+      <div className="px-4 sm:px-5 py-4 bg-muted/60">
         <div className="flex items-center gap-2 text-sm font-semibold mb-3">
           <AlertTriangle className="w-4 h-4 text-destructive" />
           2 cues caught

@@ -94,14 +94,24 @@ export default function ProfilePage() {
 								accuracy. A higher score means better-calibrated judgment.
 							</p>
 						</div>
-						<div className="w-24 h-24 rounded-full border-8 border-primary/20 flex items-center justify-center relative overflow-hidden shrink-0">
-							<div
-								className="absolute bottom-0 w-full bg-primary transition-all duration-1000"
-								style={{ height: `${calibrationScore}%` }}
-							/>
-							<span className="relative z-10 font-bold text-foreground text-lg">
+						{/* Fill dial. The label is rendered twice — once in primary over the
+						    empty part, once in primary-foreground clipped to the fill — so the
+						    number keeps contrast wherever the water line lands. The clipped
+						    copy is h-20 (the 96px circle minus its 8px border on each side)
+						    so both copies sit at the same optical centre. */}
+						<div className="w-24 h-24 rounded-full border-8 border-primary/25 relative overflow-hidden shrink-0 bg-primary/5">
+							<span className="absolute inset-0 flex items-center justify-center font-bold text-primary text-lg">
 								{calibrationScore}%
 							</span>
+							<div
+								className="absolute inset-x-0 bottom-0 overflow-hidden transition-all duration-1000"
+								style={{ height: `${calibrationScore}%` }}
+							>
+								<div className="absolute inset-0 bg-primary" />
+								<span className="absolute inset-x-0 bottom-0 h-20 flex items-center justify-center font-bold text-primary-foreground text-lg">
+									{calibrationScore}%
+								</span>
+							</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -122,7 +132,7 @@ export default function ProfilePage() {
 			<div className="grid md:grid-cols-2 gap-6">
 				{/* Progress Chart */}
 				<Card className="border shadow-sm">
-					<CardHeader className="bg-muted/30 border-b pb-4">
+					<CardHeader className="bg-muted/60 border-b pb-4">
 						<CardTitle className="text-lg flex items-center gap-2">
 							<TrendingUp className="w-5 h-5 text-primary" />
 							Accuracy Over Time
@@ -139,7 +149,7 @@ export default function ProfilePage() {
 										<CartesianGrid
 											strokeDasharray="3 3"
 											vertical={false}
-											stroke="var(--border)"
+											stroke="hsl(var(--border))"
 										/>
 										<XAxis
 											dataKey="date"
@@ -166,8 +176,13 @@ export default function ProfilePage() {
 												borderRadius: "8px",
 												border: "1px solid hsl(var(--border))",
 												boxShadow: "var(--shadow-md)",
+												backgroundColor: "hsl(var(--popover))",
+												color: "hsl(var(--popover-foreground))",
 											}}
-											itemStyle={{ fontWeight: 600 }}
+											itemStyle={{
+												fontWeight: 600,
+												color: "hsl(var(--popover-foreground))",
+											}}
 											formatter={(value: number) => [`${value}%`, "Accuracy"]}
 										/>
 										<Line
@@ -195,9 +210,9 @@ export default function ProfilePage() {
 
 				{/* Vector Breakdown */}
 				<Card className="border shadow-sm">
-					<CardHeader className="bg-muted/30 border-b pb-4">
+					<CardHeader className="bg-muted/60 border-b pb-4">
 						<CardTitle className="text-lg flex items-center gap-2">
-							<AlertTriangle className="w-5 h-5 text-secondary" />
+							<AlertTriangle className="w-5 h-5 text-warning" />
 							Performance by Vector
 						</CardTitle>
 					</CardHeader>
@@ -216,7 +231,7 @@ export default function ProfilePage() {
 										</div>
 										<Progress
 											value={vector.rate}
-											className={`h-2.5 ${vector.rate > 80 ? "[&>div]:bg-success" : vector.rate > 50 ? "[&>div]:bg-secondary" : "[&>div]:bg-destructive"}`}
+											className={`h-2.5 ${vector.rate > 80 ? "[&>div]:bg-success" : vector.rate > 50 ? "[&>div]:bg-warning" : "[&>div]:bg-destructive"}`}
 										/>
 									</div>
 								))
@@ -232,7 +247,7 @@ export default function ProfilePage() {
 
 			{/* Cue Breakdown Grid */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/30 border-b pb-4">
+				<CardHeader className="bg-muted/60 border-b pb-4">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<CheckCircle2 className="w-5 h-5 text-success" />
 						Detailed Cue Recognition
@@ -247,19 +262,19 @@ export default function ProfilePage() {
 							sortedCues.map((cue) => (
 								<div
 									key={cue.cueId}
-									className="p-4 rounded-lg bg-muted/30 border border-transparent hover:border-border transition-colors"
+									className="p-4 rounded-lg bg-muted/70 border border-border/70 hover:border-border transition-colors"
 								>
 									<div className="flex justify-between items-start mb-3">
 										<span className="font-semibold text-sm leading-tight">
 											{cue.label}
 										</span>
 										<span
-											className={`text-xs font-bold px-2 py-1 rounded-full ${
+											className={`text-xs font-bold px-2 py-1 rounded-full border ${
 												cue.rate >= 80
-													? "bg-success/20 text-success-foreground"
+													? "bg-success/10 text-success border-success/30"
 													: cue.rate >= 50
-														? "bg-secondary/20 text-secondary-foreground"
-														: "bg-destructive/20 text-destructive-foreground"
+														? "bg-warning/10 text-warning border-warning/30"
+														: "bg-destructive/10 text-destructive border-destructive/30"
 											}`}
 										>
 											{cue.rate}%
@@ -271,7 +286,7 @@ export default function ProfilePage() {
 											cue.rate >= 80
 												? "[&>div]:bg-success"
 												: cue.rate >= 50
-													? "[&>div]:bg-secondary"
+													? "[&>div]:bg-warning"
 													: "[&>div]:bg-destructive"
 										}`}
 									/>

@@ -41,7 +41,7 @@ export default function LessonPage() {
 	if (lesson.vector !== "email" && lesson.vector !== "sms" && lesson.vector !== "voice") {
 		return (
 			<div className="max-w-2xl mx-auto text-center space-y-4 pt-12">
-				<ShieldAlert className="w-12 h-12 text-amber-500 mx-auto" />
+				<ShieldAlert className="w-12 h-12 text-warning mx-auto" />
 				<h2 className="text-2xl font-bold">Coming soon</h2>
 				<p className="text-muted-foreground font-medium">
 					This lesson is still a work in progress. Check back soon!
@@ -136,7 +136,7 @@ export default function LessonPage() {
 								{lesson.redFlags.map((flag, idx) => (
 									<li
 										key={idx}
-										className="flex items-start gap-3 p-4 bg-muted/30 rounded-lg border border-transparent hover:border-border transition-colors"
+										className="flex items-start gap-3 p-4 bg-muted/60 rounded-lg border border-transparent hover:border-border transition-colors"
 									>
 										<CheckCircle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
 										<span className="font-semibold text-foreground text-lg leading-snug">
@@ -149,7 +149,7 @@ export default function LessonPage() {
 					)}
 				</CardContent>
 
-				<CardFooter className="p-6 bg-muted/20 border-t border-border flex justify-between gap-4">
+				<CardFooter className="p-6 bg-muted/50 border-t border-border flex justify-between gap-4">
 					<Button
 						variant="outline"
 						size="lg"

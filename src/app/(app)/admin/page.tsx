@@ -48,7 +48,7 @@ const UNSET_DEPARTMENT = "__unset__";
 
 const riskStyles: Record<string, string> = {
   low: "bg-success/10 text-success border-success/30",
-  medium: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+  medium: "bg-warning/10 text-warning border-warning/30",
   high: "bg-destructive/10 text-destructive border-destructive/30",
 };
 
@@ -322,7 +322,7 @@ export default function AdminMembersPage() {
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableRow className="bg-muted/60 hover:bg-muted/60">
                 <TableHead className="pl-4">Member</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Department</TableHead>

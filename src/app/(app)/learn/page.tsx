@@ -76,7 +76,7 @@ export default function LearnPage() {
                     <h3 className={`font-bold text-lg leading-tight ${isWip ? "" : "group-hover:text-primary transition-colors"}`}>
                       {lesson.title}
                     </h3>
-                    <Badge variant="outline" className={`capitalize text-xs font-bold shrink-0 shadow-none ${isWip ? "border-amber-500/40 text-amber-600 dark:text-amber-400" : "border-muted-foreground/30 text-muted-foreground"}`}>
+                    <Badge variant="outline" className={`capitalize text-xs font-bold shrink-0 shadow-none ${isWip ? "border-warning/40 text-warning" : "border-muted-foreground/30 text-muted-foreground"}`}>
                       {isWip ? "Coming soon" : lesson.vector}
                     </Badge>
                   </div>

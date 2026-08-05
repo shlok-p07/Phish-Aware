@@ -64,7 +64,7 @@ export default function OnboardingPage() {
   // while they fill it in.
   if (showSurvey) {
     return (
-      <div className="min-h-dvh flex flex-col bg-muted/30">
+      <div className="min-h-dvh flex flex-col bg-muted/60">
         <div className="max-w-3xl w-full mx-auto px-4 py-8 flex-1 flex flex-col">
 
           <div className="mb-8 text-center space-y-3">
@@ -152,7 +152,7 @@ export default function OnboardingPage() {
 
   if (result) {
     return (
-      <div className="min-h-dvh flex items-center justify-center p-4 bg-muted/30">
+      <div className="min-h-dvh flex items-center justify-center p-4 bg-muted/60">
         <Card className="max-w-md w-full border shadow-md text-center animate-in fade-in duration-300 overflow-hidden">
           <div className="pt-10 pb-6 px-6 border-b border-border">
             <div className="bg-primary/10 text-primary w-14 h-14 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -189,7 +189,7 @@ export default function OnboardingPage() {
   const progress = (currentStep / quizQuestions.length) * 100;
 
   return (
-    <div className="min-h-dvh flex flex-col bg-muted/30">
+    <div className="min-h-dvh flex flex-col bg-muted/60">
       <div className="max-w-3xl w-full mx-auto px-4 py-8 flex-1 flex flex-col">
         
         <div className="mb-8 text-center space-y-4">
@@ -224,7 +224,7 @@ export default function OnboardingPage() {
               <p className="text-sm font-medium text-muted-foreground">From: <span className="text-foreground">{currentQ.sender}</span></p>
             </div>
           </CardHeader>
-          <CardContent className="flex-1 p-6 md:p-8 bg-muted/10 font-mono text-sm leading-relaxed overflow-y-auto whitespace-pre-wrap">
+          <CardContent className="flex-1 p-6 md:p-8 bg-muted/40 font-mono text-sm leading-relaxed overflow-y-auto whitespace-pre-wrap">
             {currentQ.body}
             
             {currentQ.links.length > 0 && (

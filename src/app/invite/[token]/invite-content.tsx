@@ -48,7 +48,7 @@ const acceptSchema = z.object({
 
 function Shell({ children }: { children: React.ReactNode }) {
 	return (
-		<div className="min-h-dvh flex flex-col items-center justify-center p-4 bg-muted/30">
+		<div className="min-h-dvh flex flex-col items-center justify-center p-4 bg-muted/60">
 			<div className="max-w-md w-full space-y-8">
 				<div className="flex flex-col items-center text-center space-y-4">
 					<div className="bg-primary text-primary-foreground p-4 rounded-lg shadow-md">
