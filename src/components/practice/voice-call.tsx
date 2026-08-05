@@ -81,8 +81,9 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
     return () => clearInterval(id);
   }, [phase, muted]);
 
-  // Once a verdict is in the exercise is over, so any in-flight narration is
-  // cut off. Showing the transcript at that point used to be set from here too;
+  // Once a verdict is in the exercise is over, so the caller is stopped
+  // mid-sentence rather than talking over the feedback the learner is now
+  // reading. Showing the transcript at that point used to be set from here too;
   // it's derived at render now, leaving this effect with only the side effect
   // it genuinely needs to perform.
   useEffect(() => {
@@ -179,7 +180,9 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
   };
 
   /*
-   * Forced on in two cases where the toggle button isn't offered:
+   * Normally the transcript is earned line by line as the caller speaks, so the
+   * learner has to listen. Forced on in the two cases where the toggle button
+   * isn't offered:
    *   reviewing  -- the exercise is over and the feedback refers to these words
    *   !hasSpeech -- there's nothing to listen to, so gating it leaves a blank
    *                 pane with no way for spokenCount to ever advance
@@ -189,11 +192,9 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
 
   const visibleLines = showTranscript ? lines.length : spokenCount;
   const listening = phase === "connected" && !muted;
-  // Which line is being read aloud right now, independent of whether the
-  // full transcript is also revealed -- these are two separate questions
-  // ("how many lines can I see" vs. "which one is the caller saying this
-  // instant") and conflating them used to turn off the live word-by-word
-  // highlight the moment someone hit "Show full transcript".
+  // Which line is being read aloud right now -- a separate question from how
+  // many lines are visible, so the live word-by-word highlight keeps working
+  // even when the whole transcript is on screen.
   const currentSpeakingLine = listening ? spokenCount - 1 : -1;
 
   return (
@@ -263,7 +264,9 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
                   <p
                     key={`${index}-${line.text}`}
                     className={`whitespace-pre-wrap rounded-xl border px-3 py-2 text-sm leading-relaxed transition-colors ${
-                      isCurrent ? "bg-slate-800/80 border-slate-600" : "bg-slate-900/70 border-slate-800"
+                      isCurrent
+                        ? "bg-slate-800/80 border-slate-600"
+                        : "bg-slate-900/70 border-slate-800"
                     }`}
                   >
                     <span className="text-emerald-300 font-semibold mr-1">Caller:</span>
@@ -277,6 +280,13 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
                           </span>
                         ))
                       : line.text}
+                    {/* Caret on the line the caller is saying right now. */}
+                    {isCurrent && listening && (
+                      <span
+                        aria-hidden
+                        className="inline-block align-middle ml-0.5 w-0.5 h-[1.05em] bg-emerald-300 animate-pulse"
+                      />
+                    )}
                   </p>
                 );
               })}
@@ -353,8 +363,8 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
         {/* Escape hatch: anyone who can't use the audio (deaf or hard of
             hearing, muted device) still needs the words. Not offered when
             there's no speech engine at all -- the transcript is already
-            forced on for that case (see answer()), and hiding it here would
-            blank the pane with no way for spokenCount to ever advance again. */}
+            forced on for that case, and hiding it here would blank the pane
+            with no way for spokenCount to ever advance again. */}
         {!reviewing && phase !== "incoming" && hasSpeech && (
           <div className="flex justify-center">
             <button

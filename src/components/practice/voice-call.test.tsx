@@ -197,6 +197,22 @@ describe("VoiceCall", () => {
     expect(within(spokenLine).getByText("We").className).toContain("text-white");
   });
 
+  // The caret is what marks which line is live once the whole transcript is on
+  // screen and every line looks alike -- so it may only ever be on one line,
+  // and only while the caller is actually talking.
+  it("marks the line being spoken with a caret, and drops it when muted", () => {
+    const { container } = renderCall();
+    answer();
+    act(() => queued[0]!.onstart!());
+
+    const carets = () => container.querySelectorAll("span.bg-emerald-300.animate-pulse");
+    expect(carets()).toHaveLength(1);
+    expect(screen.getAllByText("Caller:")[0]!.closest("p")!.contains(carets()[0]!)).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Mute call$/i }));
+    expect(carets()).toHaveLength(0);
+  });
+
   it("hides the transcript again after toggling show then hide", () => {
     renderCall();
     answer();
