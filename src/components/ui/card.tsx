@@ -17,13 +17,22 @@ const Card = React.forwardRef<
 ));
 Card.displayName = 'Card';
 
+/**
+ * `variant="band"` is the tinted, bottom-ruled header strip used on most of the
+ * app's panels. It was previously spelled out as `bg-muted/60 border-b pb-4` at
+ * every call site, which drifted (some used /50, some omitted the rule).
+ */
 const CardHeader = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLDivElement> & { variant?: 'default' | 'band' }
+>(({ className, variant = 'default', ...props }, ref) => (
   <div
     ref={ref}
-    className={cn('flex flex-col space-y-1.5 p-6', className)}
+    className={cn(
+      'flex flex-col space-y-1.5 p-6',
+      variant === 'band' && 'bg-muted/60 border-b border-border rounded-t-lg py-4',
+      className,
+    )}
     {...props}
   />
 ));

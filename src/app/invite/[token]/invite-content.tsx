@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Shield, Lock, User, ArrowRight, Building2, MailWarning } from "lucide-react";
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { errorCode, errorStatus } from "@/lib/api-error";
 import {
 	PasswordStrength,
 	MIN_PASSWORD_SCORE,
@@ -82,7 +83,7 @@ export function InviteContent({ token }: { token: string }) {
 		mode: "onChange",
 		defaultValues: { name: "", password: "" },
 	});
-	const password = form.watch("password");
+	const password = useWatch({ control: form.control, name: "password" });
 
 	const onAccept = (values: z.infer<typeof acceptSchema>) => {
 		acceptMutation.mutate(
@@ -99,10 +100,15 @@ export function InviteContent({ token }: { token: string }) {
 					});
 					router.replace(user?.onboardingCompleted ? "/dashboard" : "/onboarding");
 				},
-				onError: (err: any) => {
+				onError: (err) => {
 					// The server refuses to set a password on an address that already
 					// has an account — that person has to sign in and adopt it.
-					if (err?.code === "account_exists" || err?.status === 409) {
+					//
+					// NOTE: the status===409 arm is broader than the code check. This
+					// route returns 409 for several distinct conflicts (already a
+					// member, already in an org), and all of them land here. Kept as-is
+					// to preserve behaviour; see the note in the PR description.
+					if (errorCode(err) === "account_exists" || errorStatus(err) === 409) {
 						setAccountExists(true);
 						return;
 					}
@@ -129,7 +135,7 @@ export function InviteContent({ token }: { token: string }) {
 	}
 
 	if (error || !invitation) {
-		const gone = (error as any)?.status === 410;
+		const gone = errorStatus(error) === 410;
 		return (
 			<Shell>
 				<Card className="border shadow-sm">

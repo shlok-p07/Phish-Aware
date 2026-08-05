@@ -9,7 +9,8 @@ import {
   getGetNextPracticeScenarioQueryKey,
   getGetDashboardQueryKey,
   getGetCurrentUserQueryKey,
-  type GetNextPracticeScenarioVector
+  type GetNextPracticeScenarioVector,
+  type AttemptResult
 } from "@/api-client";
 import {
   ShieldAlert, ShieldCheck, ArrowRight, Target,
@@ -25,6 +26,10 @@ import { useChatbot, ChatMessageList, ChatComposer } from "@/components/chatbot-
 import type { CueId } from "@/server/cues";
 import { CUE_REGION, findBodyMatch, highlightClass } from "@/components/practice/cue-highlight";
 import { VoiceCall } from "@/components/practice/voice-call";
+import Link from "next/link";
+import { PageHeader, PageShell } from "@/components/page-shell";
+import { EmptyState, PageHeaderSkeleton } from "@/components/states";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Define the steps of the practice loop
 type PracticeStep = 'inspect' | 'cues' | 'confidence' | 'feedback';
@@ -100,9 +105,11 @@ export default function PracticePage() {
   // Local state
   const [step, setStep] = useState<PracticeStep>('inspect');
   const [verdict, setVerdict] = useState<boolean | null>(null); // true = phishing
-  const [selectedCues, setSelectedCues] = useState<string[]>([]);
+  // CueId, not string: the API takes CueId[], and typing this loosely was what
+  // forced the `as any[]` cast at the submit call below.
+  const [selectedCues, setSelectedCues] = useState<CueId[]>([]);
   const [confidence, setConfidence] = useState<number>(50);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<AttemptResult | null>(null);
   // The red flag currently being hovered on the results screen -- drives the
   // highlight in the email (mirrors the landing page's InboxPreview mechanic).
   const [activeCue, setActiveCue] = useState<string | null>(null);
@@ -120,22 +127,30 @@ export default function PracticePage() {
 
   if (isScenarioLoading || isCuesLoading) {
     return (
-      <div className="max-w-5xl mx-auto h-[60vh] flex flex-col justify-center gap-6 p-4">
-        <div className="h-12 w-1/3 bg-muted rounded-lg animate-pulse" />
-        <div className="h-110 w-full bg-muted rounded-lg animate-pulse" />
-      </div>
+      <PageShell>
+        <PageHeaderSkeleton actions />
+        <div className="grid gap-6 lg:grid-cols-[320px_1fr] items-start">
+          <Skeleton className="hidden lg:block h-110" />
+          <Skeleton className="h-110" />
+        </div>
+      </PageShell>
     );
   }
 
   if (isScenarioError || !scenario || !availableCues) {
     return (
-      <Card className="max-w-xl mx-auto mt-12 border border-destructive/20 bg-destructive/5">
-        <CardContent className="pt-6 text-center">
-          <ShieldAlert className="w-12 h-12 text-destructive mx-auto mb-4" />
-          <p className="text-destructive font-bold text-lg mb-2">No scenarios available</p>
-          <p className="text-muted-foreground font-medium">You might have finished all currently available practice scenarios. Check back later!</p>
-        </CardContent>
-      </Card>
+      <PageShell width="xl">
+        <EmptyState
+          icon={ShieldAlert}
+          title="No scenarios available"
+          description="You may have worked through everything on offer right now. New scenarios are generated as you go — check back shortly."
+          action={
+            <Button asChild variant="outline" className="font-semibold">
+              <Link href="/learn">Browse lessons meanwhile</Link>
+            </Button>
+          }
+        />
+      </PageShell>
     );
   }
 
@@ -154,7 +169,7 @@ export default function PracticePage() {
     setStep('inspect');
   };
 
-  const toggleCue = (cueId: string) => {
+  const toggleCue = (cueId: CueId) => {
     setSelectedCues(prev =>
       prev.includes(cueId) ? prev.filter(id => id !== cueId) : [...prev, cueId]
     );
@@ -167,7 +182,7 @@ export default function PracticePage() {
       data: {
         scenarioId: scenario.id,
         verdict,
-        selectedCues: selectedCues as any[],
+        selectedCues,
         confidence
       }
     }, {
@@ -576,8 +591,13 @@ export default function PracticePage() {
 
   // The graded-result card: correctness header, explanation, hover-highlight red
   // flags, calibration, rewards, and Next. Rendered in the right column beside
-  // the email (no overlay modal). Called as {resultCard()} for stable reconcile.
-  const resultCard = () => (
+  // the email (no overlay modal).
+  //
+  // Takes the result as an argument rather than closing over the state: the only
+  // call site is already behind a `result &&` guard, but a closure hides that
+  // from the compiler, so reading it from scope needed a non-null assertion on
+  // every one of the ~19 field accesses below.
+  const resultCard = (result: AttemptResult) => (
     <Card className="border shadow-sm p-0 overflow-hidden flex flex-col animate-in slide-in-from-right-8 duration-300">
       {/* Header colored by correctness */}
       <div className={`pt-8 pb-5 px-6 text-center relative shrink-0 ${result.correct ? 'bg-success text-success-foreground' : 'bg-destructive text-destructive-foreground'}`}>
@@ -627,7 +647,7 @@ export default function PracticePage() {
 
             {result.falseCues.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-orange-500 mb-1 flex items-center gap-1"><Info className="w-3 h-3"/> Incorrectly Flagged</p>
+                <p className="text-xs font-semibold text-warning mb-1 flex items-center gap-1"><Info className="w-3 h-3"/> Incorrectly Flagged</p>
                 <div className="flex flex-wrap gap-1">
                   {result.falseCues.map((id: string) => cueTrigger(id, "false"))}
                 </div>
@@ -708,35 +728,43 @@ export default function PracticePage() {
   );
 
   return (
-    <div className={`${step === 'feedback' ? 'max-w-6xl' : 'max-w-5xl'} mx-auto h-full flex flex-col relative pb-12 animate-in fade-in duration-500 transition-[max-width] duration-500`}>
-
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
-        <h1 className="text-3xl font-display font-bold flex items-center gap-3">
-          <Target className="w-8 h-8 text-primary" />
-          Practice
-        </h1>
-
-        {/* What to practice -- a specific vector, or Mixed to keep the
-            original random-every-round behavior. */}
-        <div className="inline-flex items-center gap-1 p-1 rounded-lg border border-border bg-muted/60">
-          {VECTOR_FILTER_OPTIONS.map(({ value, label, icon: Icon }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => handleVectorFilterChange(value)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
-                vectorFilter === value
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background"
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+    // The feedback step widens to give the breakdown room. <main> no longer
+    // caps width, so unlike before this transition actually has an effect.
+    <PageShell
+      width={step === 'feedback' ? '6xl' : '5xl'}
+      className="space-y-0 h-full flex flex-col relative pb-12 transition-[max-width] duration-500"
+    >
+      <PageHeader
+        icon={Target}
+        title="Practice"
+        className="mb-6 border-b-0 pb-0"
+        actions={
+          /* What to practice -- a specific vector, or Mixed to keep the
+             original random-every-round behavior. */
+          <div
+            role="group"
+            aria-label="Which channel to practice"
+            className="inline-flex items-center gap-1 p-1 rounded-lg border border-border bg-muted/60"
+          >
+            {VECTOR_FILTER_OPTIONS.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={vectorFilter === value}
+                onClick={() => handleVectorFilterChange(value)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                  vectorFilter === value
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {step === 'inspect' ? (
         <>
@@ -788,14 +816,14 @@ export default function PracticePage() {
               in it -- all with no covering modal. */}
           {step === 'feedback' && result && (
             <div className="md:sticky md:top-24">
-              {resultCard()}
+              {resultCard(result)}
             </div>
           )}
 
           {/* Side Panel for controls depending on step */}
           {step !== 'feedback' && (
             <Card className="border shadow-sm animate-in slide-in-from-right-8 duration-300 sticky top-24">
-              <CardHeader className="bg-muted/60 border-b pb-4">
+              <CardHeader variant="band">
                 <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-2">
                   <span className={step === 'cues' ? 'text-primary' : ''}>1. Verdict</span>
                   <span className="opacity-50">→</span>
@@ -882,6 +910,6 @@ export default function PracticePage() {
         </div>
       )}
 
-    </div>
+    </PageShell>
   );
 }

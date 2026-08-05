@@ -43,7 +43,7 @@ export default function AdminAnalyticsPage() {
       </div>
 
       <Card className="border shadow-sm">
-        <CardHeader className="bg-muted/60 border-b pb-4">
+        <CardHeader variant="band">
           <CardTitle className="text-lg flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
             Accuracy by member
@@ -89,7 +89,7 @@ export default function AdminAnalyticsPage() {
       </Card>
 
       <Card className="border shadow-sm">
-        <CardHeader className="bg-muted/60 border-b pb-4">
+        <CardHeader variant="band">
           <CardTitle className="text-lg flex items-center gap-2">
             <ShieldAlert className="w-5 h-5 text-primary" />
             Risk distribution

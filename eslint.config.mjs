@@ -28,6 +28,27 @@ const config = [
   },
   ...nextCoreWebVitals,
   ...nextTypescript,
+  {
+    rules: {
+      /*
+       * `const { department, ...rest } = ANSWERS` is how the survey tests build
+       * an answer map with one key missing. The omitted binding is meant to be
+       * unused -- that's the entire point of the pattern -- so flagging it just
+       * pushes people toward uglier workarounds. ignoreRestSiblings exists for
+       * exactly this case. Underscore-prefixed names are opted out too, for
+       * deliberately-unused args and caught errors.
+       */
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          ignoreRestSiblings: true,
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
 ];
 
 export default config;

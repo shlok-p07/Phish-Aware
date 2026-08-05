@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { Building2, Users, BarChart3, ClipboardList, Settings2 } from "lucide-react";
 import { useGetOrg, useGetCurrentUser, getGetCurrentUserQueryKey } from "@/api-client";
 import { cn } from "@/lib/utils";
+import { PageHeader, PageShell } from "@/components/page-shell";
 
 const TABS = [
   { href: "/admin", label: "Members", icon: Users, exact: true },
@@ -50,32 +51,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!ready || !org || !isAdmin) return null;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center gap-3">
-        <div className="bg-primary/10 text-primary p-2.5 rounded-lg">
-          <Building2 className="w-6 h-6" />
-        </div>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-display font-bold leading-tight">
-            {org.name}
-          </h1>
-          <p className="text-sm text-muted-foreground font-medium">
-            Organization administration
-          </p>
-        </div>
-      </div>
+    <PageShell>
+      {/* This section's <h1> lives here rather than on each tab, so the child
+          pages deliberately don't render a PageHeader of their own. */}
+      <PageHeader
+        icon={Building2}
+        title={org.name}
+        description="Organization administration"
+        className="border-b-0 pb-0"
+      />
 
       {/* Sub-navigation */}
       <div className="border-b border-border">
-        <nav className="flex gap-1 overflow-x-auto -mb-px">
+        <nav className="flex gap-1 overflow-x-auto -mb-px" aria-label="Administration">
           {TABS.map((t) => {
             const active = t.exact ? pathname === t.href : pathname.startsWith(t.href);
             return (
               <Link
                 key={t.href}
                 href={t.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-t-md",
                   active
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground",
@@ -90,6 +88,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {children}
-    </div>
+    </PageShell>
   );
 }

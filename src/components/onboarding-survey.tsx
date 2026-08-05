@@ -71,31 +71,38 @@ export function OnboardingSurvey({
     onComplete(stripEmpty(draft));
   };
 
-  // Numbering runs across sections so it reads as one survey, not five.
-  let questionNumber = 0;
+  /*
+   * Numbering runs across sections so it reads as one survey, not five.
+   *
+   * Precomputed as a per-section starting offset rather than a counter bumped
+   * inside the render callbacks: those callbacks outlive the render pass, so
+   * incrementing a local from them is a reassignment after render completes.
+   */
+  const sectionOffsets: number[] = [];
+  sections.reduce((runningTotal, section) => {
+    sectionOffsets.push(runningTotal);
+    return runningTotal + section.questions.length;
+  }, 0);
 
   return (
     <Card className="border shadow-sm animate-in slide-in-from-bottom-8 duration-300">
       <CardContent className="p-6 md:p-8 space-y-10">
-        {sections.map((section) => (
+        {sections.map((section, sectionIndex) => (
           <section key={section.id} className="space-y-6">
             <div className="space-y-1 border-b pb-3">
               <h2 className="text-lg font-display font-bold">{section.title}</h2>
               <p className="text-sm font-medium text-muted-foreground">{section.blurb}</p>
             </div>
-            {section.questions.map((question) => {
-              questionNumber += 1;
-              return (
-                <QuestionField
-                  key={question.id}
-                  question={question}
-                  number={questionNumber}
-                  value={draft[question.id] ?? ""}
-                  error={errors[question.id]}
-                  onChange={(value) => setAnswer(question.id, value)}
-                />
-              );
-            })}
+            {section.questions.map((question, questionIndex) => (
+              <QuestionField
+                key={question.id}
+                question={question}
+                number={sectionOffsets[sectionIndex] + questionIndex + 1}
+                value={draft[question.id] ?? ""}
+                error={errors[question.id]}
+                onChange={(value) => setAnswer(question.id, value)}
+              />
+            ))}
           </section>
         ))}
       </CardContent>

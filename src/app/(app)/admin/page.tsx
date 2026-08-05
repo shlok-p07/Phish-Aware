@@ -322,12 +322,16 @@ export default function AdminMembersPage() {
         <CardContent className="p-0">
           <Table>
             <TableHeader>
+              {/* Seven columns don't fit a phone. Department, status and
+                  accuracy drop out as the viewport narrows and reappear inline
+                  under the member's name (see the md:hidden line below), so
+                  nothing is actually lost -- it just restacks. */}
               <TableRow className="bg-muted/60 hover:bg-muted/60">
                 <TableHead className="pl-4">Member</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Accuracy</TableHead>
+                <TableHead className="hidden lg:table-cell">Department</TableHead>
+                <TableHead className="hidden md:table-cell">Status</TableHead>
+                <TableHead className="hidden sm:table-cell text-right">Accuracy</TableHead>
                 <TableHead>Risk</TableHead>
                 <TableHead className="w-28"></TableHead>
               </TableRow>
@@ -354,6 +358,17 @@ export default function AdminMembersPage() {
                         <div className="min-w-0">
                           <p className="font-semibold text-foreground truncate">{m.name}</p>
                           <p className="text-xs text-muted-foreground truncate">{m.email}</p>
+                          {/* Stand-in for the columns hidden at this width. */}
+                          <p className="lg:hidden text-xs text-muted-foreground truncate mt-0.5">
+                            <span className="md:hidden">
+                              {m.status === "active" ? "Active" : m.status === "disabled" ? "Disabled" : "Invited"}
+                              {" · "}
+                            </span>
+                            <span className="sm:hidden">
+                              {m.status === "active" ? `${m.accuracy}% accuracy · ` : ""}
+                            </span>
+                            {m.department ?? (isInvitation ? "Their choice" : "No department")}
+                          </p>
                         </div>
                       </div>
                     </TableCell>
@@ -392,12 +407,12 @@ export default function AdminMembersPage() {
                         </Select>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       <span className="text-xs font-semibold text-muted-foreground">
                         {m.department ?? (isInvitation ? "Their choice" : "Not set")}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       {m.status === "active" ? (
                         <span className="inline-flex items-center gap-1 text-xs font-semibold text-success">
                           <ShieldCheck className="w-3.5 h-3.5" /> Active
@@ -412,7 +427,7 @@ export default function AdminMembersPage() {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
+                    <TableCell className="hidden sm:table-cell text-right font-semibold tabular-nums">
                       {m.status === "active" ? `${m.accuracy}%` : "—"}
                     </TableCell>
                     <TableCell>

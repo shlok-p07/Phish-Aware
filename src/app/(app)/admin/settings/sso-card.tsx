@@ -27,6 +27,7 @@ import {
   getGetOrgQueryKey,
   type SsoProviderKind,
   type SsoTestCheck,
+  type OrgSsoConnection,
 } from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -73,34 +74,38 @@ function RedirectUri({ value }: { value: string }) {
 }
 
 export function SsoCard() {
-  const { data: org } = useGetOrg({ query: { retry: false } });
   const { data: sso } = useGetOrgSsoConnection({ query: { retry: false } });
+
+  /*
+   * The form seeds its fields from the stored connection. Keying on those
+   * fields remounts it when the connection changes underneath -- after a save,
+   * or a refetch -- so the inputs re-initialise. Replaces copying the query
+   * data into state from an effect, which cost an extra render per load.
+   */
+  const seedKey = sso
+    ? `${sso.providerKind} ${sso.issuer} ${sso.clientId} ${sso.allowedDomains.join(",")} ${sso.requireVerifiedEmail} ${sso.enabled} ${sso.hasClientSecret}`
+    : "unconfigured";
+
+  return <SsoCardForm key={seedKey} sso={sso} />;
+}
+
+function SsoCardForm({ sso }: { sso: OrgSsoConnection | undefined }) {
+  const { data: org } = useGetOrg({ query: { retry: false } });
   const queryClient = useQueryClient();
   const upsertMutation = useUpsertOrgSsoConnection();
   const testMutation = useTestOrgSsoConnection();
   const deleteMutation = useDeleteOrgSsoConnection();
   const { toast } = useToast();
 
-  const [providerKind, setProviderKind] = useState<SsoProviderKind>("generic");
-  const [issuer, setIssuer] = useState("");
-  const [clientId, setClientId] = useState("");
+  const [providerKind, setProviderKind] = useState<SsoProviderKind>(sso?.providerKind ?? "generic");
+  const [issuer, setIssuer] = useState(sso?.issuer ?? "");
+  const [clientId, setClientId] = useState(sso?.clientId ?? "");
   const [clientSecret, setClientSecret] = useState("");
-  const [replacingSecret, setReplacingSecret] = useState(false);
-  const [domains, setDomains] = useState("");
-  const [requireVerifiedEmail, setRequireVerifiedEmail] = useState(true);
-  const [enabled, setEnabled] = useState(false);
+  const [replacingSecret, setReplacingSecret] = useState(sso ? !sso.hasClientSecret : false);
+  const [domains, setDomains] = useState(sso?.allowedDomains.join(", ") ?? "");
+  const [requireVerifiedEmail, setRequireVerifiedEmail] = useState(sso?.requireVerifiedEmail ?? true);
+  const [enabled, setEnabled] = useState(sso?.enabled ?? false);
   const [checks, setChecks] = useState<SsoTestCheck[] | null>(null);
-
-  useEffect(() => {
-    if (!sso) return;
-    setProviderKind(sso.providerKind);
-    setIssuer(sso.issuer);
-    setClientId(sso.clientId);
-    setDomains(sso.allowedDomains.join(", "));
-    setRequireVerifiedEmail(sso.requireVerifiedEmail);
-    setEnabled(sso.enabled);
-    setReplacingSecret(!sso.hasClientSecret);
-  }, [sso]);
 
   // The callback bounces the admin back here after a "Test sign-in" round trip.
   useEffect(() => {
@@ -184,7 +189,7 @@ export function SsoCard() {
 
   return (
     <Card className="border shadow-sm">
-      <CardHeader className="bg-muted/60 border-b pb-4">
+      <CardHeader variant="band">
         <CardTitle className="text-lg flex items-center gap-2">
           <KeyRound className="w-5 h-5 text-primary" />
           Single sign-on (OIDC)

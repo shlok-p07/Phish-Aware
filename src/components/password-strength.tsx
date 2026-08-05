@@ -6,12 +6,15 @@ import { cn } from "@/lib/utils";
 export const MIN_PASSWORD_SCORE = 2;
 
 const STRENGTH_LABELS = ["Very weak", "Weak", "Fair", "Good", "Strong"] as const;
+// Semantic, not decorative -- so these ride the theme tokens (and pick up
+// high-contrast mode) rather than fixed palette values. The low end was already
+// on --destructive; the rest were amber/emerald literals that ignored both.
 const STRENGTH_COLORS = [
 	"bg-destructive",
 	"bg-destructive",
-	"bg-amber-500",
-	"bg-emerald-500",
-	"bg-emerald-600",
+	"bg-warning",
+	"bg-success",
+	"bg-success",
 ] as const;
 
 /** Shared by the signup form and the invitation accept page. */

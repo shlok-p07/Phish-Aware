@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { OnboardingSurvey } from "@/components/onboarding-survey";
 import { toSurveyFeatures, type OnboardingSurveyAnswerMap } from "@/lib/onboarding-survey";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -79,7 +80,7 @@ export default function OnboardingPage() {
             <h1 className="text-2xl md:text-3xl font-display font-bold">Tell us about you</h1>
             <p className="text-muted-foreground font-medium max-w-lg mx-auto">
               A few quick questions. Your answers help us pitch the training at the
-              right level, then we'll run a short diagnostic.
+              right level, then we&apos;ll run a short diagnostic.
             </p>
           </div>
 
@@ -95,7 +96,14 @@ export default function OnboardingPage() {
   }
 
   if (isQuizLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><div className="animate-pulse bg-muted w-96 h-64 rounded-lg" /></div>;
+    return (
+      <div className="min-h-dvh flex items-center justify-center bg-muted/60 px-4">
+        <div className="w-full max-w-3xl space-y-4">
+          <Skeleton className="h-8 w-56 mx-auto" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    );
   }
 
   if (!quizQuestions || quizQuestions.length === 0) {
@@ -165,13 +173,13 @@ export default function OnboardingPage() {
           </div>
           <CardContent className="pt-8 pb-8 space-y-4">
             <p className="text-muted-foreground font-medium text-lg">
-              Based on your answers, we're starting you at:
+              Based on your answers, we&apos;re starting you at:
             </p>
             <div className="inline-block bg-muted px-6 py-3 rounded-lg">
                <span className="text-2xl font-bold capitalize text-foreground">{result.level} Level</span>
             </div>
             <p className="text-sm text-muted-foreground px-4">
-              Don't worry about the score—the whole point is to practice in a safe environment. We'll tailor your scenarios to help you grow.
+              Don&apos;t worry about the score—the whole point is to practice in a safe environment. We&apos;ll tailor your scenarios to help you grow.
             </p>
           </CardContent>
           <CardFooter className="pb-8">

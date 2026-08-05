@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Sun, Moon, Monitor, Type, Zap, Contrast, BookOpenText, MousePointerClick, Trash2, AlertTriangle, Settings } from "lucide-react";
@@ -23,6 +23,8 @@ import { useGetCurrentUser, getGetCurrentUserQueryKey } from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { PageHeader, PageShell } from "@/components/page-shell";
+import { useMounted } from "@/hooks/use-mounted";
 
 const THEME_OPTIONS = [
   { value: "light", label: "Light", icon: Sun },
@@ -78,8 +80,7 @@ export default function SettingsPage() {
   } = useAccessibility();
 
   // Avoid hydration mismatch: theme is only known on the client.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -110,21 +111,16 @@ export default function SettingsPage() {
   };
 
   return (
-		<div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-			<div className="space-y-1">
-				<h1 className="text-3xl font-display font-bold flex items-center gap-3">
-					<Settings className="w-8 h-8 text-primary" />
-					Settings
-				</h1>
-				<p className="text-muted-foreground font-medium">
-					Personalize how PhishAware looks and feels. Changes are saved
-					automatically.
-				</p>
-			</div>
+		<PageShell width="3xl">
+			<PageHeader
+				icon={Settings}
+				title="Settings"
+				description="Personalize how PhishAware looks and feels. Changes are saved automatically."
+			/>
 
 			{/* Appearance / Theme */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/60 border-b pb-4">
+				<CardHeader variant="band">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<Sun className="w-5 h-5 text-primary" />
 						Appearance
@@ -160,7 +156,7 @@ export default function SettingsPage() {
 
 			{/* Text size */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/60 border-b pb-4">
+				<CardHeader variant="band">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<Type className="w-5 h-5 text-primary" />
 						Text Size
@@ -198,7 +194,7 @@ export default function SettingsPage() {
 
 			{/* Reading */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/60 border-b pb-4">
+				<CardHeader variant="band">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<BookOpenText className="w-5 h-5 text-primary" />
 						Reading
@@ -220,7 +216,7 @@ export default function SettingsPage() {
 
 			{/* Contrast */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/60 border-b pb-4">
+				<CardHeader variant="band">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<Contrast className="w-5 h-5 text-primary" />
 						Contrast
@@ -242,7 +238,7 @@ export default function SettingsPage() {
 
 			{/* Interaction */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/60 border-b pb-4">
+				<CardHeader variant="band">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<MousePointerClick className="w-5 h-5 text-primary" />
 						Interaction
@@ -264,7 +260,7 @@ export default function SettingsPage() {
 
 			{/* Motion */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/60 border-b pb-4">
+				<CardHeader variant="band">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<Zap className="w-5 h-5 text-primary" />
 						Motion
@@ -345,6 +341,6 @@ export default function SettingsPage() {
 					</div>
 				</CardContent>
 			</Card>
-		</div>
+		</PageShell>
 	);
 }

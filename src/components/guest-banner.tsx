@@ -46,18 +46,21 @@ export function GuestBanner({ createdAt }: { createdAt: string | Date }) {
   }, [expired, queryClient]);
 
   return (
-    <div className="sticky top-0 z-50 flex items-center gap-3 border-b border-amber-500/30 bg-amber-50 px-4 py-2.5 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-      <Ghost className="h-5 w-5 shrink-0" />
+    // Uses the --warning token rather than the amber palette, so this banner
+    // tracks the theme (and high-contrast mode) instead of carrying its own
+    // hand-written dark: variants for every shade.
+    <div className="sticky top-0 z-50 flex items-center gap-3 border-b border-warning/30 bg-warning/10 px-4 py-2.5 text-foreground">
+      <Ghost className="h-5 w-5 shrink-0 text-warning" />
       <div className="min-w-0 flex-1 text-sm font-semibold">
         {expired ? (
           <span>Your guest session has ended — sign up to keep going.</span>
         ) : (
           <span className="flex flex-wrap items-center gap-x-1.5">
             You&apos;re browsing as a guest.
-            <span className="text-amber-800/80 dark:text-amber-200/80">
+            <span className="text-muted-foreground">
               Sign up to save your progress before it&apos;s gone.
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs tabular-nums">
+            <span className="inline-flex items-center gap-1 rounded-full bg-warning/20 px-2 py-0.5 text-xs tabular-nums">
               <Clock className="h-3 w-3" />
               {formatRemaining(remaining)}
             </span>
@@ -66,7 +69,7 @@ export function GuestBanner({ createdAt }: { createdAt: string | Date }) {
       </div>
       <Button
         size="sm"
-        className="shrink-0 rounded-lg bg-amber-600 font-bold text-white hover:bg-amber-700 hover:cursor-pointer"
+        className="shrink-0 rounded-lg bg-warning text-warning-foreground font-bold hover:bg-warning/90 hover:cursor-pointer"
         onClick={() => router.push("/auth")}
       >
         Sign up

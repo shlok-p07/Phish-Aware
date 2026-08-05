@@ -9,6 +9,9 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { titleCase } from "@/lib/utils";
 import { useChatbot } from "@/components/chatbot-widget";
+import { PageShell } from "@/components/page-shell";
+import { EmptyState } from "@/components/states";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function LessonPage() {
 	const params = useParams();
@@ -20,36 +23,44 @@ export default function LessonPage() {
 
 	if (isLoading) {
 		return (
-			<div className="max-w-2xl mx-auto h-[60vh] animate-pulse flex items-center justify-center">
-				<div className="w-full h-96 bg-muted rounded-lg" />
-			</div>
+			<PageShell width="2xl">
+				<Skeleton className="h-10 w-2/3" />
+				<Skeleton className="h-96 w-full" />
+			</PageShell>
 		);
 	}
 
 	if (isError || !lesson) {
 		return (
-			<div className="max-w-2xl mx-auto text-center space-y-4 pt-12">
-				<ShieldAlert className="w-12 h-12 text-destructive mx-auto" />
-				<h2 className="text-2xl font-bold">Lesson not found</h2>
-				<Button asChild variant="outline">
-					<Link href="/learn">Back to Library</Link>
-				</Button>
-			</div>
+			<PageShell width="2xl">
+				<EmptyState
+					icon={ShieldAlert}
+					title="Lesson not found"
+					description="That lesson doesn't exist, or it's no longer part of the library."
+					action={
+						<Button asChild variant="outline" className="font-semibold">
+							<Link href="/learn">Back to library</Link>
+						</Button>
+					}
+				/>
+			</PageShell>
 		);
 	}
 
 	if (lesson.vector !== "email" && lesson.vector !== "sms" && lesson.vector !== "voice") {
 		return (
-			<div className="max-w-2xl mx-auto text-center space-y-4 pt-12">
-				<ShieldAlert className="w-12 h-12 text-warning mx-auto" />
-				<h2 className="text-2xl font-bold">Coming soon</h2>
-				<p className="text-muted-foreground font-medium">
-					This lesson is still a work in progress. Check back soon!
-				</p>
-				<Button asChild variant="outline">
-					<Link href="/learn">Back to Library</Link>
-				</Button>
-			</div>
+			<PageShell width="2xl">
+				<EmptyState
+					icon={ShieldAlert}
+					title="Coming soon"
+					description="This lesson is still a work in progress. Check back soon."
+					action={
+						<Button asChild variant="outline" className="font-semibold">
+							<Link href="/learn">Back to library</Link>
+						</Button>
+					}
+				/>
+			</PageShell>
 		);
 	}
 
@@ -77,7 +88,7 @@ export default function LessonPage() {
 	const progress = ((currentStep + 1) / totalSteps) * 100;
 
 	return (
-		<div className="max-w-2xl mx-auto space-y-6">
+		<PageShell width="2xl">
 			{/* Top Bar */}
 			<div className="flex items-center gap-4 mb-8">
 				<Button
@@ -86,14 +97,18 @@ export default function LessonPage() {
 					asChild
 					className="shrink-0 rounded-full hover:bg-muted"
 				>
-					<Link href="/learn">
+					<Link href="/learn" aria-label="Back to the lesson library">
 						<ArrowLeft className="w-5 h-5" />
 					</Link>
 				</Button>
 				<div className="flex-1 space-y-2">
-					<div className="flex justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-						<span>{lesson.title}</span>
-						<span>
+					<div className="flex justify-between gap-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+						{/* The lesson title is this page's heading -- it just happens to be
+						    set small, since the per-screen headings carry the visual weight. */}
+						<h1 className="truncate font-semibold uppercase tracking-wider">
+							{lesson.title}
+						</h1>
+						<span className="shrink-0">
 							{currentStep + 1} / {totalSteps}
 						</span>
 					</div>
@@ -191,6 +206,6 @@ export default function LessonPage() {
 					)}
 				</CardFooter>
 			</Card>
-		</div>
+		</PageShell>
 	);
 }

@@ -106,6 +106,21 @@ const FEATURES = [
   },
 ];
 
+/*
+ * One card recipe for the whole page. Sections previously mixed rounded-lg with
+ * rounded-2xl, bg-card with bg-primary/5, and escalated hover shadow to -md in
+ * one place and -lg in another, so no two blocks lifted the same way.
+ *
+ * CARD      - the default surface (features, why-vectors)
+ * CARD_ACCENT - the tinted variant for the two "pitch" blocks
+ * CARD_HOVER  - the shared lift; only applied to cards that are interactive or
+ *               that the eye is meant to track down the page
+ */
+const CARD = "rounded-xl border border-border bg-card shadow-sm";
+const CARD_ACCENT = "rounded-xl border border-primary/20 bg-primary/5 shadow-sm";
+const CARD_HOVER =
+  "transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30";
+
 const STEPS = [
   {
     step: "1",
@@ -176,7 +191,7 @@ export default async function LandingPage() {
                 inbox. The ones that get through are built to fool a person,
                 not a filter. PhishAware trains your team on exactly that,
                 across <strong className="text-foreground font-semibold">email, text, and voice</strong>{" "}
-                &mdash; scenarios matched to each person's role, scored the moment
+                &mdash; scenarios matched to each person&apos;s role, scored the moment
                 they respond, with the data to prove your team is getting
                 sharper.
               </p>
@@ -201,7 +216,7 @@ export default async function LandingPage() {
         {/* No demo request -- the real product is one click away as a guest */}
         <section className="bg-muted/40 border-y border-border">
           <div className="max-w-5xl mx-auto px-4 md:px-8 py-16 md:py-20">
-            <Reveal className="rounded-2xl border border-primary/20 bg-card shadow-sm p-8 md:p-12 grid lg:grid-cols-[1.2fr_1fr] gap-10 items-center">
+            <Reveal className={`${CARD_ACCENT} p-8 md:p-12 grid lg:grid-cols-[1.2fr_1fr] gap-10 items-center`}>
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">No demo request required</p>
                 <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight leading-tight">
@@ -262,7 +277,7 @@ export default async function LandingPage() {
               <div className="space-y-3">
                 {WHY_VECTORS.map((w, i) => (
                   <Reveal key={w.label} delayMs={i * 80}>
-                    <div className="group flex items-start gap-4 bg-card border border-border rounded-lg p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30">
+                    <div className={`group flex items-start gap-4 p-5 ${CARD} ${CARD_HOVER}`}>
                       <div className="shrink-0 bg-primary/10 text-primary rounded-lg p-2.5 transition-transform duration-300 group-hover:scale-110">
                         <w.icon className="w-5 h-5" />
                       </div>
@@ -291,10 +306,10 @@ export default async function LandingPage() {
             <div className="text-center max-w-2xl mx-auto mb-12">
               <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">What you get</p>
               <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
-                Practice changes behavior. A slideshow doesn't.
+                Practice changes behavior. A slideshow doesn&apos;t.
               </h2>
               <p className="text-muted-foreground text-lg font-medium mt-4">
-                Annual training videos don't change what people click on.
+                Annual training videos don&apos;t change what people click on.
                 Repeated, realistic practice does.
               </p>
             </div>
@@ -302,7 +317,7 @@ export default async function LandingPage() {
           <div className="grid sm:grid-cols-2 gap-4 md:gap-6">
             {FEATURES.map((f, i) => (
               <Reveal key={f.title} delayMs={(i % 2) * 90}>
-                <div className="group bg-card border border-border rounded-lg p-6 md:p-8 h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-primary/30">
+                <div className={`group p-6 md:p-8 h-full ${CARD} ${CARD_HOVER}`}>
                   <div className="inline-flex bg-primary/10 text-primary p-3 rounded-lg mb-4 transition-transform duration-300 group-hover:scale-110">
                     <f.icon className="w-7 h-7" />
                   </div>
@@ -363,7 +378,7 @@ export default async function LandingPage() {
         {/* Trust / safety + final CTA, side by side */}
         <section className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 py-16 md:py-20">
           <Reveal className="grid lg:grid-cols-2 gap-6 items-stretch">
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-8 md:p-10 flex flex-col transition-all duration-300 hover:shadow-md hover:border-primary/30">
+            <div className={`${CARD_ACCENT} ${CARD_HOVER} p-8 md:p-10 flex flex-col`}>
               <div className="flex items-center gap-3 mb-6">
                 <div className="bg-primary text-primary-foreground p-2.5 rounded-lg shrink-0">
                   <Shield className="w-6 h-6" />
@@ -385,7 +400,7 @@ export default async function LandingPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-primary/15 bg-primary/5 backdrop-blur-xl p-8 md:p-10 shadow-sm flex flex-col justify-center transition-all duration-300 hover:shadow-lg hover:border-primary/25">
+            <div className={`${CARD_ACCENT} ${CARD_HOVER} p-8 md:p-10 flex flex-col justify-center`}>
               <h2 className="text-2xl md:text-3xl font-display font-bold tracking-tight">
                 Give your team practice, not just a policy
               </h2>

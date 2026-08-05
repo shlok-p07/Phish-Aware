@@ -8,24 +8,73 @@ import { Button } from "@/components/ui/button";
 import { GuestBanner } from "@/components/guest-banner";
 import { ChatbotProvider } from "@/components/chatbot-widget";
 import { useQueryClient } from "@tanstack/react-query";
-import { useGetOrg } from "@/api-client";
+import { useMounted } from "@/hooks/use-mounted";
+
+const SIDEBAR_COLLAPSED_KEY = "sidebarCollapsed";
+
+/**
+ * Sidebar text that collapses away with the rail. The label stays in the DOM so
+ * it can animate, which means it also stays in the accessibility tree — so it's
+ * explicitly hidden from assistive tech once it's visually gone, and the owning
+ * control carries an aria-label instead.
+ */
+function NavLabel({ collapsed, children }: { collapsed: boolean; children: React.ReactNode }) {
+  return (
+    <span
+      aria-hidden={collapsed || undefined}
+      className={`whitespace-nowrap transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-40"}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SidebarLink({
+  href,
+  icon: Icon,
+  label,
+  active,
+  collapsed,
+}: {
+  href: string;
+  icon: typeof Home;
+  label: string;
+  active: boolean;
+  collapsed: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      title={collapsed ? label : undefined}
+      aria-label={collapsed ? label : undefined}
+      aria-current={active ? "page" : undefined}
+      className={`flex items-center py-3.5 rounded-lg transition-all font-semibold ${collapsed ? "justify-center px-0" : "gap-4 px-4"} ${active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+    >
+      <Icon className="w-6 h-6 shrink-0" />
+      <NavLabel collapsed={collapsed}>{label}</NavLabel>
+    </Link>
+  );
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [collapsed, setCollapsed] = useState(false);
 
-  useEffect(() => {
-    setCollapsed(localStorage.getItem("sidebarCollapsed") === "true");
-  }, []);
+  // The persisted value can't be read on the server, so the first render (and
+  // hydration) uses the expanded default and the stored preference is picked up
+  // immediately afterwards -- same behaviour as the effect this replaces, minus
+  // the state update inside it.
+  const mounted = useMounted();
+  const [collapsedOverride, setCollapsedOverride] = useState<boolean | null>(null);
+  const collapsed =
+    collapsedOverride ??
+    (mounted ? localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true" : false);
 
   const toggleCollapsed = () => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem("sidebarCollapsed", String(next));
-      return next;
-    });
+    const next = !collapsed;
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+    setCollapsedOverride(next);
   };
 
   const { data: user, isLoading, isError } = useGetCurrentUser({
@@ -92,7 +141,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="bg-primary text-primary-foreground p-2 rounded-lg shadow-sm shrink-0">
               <Shield className="w-7 h-7" />
             </div>
-            <span className={`text-2xl font-display font-bold text-foreground whitespace-nowrap transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-40"}`}>PhishAware</span>
+            <span className={`text-2xl font-display font-bold text-foreground whitespace-nowrap transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-40"}`}>PhishAware</span>
           </Link>
           <button onClick={toggleCollapsed} className={`ml-auto p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors hover:cursor-pointer ${collapsed ? "hidden" : ""}`} aria-label="Collapse sidebar">
             <PanelLeftClose className="w-5 h-5" />
@@ -114,44 +163,56 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className={`flex items-center justify-center rounded-full bg-primary/15 text-primary font-bold shrink-0 ${collapsed ? "w-10 h-10 text-base" : "w-11 h-11 text-lg"}`}>
             {user.name?.charAt(0).toUpperCase() ?? <User className="w-5 h-5" />}
           </div>
-          <div className={`min-w-0 transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-40"}`}>
+          <div className={`min-w-0 transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-40"}`} aria-hidden={collapsed || undefined}>
             <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
             <p className="text-xs font-medium text-muted-foreground capitalize mt-0.5 whitespace-nowrap">{user.level} level • {user.xp.toLocaleString()} pts</p>
           </div>
         </Link>
 
-        <nav className="flex-1 space-y-2">
-          {navItems.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <Link key={item.href} href={item.href} title={collapsed ? item.label : undefined} className={`flex items-center py-3.5 rounded-lg transition-all font-semibold ${collapsed ? "justify-center px-0" : "gap-4 px-4"} ${active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
-                <item.icon className="w-6 h-6 shrink-0" />
-                <span className={`whitespace-nowrap transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-40"}`}>{item.label}</span>
-              </Link>
-            );
-          })}
+        <nav className="flex-1 space-y-2" aria-label="Main">
+          {navItems.map((item) => (
+            <SidebarLink
+              key={item.href}
+              href={item.href}
+              icon={item.icon}
+              label={item.label}
+              active={pathname === item.href}
+              collapsed={collapsed}
+            />
+          ))}
         </nav>
 
         <div className="mt-auto pt-6 space-y-2">
           {!user.isGuest && (isOrgAdmin || showCreateOrg) && (
-            <Link href={isOrgAdmin ? "/admin" : "/admin/create"} title={collapsed ? (isOrgAdmin ? "Admin" : "Create organization") : undefined} className={`flex items-center py-3.5 rounded-lg transition-all font-semibold ${collapsed ? "justify-center px-0" : "gap-4 px-4"} ${pathname.startsWith("/admin") ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
-              <Building2 className="w-6 h-6 shrink-0" />
-              <span className={`whitespace-nowrap transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-40"}`}>{isOrgAdmin ? "Admin" : "Create org"}</span>
-            </Link>
+            <SidebarLink
+              href={isOrgAdmin ? "/admin" : "/admin/create"}
+              icon={Building2}
+              label={isOrgAdmin ? "Admin" : "Create org"}
+              active={pathname.startsWith("/admin")}
+              collapsed={collapsed}
+            />
           )}
-          <Link href="/settings" title={collapsed ? "Settings" : undefined} className={`flex items-center py-3.5 rounded-lg transition-all font-semibold ${collapsed ? "justify-center px-0" : "gap-4 px-4"} ${pathname === "/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
-            <Settings className="w-6 h-6 shrink-0" />
-            <span className={`whitespace-nowrap transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-40"}`}>Settings</span>
-          </Link>
-          <Button variant="ghost" title={collapsed ? "Log out" : undefined} className={`w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg py-6 hover:cursor-pointer ${collapsed ? "justify-center px-0" : "justify-start"}`} onClick={handleLogout}>
+          <SidebarLink
+            href="/settings"
+            icon={Settings}
+            label="Settings"
+            active={pathname === "/settings"}
+            collapsed={collapsed}
+          />
+          <Button variant="ghost" title={collapsed ? "Log out" : undefined} aria-label={collapsed ? "Log out" : undefined} className={`w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg py-6 hover:cursor-pointer ${collapsed ? "justify-center px-0" : "justify-start"}`} onClick={handleLogout}>
             <LogOut className={`w-5 h-5 ${collapsed ? "" : "mr-3"}`} />
-            <span className={`font-semibold whitespace-nowrap transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-40"}`}>Log out</span>
+            <NavLabel collapsed={collapsed}>
+              <span className="font-semibold">Log out</span>
+            </NavLabel>
           </Button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 pb-20 md:pb-0 relative max-w-5xl mx-auto w-full">
+      {/* Main Content. Width is deliberately NOT capped here -- each page picks
+          its own measure via <PageShell width>. Capping here as well meant a
+          page asking for a wider shell (practice's feedback view) silently got
+          clamped to this value instead. */}
+      <main className="flex-1 flex flex-col min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 relative w-full">
         {user.isGuest && <GuestBanner createdAt={user.createdAt} />}
         <div className={`md:hidden flex items-center justify-between p-4 border-b border-border bg-card z-40 ${user.isGuest ? "" : "sticky top-0"}`}>
           <div className="flex items-center gap-2">
@@ -175,12 +236,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around p-2 pb-safe z-50">
+      {/* Mobile Bottom Nav. The bottom padding is the home-indicator inset --
+          this used to say `pb-safe`, which is not a real utility, so the nav sat
+          underneath the indicator on notched phones. Pairs with viewportFit:
+          "cover" in app/layout.tsx, without which the inset resolves to 0px. */}
+      <nav
+        aria-label="Main"
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] z-50"
+      >
         {[...navItems, { href: "/profile", icon: User, label: "Profile" }].map((item) => {
           const active = pathname === item.href;
           return (
-            <Link key={item.href} href={item.href} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={`flex flex-col items-center p-2 rounded-lg transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}
+            >
               <div className={`p-1.5 rounded-full ${active ? "bg-primary/10" : ""}`}>
                 <item.icon className={`w-6 h-6 ${active ? "fill-primary/20" : ""}`} />
               </div>

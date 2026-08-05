@@ -12,13 +12,6 @@ type ToasterToast = ToastProps & {
   action?: ToastActionElement;
 };
 
-const actionTypes = {
-  ADD_TOAST: 'ADD_TOAST',
-  UPDATE_TOAST: 'UPDATE_TOAST',
-  DISMISS_TOAST: 'DISMISS_TOAST',
-  REMOVE_TOAST: 'REMOVE_TOAST',
-} as const;
-
 let count = 0;
 
 function genId() {
@@ -26,7 +19,18 @@ function genId() {
   return count.toString();
 }
 
-type ActionType = typeof actionTypes;
+/**
+ * Action tags. This was a `const actionTypes = {...} as const` whose runtime
+ * value was never read -- only `typeof actionTypes` was, purely to derive these
+ * string literals. Declaring it as a type says the same thing without shipping
+ * a dead object.
+ */
+type ActionType = {
+  ADD_TOAST: 'ADD_TOAST';
+  UPDATE_TOAST: 'UPDATE_TOAST';
+  DISMISS_TOAST: 'DISMISS_TOAST';
+  REMOVE_TOAST: 'REMOVE_TOAST';
+};
 
 type Action =
   | {

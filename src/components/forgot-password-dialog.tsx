@@ -124,7 +124,7 @@ export function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; on
           <form onSubmit={handleConfirmReset}>
             <DialogHeader>
               <DialogTitle>Enter your code</DialogTitle>
-              <DialogDescription>It's good for 15 minutes.</DialogDescription>
+              <DialogDescription>It&apos;s good for 15 minutes.</DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
               {revealedCode && (

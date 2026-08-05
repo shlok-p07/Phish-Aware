@@ -97,7 +97,7 @@ export default function AdminTrainingPage() {
 
       {/* Create form */}
       <Card className="border shadow-sm lg:sticky lg:top-6">
-        <CardHeader className="bg-muted/60 border-b pb-4">
+        <CardHeader variant="band">
           <CardTitle className="text-lg">New assignment</CardTitle>
           <CardDescription className="text-sm font-medium">
             Set a training target and deadline for your team.

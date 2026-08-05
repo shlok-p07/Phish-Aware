@@ -77,22 +77,37 @@ function renderPage() {
   );
 }
 
+/**
+ * The test environment has no Web Speech API, so the voice scenarios need it
+ * stubbed in. One typed view of globalThis, rather than an `as any` per
+ * assignment -- the properties are optional because whether they already exist
+ * is exactly what's being tested for.
+ */
+type SpeechGlobals = {
+  speechSynthesis?: Partial<SpeechSynthesis>;
+  SpeechSynthesisUtterance?: unknown;
+};
+// Double cast on purpose: globalThis declares these as complete DOM types, but
+// a stub only needs the handful of members the component actually touches.
+const speechGlobals = globalThis as unknown as SpeechGlobals;
+
 beforeEach(() => {
-  if (!(globalThis as any).speechSynthesis) {
-    (globalThis as any).speechSynthesis = {
+  if (!speechGlobals.speechSynthesis) {
+    speechGlobals.speechSynthesis = {
       speak: () => {},
       cancel: () => {},
-      getVoices: () => [{ name: "Test Voice", lang: "en-US" }],
+      getVoices: () => [{ name: "Test Voice", lang: "en-US" }] as SpeechSynthesisVoice[],
       addEventListener: () => {},
       removeEventListener: () => {},
     };
   } else {
-    (globalThis as any).speechSynthesis.getVoices ??= () => [{ name: "Test Voice", lang: "en-US" }];
-    (globalThis as any).speechSynthesis.addEventListener ??= () => {};
-    (globalThis as any).speechSynthesis.removeEventListener ??= () => {};
+    const synth = speechGlobals.speechSynthesis;
+    synth.getVoices ??= () => [{ name: "Test Voice", lang: "en-US" }] as SpeechSynthesisVoice[];
+    synth.addEventListener ??= () => {};
+    synth.removeEventListener ??= () => {};
   }
-  if (!(globalThis as any).SpeechSynthesisUtterance) {
-    (globalThis as any).SpeechSynthesisUtterance = class {
+  if (!speechGlobals.SpeechSynthesisUtterance) {
+    speechGlobals.SpeechSynthesisUtterance = class {
       text: string;
       rate = 1;
       onend: (() => void) | null = null;

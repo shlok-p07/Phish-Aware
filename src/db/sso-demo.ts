@@ -48,11 +48,24 @@ function cookieHeader(): string {
   return Array.from(cookies, ([k, v]) => `${k}=${v}`).join("; ");
 }
 
-async function api(
+/*
+ * Response shapes this script reads. Only the fields it actually touches are
+ * declared -- this is a dev smoke script, not a second copy of the API schema.
+ * All optional, because an error status returns a problem body instead.
+ */
+type OrgResponse = { name?: string };
+type SsoConnectionResponse = { redirectUri?: string; enabled?: boolean; error?: string };
+type SsoTestResponse = {
+  ok?: boolean;
+  checks?: { status: string; label: string; detail: string }[];
+};
+type SsoDiscoverResponse = { ssoAvailable?: boolean; orgName?: string };
+
+async function api<T = unknown>(
   method: string,
   path: string,
   body?: unknown,
-): Promise<{ status: number; data: any }> {
+): Promise<{ status: number; data: T }> {
   const res = await fetch(`${API}${path}`, {
     method,
     headers: {
@@ -74,7 +87,7 @@ async function api(
   } catch {
     /* non-JSON (204s, redirects) */
   }
-  return { status: res.status, data };
+  return { status: res.status, data: data as T };
 }
 
 async function main() {
@@ -126,9 +139,9 @@ async function main() {
       console.log("  org               deleted (--reset)");
     }
   }
-  let org = await api("GET", "/org");
+  let org = await api<OrgResponse>("GET", "/org");
   if (org.status === 404) {
-    org = await api("POST", "/org", { name: ORG_NAME, ssoDomain: DOMAIN });
+    org = await api<OrgResponse>("POST", "/org", { name: ORG_NAME, ssoDomain: DOMAIN });
     if (org.status !== 201) {
       die(`Couldn't create the org (${org.status}): ${JSON.stringify(org.data)}`);
     }
@@ -138,7 +151,7 @@ async function main() {
   }
 
   // 3. Save the connection (disabled for now -- enable only after it passes).
-  const save = await api("PUT", "/org/sso", {
+  const save = await api<SsoConnectionResponse>("PUT", "/org/sso", {
     issuer: ISSUER,
     clientId: CLIENT_ID,
     clientSecret: CLIENT_SECRET,
@@ -154,12 +167,12 @@ async function main() {
   console.log(`  redirect uri      ${save.data.redirectUri}`);
 
   // 4. Preflight.
-  const test = await api("POST", "/org/sso/test");
+  const test = await api<SsoTestResponse>("POST", "/org/sso/test");
   if (test.status !== 200) {
     die(`Preflight failed to run (${test.status}): ${JSON.stringify(test.data)}`);
   }
   console.log("\n  Preflight checks");
-  for (const c of test.data.checks) {
+  for (const c of test.data.checks ?? []) {
     const mark = c.status === "pass" ? "PASS" : c.status === "warn" ? "WARN" : "FAIL";
     console.log(`    [${mark}] ${c.label}`);
     if (c.status !== "pass") console.log(`           ${c.detail}`);
@@ -169,7 +182,7 @@ async function main() {
   }
 
   // 5. Enable.
-  const enable = await api("PUT", "/org/sso", {
+  const enable = await api<SsoConnectionResponse>("PUT", "/org/sso", {
     issuer: ISSUER,
     clientId: CLIENT_ID,
     providerKind: PROVIDER,
@@ -194,7 +207,7 @@ async function main() {
 
   // 7. Confirm discovery routes this domain to the connection.
   cookies.clear();
-  const discover = await api("POST", "/auth/sso/discover", { email: EMPLOYEE });
+  const discover = await api<SsoDiscoverResponse>("POST", "/auth/sso/discover", { email: EMPLOYEE });
   if (!discover.data?.ssoAvailable) {
     die(`Discovery doesn't route ${DOMAIN} to this org. Check the allowed domains.`);
   }

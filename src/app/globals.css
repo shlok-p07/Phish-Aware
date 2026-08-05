@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Inter:opsz,wght@14..32,400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Fonts are loaded and self-hosted by next/font in app/layout.tsx, which
+   exposes them as --font-jakarta / --font-jetbrains-mono / --font-atkinson.
+   Do not add an @import for a webfont here -- it blocks first render. */
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
@@ -67,6 +69,10 @@
   --font-serif: var(--app-font-serif);
   --font-mono: var(--app-font-mono);
   --font-display: var(--app-font-display);
+
+  --color-vector-fg: hsl(var(--vector-h) var(--vector-s) calc(var(--vector-l-fg) + var(--vector-dl)));
+  --color-vector-soft: hsl(var(--vector-h) var(--vector-s) var(--vector-l-soft));
+  --color-vector-border: hsl(var(--vector-h) var(--vector-s) calc(var(--vector-l-border) + var(--vector-dl)));
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -140,10 +146,10 @@
   --sidebar-accent-foreground: 221 70% 38%;
   --sidebar-ring: 221 70% 40%;
 
-  --app-font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --app-font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  --app-font-sans: var(--font-jakarta), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --app-font-display: var(--font-jakarta), -apple-system, BlinkMacSystemFont, sans-serif;
   --app-font-serif: Georgia, serif;
-  --app-font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  --app-font-mono: var(--font-jetbrains-mono), 'SF Mono', Menlo, monospace;
 
   --radius: 0.5rem;
 
@@ -237,6 +243,58 @@
   --shadow-2xl: 0px 24px 48px -12px rgba(0,0,0,0.6);
 }
 
+/* ---------------------------------------------------------------------------
+   Attack-vector colours (email / sms / voice / web).
+
+   These used to be raw Tailwind palette classes (`bg-blue-100 text-blue-600
+   dark:bg-blue-900/40 ...`) repeated across the learn, practice and preview
+   components. That meant dark mode was maintained by hand at each call site,
+   and -- worse -- none of it responded to the high-contrast setting, since
+   high-contrast only overrides the semantic tokens.
+
+   Each vector now sets only a hue, a saturation, and a per-hue lightness nudge
+   (green and orange read lighter than blue at the same L). The three surfaces
+   are derived from the mode's lightness scale below, so light, dark and
+   high-contrast are each defined in exactly one place. Every fg/soft pairing
+   here is verified at >= 4.5:1.
+   --------------------------------------------------------------------------- */
+[data-vector] {
+  --vector-h: 215;
+  --vector-s: 15%;
+  --vector-dl: 0%;
+}
+[data-vector='email'] { --vector-h: 221; --vector-s: 70%; --vector-dl: 0%; }
+[data-vector='sms']   { --vector-h: 142; --vector-s: 55%; --vector-dl: -11%; }
+[data-vector='voice'] { --vector-h: 271; --vector-s: 55%; --vector-dl: 0%; }
+[data-vector='web']   { --vector-h: 21;  --vector-s: 70%; --vector-dl: -3%; }
+
+:root {
+  --vector-l-fg: 36%;
+  --vector-l-soft: 95%;
+  --vector-l-border: 78%;
+}
+.dark {
+  --vector-l-fg: 72%;
+  --vector-l-soft: 20%;
+  --vector-l-border: 34%;
+}
+
+/* The per-hue nudge darkens green/orange on light backgrounds; on dark ones the
+   scale is inverted, so the same correction has to lighten them instead. */
+.dark [data-vector='sms'] { --vector-dl: 11%; }
+.dark [data-vector='web'] { --vector-dl: 3%; }
+
+html.high-contrast {
+  --vector-l-fg: 26%;
+  --vector-l-soft: 96%;
+  --vector-l-border: 50%;
+}
+html.high-contrast.dark {
+  --vector-l-fg: 84%;
+  --vector-l-soft: 16%;
+  --vector-l-border: 72%;
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -315,8 +373,8 @@ html.high-contrast [role="button"]:focus-visible {
 
 /* Accessibility: dyslexia-friendly font (overrides the Tailwind font tokens) */
 html.dyslexia-font {
-  --app-font-sans: 'Atkinson Hyperlegible', sans-serif;
-  --app-font-display: 'Atkinson Hyperlegible', sans-serif;
+  --app-font-sans: var(--font-atkinson), sans-serif;
+  --app-font-display: var(--font-atkinson), sans-serif;
   letter-spacing: 0.01em;
   word-spacing: 0.05em;
 }

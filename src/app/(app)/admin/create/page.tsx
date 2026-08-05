@@ -60,7 +60,7 @@ export default function CreateOrgPage() {
       </div>
 
       <Card className="border shadow-sm">
-        <CardHeader className="bg-muted/60 border-b pb-4">
+        <CardHeader variant="band">
           <CardTitle className="text-lg">Organization details</CardTitle>
           <CardDescription className="text-sm font-medium">
             You&apos;ll become the admin and can invite your team afterward.

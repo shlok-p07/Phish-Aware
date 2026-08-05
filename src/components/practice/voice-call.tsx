@@ -22,6 +22,16 @@ interface VoiceCallProps {
   senderHighlighted: boolean;
 }
 
+/**
+ * Simulated phone call screen.
+ *
+ * The fixed slate/emerald/red palette below is deliberate and should NOT be
+ * swapped for theme tokens: this is a depiction of a phone's call UI, and a real
+ * one looks the same regardless of what theme the surrounding app is in. Green
+ * answer / red decline are part of what makes it read as a phone at a glance.
+ * (Contrast within this surface is self-contained, since it sets both its own
+ * background and its own foreground.)
+ */
 export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }: VoiceCallProps) {
   const lines = useMemo(() => parseTranscript(scenario.body), [scenario.body]);
   const profile = useMemo(() => pickCallerVoiceProfile(scenario), [scenario]);
@@ -42,7 +52,10 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
   const [activeWord, setActiveWord] = useState(-1);
   const [elapsed, setElapsed] = useState(0);
   const [muted, setMuted] = useState(false);
-  const [showTranscript, setShowTranscript] = useState(false);
+  // Only the manual toggle needs to be state. Whether the transcript is
+  // actually visible is derived below -- reviewing and "no speech engine" both
+  // force it on, and in both of those cases the toggle button isn't rendered.
+  const [transcriptToggled, setTranscriptToggled] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   const startedRef = useRef(false);
@@ -68,18 +81,12 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
     return () => clearInterval(id);
   }, [phase, muted]);
 
-  // Once a verdict is in, the exercise is over and the transcript becomes
-  // review material -- withholding it at that point would only hide the
-  // evidence the feedback is talking about. Can't derive this at render time
-  // instead: cancelling the in-flight speechSynthesis utterance is an
-  // unavoidable side effect, and it belongs in the same effect as the state
-  // update it's paired with, not split across two.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+  // Once a verdict is in the exercise is over, so any in-flight narration is
+  // cut off. Showing the transcript at that point used to be set from here too;
+  // it's derived at render now, leaving this effect with only the side effect
+  // it genuinely needs to perform.
   useEffect(() => {
-    if (reviewing) {
-      setShowTranscript(true);
-      if (hasSpeech) window.speechSynthesis.cancel();
-    }
+    if (reviewing && hasSpeech) window.speechSynthesis.cancel();
   }, [reviewing, hasSpeech]);
 
   const endCall = useCallback(() => {
@@ -148,9 +155,6 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
     // Answering is the user gesture browsers require before audio may play,
     // which is the other reason this call rings before it connects.
     speak(0);
-    // With no speech engine there is nothing to listen to, so the transcript
-    // is all there is -- gating it would just leave a blank pane.
-    if (!hasSpeech) setShowTranscript(true);
   };
 
   const replay = () => {
@@ -173,6 +177,15 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
       return !wasMuted;
     });
   };
+
+  /*
+   * Forced on in two cases where the toggle button isn't offered:
+   *   reviewing  -- the exercise is over and the feedback refers to these words
+   *   !hasSpeech -- there's nothing to listen to, so gating it leaves a blank
+   *                 pane with no way for spokenCount to ever advance
+   * Otherwise it follows the manual toggle.
+   */
+  const showTranscript = reviewing || !hasSpeech || transcriptToggled;
 
   const visibleLines = showTranscript ? lines.length : spokenCount;
   const listening = phase === "connected" && !muted;
@@ -346,7 +359,7 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
           <div className="flex justify-center">
             <button
               type="button"
-              onClick={() => setShowTranscript((v) => !v)}
+              onClick={() => setTranscriptToggled((v) => !v)}
               className="text-[11px] text-slate-400 hover:text-slate-200 underline underline-offset-2"
             >
               {showTranscript ? "Hide full transcript" : "Show full transcript"}

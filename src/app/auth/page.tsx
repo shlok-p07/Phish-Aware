@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
@@ -12,7 +12,6 @@ import {
 	ArrowRight,
 	Ghost,
 	HelpCircle,
-	Building2,
 	AlertTriangle,
 	X,
 } from "lucide-react";
@@ -29,10 +28,7 @@ import { Input } from "@/components/ui/input";
 import {
 	Card,
 	CardContent,
-	CardDescription,
-	CardFooter,
 	CardHeader,
-	CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -98,10 +94,16 @@ export default function AuthPage() {
 	// (their accounts have no password hash at all).
 	const [loginStep, setLoginStep] = useState<"email" | "password">("email");
 	const passwordRef = useRef<HTMLInputElement>(null);
-	const [tab, setTab] = useState("login");
+	// Only an explicit choice is stored. Which tab is showing is derived below:
+	// a guest lands on Sign up (that's the whole point of them being here), and
+	// everyone else on Log in, until they pick for themselves.
+	const [chosenTab, setChosenTab] = useState<string | null>(null);
 	const loginRef = useRef<HTMLDivElement>(null);
 	const signupRef = useRef<HTMLDivElement>(null);
 	const [height, setHeight] = useState<number | undefined>(undefined);
+
+	const isGuest = Boolean(user?.isGuest);
+	const tab = chosenTab ?? (isGuest ? "signup" : "login");
 
 	useEffect(() => {
 		const measure = () => {
@@ -123,17 +125,22 @@ export default function AuthPage() {
 	//
 	// The copy is looked up client-side, so nothing from the URL is ever
 	// rendered -- an unknown code falls back to a generic message.
+	//
+	// This one keeps its setState-in-effect. The value is read from the URL and
+	// consumed in the same breath: the param is stripped immediately so a
+	// refresh doesn't resurrect a stale banner. That makes it unavailable to
+	// derive from at render, and reading it in a lazy initialiser instead would
+	// desync this statically-prerendered page during hydration.
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
 		const code = params.get("sso_error");
 		if (!code) return;
+		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setSsoError(ssoErrorMessage(code));
 		params.delete("sso_error");
 		const query = params.toString();
 		router.replace(query ? `/auth?${query}` : "/auth");
 	}, [router]);
-
-	const isGuest = Boolean(user?.isGuest);
 
 	useEffect(() => {
 		// Real (signed-up) users skip auth. Guests are allowed in so they can
@@ -142,10 +149,6 @@ export default function AuthPage() {
 			router.push("/dashboard");
 		}
 	}, [user, isLoading, router]);
-
-	useEffect(() => {
-		if (isGuest) setTab("signup");
-	}, [isGuest]);
 
 	const loginForm = useForm<z.infer<typeof loginSchema>>({
 		resolver: zodResolver(loginSchema),
@@ -158,7 +161,7 @@ export default function AuthPage() {
 		defaultValues: { name: "", email: "", password: "" },
 	});
 
-	const signupPassword = signupForm.watch("password");
+	const signupPassword = useWatch({ control: signupForm.control, name: "password" });
 
 	// Move focus to the password box when it appears, so the flow stays
 	// keyboard-only from start to finish.
@@ -202,7 +205,7 @@ export default function AuthPage() {
 					toast({ title: "Signed in" });
 					router.replace("/dashboard");
 				},
-				onError: (err: any) => {
+				onError: (err) => {
 					toast({
 						title: "Login failed",
 						description: err?.message || "Invalid credentials",
@@ -228,7 +231,7 @@ export default function AuthPage() {
 					});
 					router.replace("/dashboard");
 				},
-				onError: (err: any) => {
+				onError: (err) => {
 					toast({
 						title: "Signup failed",
 						description: err?.message || "Could not create account",
@@ -309,7 +312,7 @@ export default function AuthPage() {
 				)}
 
 				<Card className="border shadow-sm">
-					<Tabs value={tab} onValueChange={setTab} className="w-full">
+					<Tabs value={tab} onValueChange={setChosenTab} className="w-full">
 						<CardHeader className="pb-4">
 							<TabsList className="grid w-full grid-cols-2 p-1 bg-muted rounded-lg h-auto">
 								<TabsTrigger

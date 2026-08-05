@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useSyncExternalStore } from "react";
 
 export type TextSize = "normal" | "large" | "xlarge";
 
@@ -47,70 +47,97 @@ function resolveBoolean(key: string, systemQuery?: string): boolean {
   return false;
 }
 
-export function AccessibilityProvider({ children }: { children: React.ReactNode }) {
-  const [textSize, setTextSizeState] = useState<TextSize>("normal");
-  const [reduceMotion, setReduceMotionState] = useState(false);
-  const [highContrast, setHighContrastState] = useState(false);
-  const [dyslexiaFont, setDyslexiaFontState] = useState(false);
-  const [largeTargets, setLargeTargetsState] = useState(false);
+type Preferences = {
+  textSize: TextSize;
+  reduceMotion: boolean;
+  highContrast: boolean;
+  dyslexiaFont: boolean;
+  largeTargets: boolean;
+};
 
-  // Hydrate from localStorage on mount (falling back to system defaults) and apply to <html>.
-  useEffect(() => {
-    const storedSize = localStorage.getItem(TEXT_SIZE_KEY) as TextSize | null;
-    if (storedSize) {
-      setTextSizeState(storedSize);
-      applyTextSize(storedSize);
-    }
+/*
+ * localStorage + the system media queries are an external store, so they're
+ * read through useSyncExternalStore rather than copied into state by an effect.
+ * The previous version did the latter, which meant an extra render pass on every
+ * mount and is the pattern the React Compiler rejects.
+ *
+ * The snapshot is cached because useSyncExternalStore compares snapshots by
+ * identity -- building a fresh object on each call would loop forever.
+ */
+let cachedSnapshot: Preferences | null = null;
+const listeners = new Set<() => void>();
 
-    const motion = resolveBoolean(REDUCE_MOTION_KEY, "(prefers-reduced-motion: reduce)");
-    setReduceMotionState(motion);
-    applyClass("reduce-motion", motion);
-
-    const contrast = resolveBoolean(HIGH_CONTRAST_KEY, "(prefers-contrast: more)");
-    setHighContrastState(contrast);
-    applyClass("high-contrast", contrast);
-
-    const dyslexia = resolveBoolean(DYSLEXIA_FONT_KEY);
-    setDyslexiaFontState(dyslexia);
-    applyClass("dyslexia-font", dyslexia);
-
+function readPreferences(): Preferences {
+  return {
+    textSize: (localStorage.getItem(TEXT_SIZE_KEY) as TextSize | null) ?? "normal",
+    reduceMotion: resolveBoolean(REDUCE_MOTION_KEY, "(prefers-reduced-motion: reduce)"),
+    highContrast: resolveBoolean(HIGH_CONTRAST_KEY, "(prefers-contrast: more)"),
+    dyslexiaFont: resolveBoolean(DYSLEXIA_FONT_KEY),
     // Coarse pointers (touch) benefit from larger targets by default.
-    const targets = resolveBoolean(LARGE_TARGETS_KEY, "(pointer: coarse)");
-    setLargeTargetsState(targets);
-    applyClass("large-targets", targets);
-  }, []);
+    largeTargets: resolveBoolean(LARGE_TARGETS_KEY, "(pointer: coarse)"),
+  };
+}
 
-  const makeSetter =
-    (key: string, className: string, setState: (v: boolean) => void) => (value: boolean) => {
-      setState(value);
-      localStorage.setItem(key, String(value));
-      applyClass(className, value);
-    };
+function getSnapshot(): Preferences {
+  cachedSnapshot ??= readPreferences();
+  return cachedSnapshot;
+}
 
-  const setTextSize = (size: TextSize) => {
-    setTextSizeState(size);
-    localStorage.setItem(TEXT_SIZE_KEY, size);
-    applyTextSize(size);
+/** Defaults used for SSR and the hydration render, before storage is readable. */
+const SERVER_SNAPSHOT: Preferences = {
+  textSize: "normal",
+  reduceMotion: false,
+  highContrast: false,
+  dyslexiaFont: false,
+  largeTargets: false,
+};
+const getServerSnapshot = () => SERVER_SNAPSHOT;
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Invalidate the cache and wake every subscriber. */
+function notify() {
+  cachedSnapshot = null;
+  for (const listener of listeners) listener();
+}
+
+export function AccessibilityProvider({ children }: { children: React.ReactNode }) {
+  const prefs = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  // Mirroring preferences onto <html> is a genuine external side effect, so it
+  // stays in an effect -- it just no longer sets state while it's at it.
+  useEffect(() => {
+    applyTextSize(prefs.textSize);
+    applyClass("reduce-motion", prefs.reduceMotion);
+    applyClass("high-contrast", prefs.highContrast);
+    applyClass("dyslexia-font", prefs.dyslexiaFont);
+    applyClass("large-targets", prefs.largeTargets);
+  }, [prefs]);
+
+  const makeSetter = (key: string) => (value: boolean) => {
+    localStorage.setItem(key, String(value));
+    notify();
   };
 
-  const setReduceMotion = makeSetter(REDUCE_MOTION_KEY, "reduce-motion", setReduceMotionState);
-  const setHighContrast = makeSetter(HIGH_CONTRAST_KEY, "high-contrast", setHighContrastState);
-  const setDyslexiaFont = makeSetter(DYSLEXIA_FONT_KEY, "dyslexia-font", setDyslexiaFontState);
-  const setLargeTargets = makeSetter(LARGE_TARGETS_KEY, "large-targets", setLargeTargetsState);
+  const setTextSize = (size: TextSize) => {
+    localStorage.setItem(TEXT_SIZE_KEY, size);
+    notify();
+  };
 
   return (
     <AccessibilityContext.Provider
       value={{
-        textSize,
-        reduceMotion,
-        highContrast,
-        dyslexiaFont,
-        largeTargets,
+        ...prefs,
         setTextSize,
-        setReduceMotion,
-        setHighContrast,
-        setDyslexiaFont,
-        setLargeTargets,
+        setReduceMotion: makeSetter(REDUCE_MOTION_KEY),
+        setHighContrast: makeSetter(HIGH_CONTRAST_KEY),
+        setDyslexiaFont: makeSetter(DYSLEXIA_FONT_KEY),
+        setLargeTargets: makeSetter(LARGE_TARGETS_KEY),
       }}
     >
       {children}

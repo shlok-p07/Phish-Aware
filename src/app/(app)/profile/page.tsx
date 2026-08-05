@@ -8,9 +8,6 @@ import {
 	CartesianGrid,
 	Tooltip,
 	ResponsiveContainer,
-	BarChart,
-	Bar,
-	Cell,
 } from "recharts";
 import {
 	Target,
@@ -27,31 +24,38 @@ import {
 	CardDescription,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { PageHeader, PageShell } from "@/components/page-shell";
+import { EmptyState, ErrorState, PageHeaderSkeleton } from "@/components/states";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProfilePage() {
-	const { data: analytics, isLoading, isError } = useGetAnalytics();
+	const { data: analytics, isLoading, isError, refetch } = useGetAnalytics();
 
 	if (isLoading) {
 		return (
-			<div className="space-y-6 max-w-5xl mx-auto animate-pulse">
-				<div className="h-32 bg-muted rounded-lg" />
-				<div className="grid md:grid-cols-2 gap-6">
-					<div className="h-64 bg-muted rounded-lg" />
-					<div className="h-64 bg-muted rounded-lg" />
+			<PageShell>
+				<PageHeaderSkeleton />
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+					<Skeleton className="h-40 md:col-span-2" />
+					<Skeleton className="h-40" />
 				</div>
-			</div>
+				<div className="grid md:grid-cols-2 gap-6">
+					<Skeleton className="h-72" />
+					<Skeleton className="h-72" />
+				</div>
+			</PageShell>
 		);
 	}
 
 	if (isError || !analytics) {
 		return (
-			<Card className="max-w-5xl mx-auto border border-destructive/20 bg-destructive/5">
-				<CardContent className="pt-6">
-					<p className="text-destructive font-medium text-center">
-						Failed to load analytics.
-					</p>
-				</CardContent>
-			</Card>
+			<PageShell>
+				<ErrorState
+					title="Couldn't load your analytics"
+					description="Your performance history didn't come back from the server."
+					onRetry={() => refetch()}
+				/>
+			</PageShell>
 		);
 	}
 
@@ -76,7 +80,15 @@ export default function ProfilePage() {
 	const sortedCues = [...cueAccuracy].sort((a, b) => b.rate - a.rate);
 
 	return (
-		<div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+		<PageShell>
+			{/* This page had no <h1> at all -- its largest text was the calibration
+			    figure inside a card, so the heading order started at <h2>. */}
+			<PageHeader
+				icon={Activity}
+				title="Your performance"
+				description="How your detection accuracy and judgment have tracked over time."
+			/>
+
 			{/* Header overview */}
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 				<Card className="border shadow-none md:col-span-2">
@@ -132,7 +144,7 @@ export default function ProfilePage() {
 			<div className="grid md:grid-cols-2 gap-6">
 				{/* Progress Chart */}
 				<Card className="border shadow-sm">
-					<CardHeader className="bg-muted/60 border-b pb-4">
+					<CardHeader variant="band">
 						<CardTitle className="text-lg flex items-center gap-2">
 							<TrendingUp className="w-5 h-5 text-primary" />
 							Accuracy Over Time
@@ -200,9 +212,12 @@ export default function ProfilePage() {
 									</LineChart>
 								</ResponsiveContainer>
 							) : (
-								<div className="h-full flex items-center justify-center text-muted-foreground font-medium">
-									Not enough data yet.
-								</div>
+								<EmptyState
+									className="h-full border-0"
+									icon={TrendingUp}
+									title="Not enough data yet"
+									description="Your accuracy trend appears once you've practised on more than one day."
+								/>
 							)}
 						</div>
 					</CardContent>
@@ -210,7 +225,7 @@ export default function ProfilePage() {
 
 				{/* Vector Breakdown */}
 				<Card className="border shadow-sm">
-					<CardHeader className="bg-muted/60 border-b pb-4">
+					<CardHeader variant="band">
 						<CardTitle className="text-lg flex items-center gap-2">
 							<AlertTriangle className="w-5 h-5 text-warning" />
 							Performance by Vector
@@ -236,9 +251,12 @@ export default function ProfilePage() {
 									</div>
 								))
 							) : (
-								<div className="h-62.5 w-full flex items-center justify-center text-center text-muted-foreground font-medium">
-									No vector data available.
-								</div>
+								<EmptyState
+									className="h-62.5 w-full border-0"
+									icon={AlertTriangle}
+									title="No channel data yet"
+									description="Once you've tried email, text and voice scenarios, your per-channel accuracy shows here."
+								/>
 							)}
 						</div>
 					</CardContent>
@@ -247,7 +265,7 @@ export default function ProfilePage() {
 
 			{/* Cue Breakdown Grid */}
 			<Card className="border shadow-sm">
-				<CardHeader className="bg-muted/60 border-b pb-4">
+				<CardHeader variant="band">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<CheckCircle2 className="w-5 h-5 text-success" />
 						Detailed Cue Recognition
@@ -296,13 +314,16 @@ export default function ProfilePage() {
 								</div>
 							))
 						) : (
-							<div className="col-span-full text-center text-muted-foreground font-medium py-10">
-								Complete more scenarios to see your cue recognition.
-							</div>
+							<EmptyState
+								className="col-span-full border-0"
+								icon={CheckCircle2}
+								title="No cue data yet"
+								description="Complete a few scenarios and you'll see which red flags you reliably catch."
+							/>
 						)}
 					</div>
 				</CardContent>
 			</Card>
-		</div>
+		</PageShell>
 	);
 }

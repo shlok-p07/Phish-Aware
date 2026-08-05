@@ -22,8 +22,8 @@ export function VoicePreview() {
     <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-lg overflow-hidden">
       <div className="flex items-center gap-2 border-b border-border bg-muted/50 px-4 py-2.5">
         <span className="w-2.5 h-2.5 rounded-full bg-destructive/70" />
-        <span className="w-2.5 h-2.5 rounded-full bg-amber-500/70" />
-        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/70" />
+        <span className="w-2.5 h-2.5 rounded-full bg-warning/70" />
+        <span className="w-2.5 h-2.5 rounded-full bg-success/70" />
         <span className="ml-2 text-xs font-semibold text-muted-foreground">Simulated call</span>
       </div>
 

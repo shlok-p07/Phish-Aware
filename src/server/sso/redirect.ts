@@ -7,7 +7,6 @@
 const DEFAULT_REDIRECT = "/dashboard";
 
 /** Control chars (incl. newline/tab) -- browsers may strip these, turning a rejected string into an accepted one. */
-// eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 
 /**

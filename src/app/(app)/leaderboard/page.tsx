@@ -4,30 +4,32 @@ import { Users, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { initials } from "@/lib/utils";
+import { PageHeader, PageShell } from "@/components/page-shell";
+import { EmptyState, ErrorState, ListSkeleton, PageHeaderSkeleton } from "@/components/states";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function LeaderboardPage() {
-  const { data: leaderboard, isLoading, isError } = useGetLeaderboard();
+  const { data: leaderboard, isLoading, isError, refetch } = useGetLeaderboard();
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-3xl mx-auto animate-pulse">
-        <div className="h-32 bg-muted rounded-lg" />
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 bg-muted rounded-lg" />
-          ))}
-        </div>
-      </div>
+      <PageShell width="3xl">
+        <PageHeaderSkeleton />
+        <Skeleton className="h-40" />
+        <ListSkeleton rows={5} />
+      </PageShell>
     );
   }
 
   if (isError || !leaderboard) {
     return (
-      <Card className="max-w-3xl mx-auto border border-destructive/20 bg-destructive/5">
-        <CardContent className="pt-6">
-          <p className="text-destructive font-medium text-center">Failed to load team benchmark.</p>
-        </CardContent>
-      </Card>
+      <PageShell width="3xl">
+        <ErrorState
+          title="Couldn't load the team benchmark"
+          description="Your organization's standings didn't come back from the server."
+          onRetry={() => refetch()}
+        />
+      </PageShell>
     );
   }
 
@@ -43,13 +45,12 @@ export default function LeaderboardPage() {
       : "Building up";
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="pb-2 border-b border-border">
-        <h1 className="text-2xl font-display font-bold">Team benchmark</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          How your detection performance compares across your organization.
-        </p>
-      </div>
+    <PageShell width="3xl">
+      <PageHeader
+        icon={TrendingUp}
+        title="Team benchmark"
+        description="How your detection performance compares across your organization."
+      />
 
       {/* Standing summary */}
       {me && percentile !== null && (
@@ -87,13 +88,21 @@ export default function LeaderboardPage() {
 
       {/* Cohort standings */}
       <Card className="border shadow-sm overflow-hidden">
-        <CardHeader className="bg-muted/60 border-b border-border pb-4">
+        <CardHeader variant="band">
           <CardTitle className="text-base flex items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
             Team standings
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
+          {leaderboard.length === 0 && (
+            <EmptyState
+              className="border-0"
+              icon={Users}
+              title="No one on the board yet"
+              description="Standings appear once people on your team start completing scenarios."
+            />
+          )}
           <ul className="divide-y divide-border">
             {leaderboard.map((entry) => (
               <li
@@ -130,6 +139,6 @@ export default function LeaderboardPage() {
           </ul>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }
