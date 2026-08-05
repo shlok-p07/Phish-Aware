@@ -9,6 +9,8 @@ export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** Optional machine-readable code, included alongside `error` when set. */
+    public code?: string,
   ) {
     super(message);
   }
@@ -74,7 +76,9 @@ export function withErrorHandling<Args extends unknown[]>(
       return await handler(...args);
     } catch (err) {
       if (err instanceof HttpError) {
-        return error(err.status, err.message);
+        return err.code
+          ? NextResponse.json({ error: err.message, code: err.code }, { status: err.status })
+          : error(err.status, err.message);
       }
       if (err instanceof ZodError) {
         return NextResponse.json(

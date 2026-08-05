@@ -89,4 +89,29 @@ describe("getChatbotReply", () => {
     const result = await getChatbotReply(HISTORY);
     expect(result).toBe(plain);
   });
+
+  it("strips single-asterisk emphasis, not just double-asterisk bold", async () => {
+    llmMockState.groqClient = groqReturning("Check the *sender domain* carefully.");
+    const result = await getChatbotReply(HISTORY);
+    expect(result).toBe("Check the sender domain carefully.");
+  });
+
+  it("drops a dangling, never-closed ** instead of leaving it literal", async () => {
+    llmMockState.groqClient = groqReturning("This is **never closed and keeps going.");
+    const result = await getChatbotReply(HISTORY);
+    expect(result).not.toContain("*");
+    expect(result).toContain("This is never closed and keeps going.");
+  });
+
+  it("handles adjacent/nested-looking bold markers without leaving stray asterisks", async () => {
+    llmMockState.groqClient = groqReturning("**outer **inner** more**");
+    const result = await getChatbotReply(HISTORY);
+    expect(result).not.toContain("*");
+  });
+
+  it("treats a blank reply the same as no reply, rather than showing an empty message", async () => {
+    llmMockState.groqClient = groqReturning("   ");
+    const result = await getChatbotReply(HISTORY);
+    expect(result).toBeNull();
+  });
 });

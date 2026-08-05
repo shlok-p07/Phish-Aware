@@ -60,6 +60,18 @@ export async function getDb(): Promise<Db> {
   return client.db(dbName);
 }
 
+/**
+ * Raw client access for the rare operation that needs a session/transaction
+ * spanning more than one collection -- e.g. checking a seat limit against the
+ * users collection and inserting into it atomically (see
+ * src/app/api/invitations/[token]/accept/route.ts). Atlas always provisions a
+ * replica set, even on the free tier, so transactions are supported in every
+ * environment this app actually runs in.
+ */
+export async function getMongoClient(): Promise<MongoClient> {
+  return connect();
+}
+
 export async function getCollection<T extends Document>(name: string): Promise<Collection<T>> {
   const db = await getDb();
   return db.collection<T>(name);

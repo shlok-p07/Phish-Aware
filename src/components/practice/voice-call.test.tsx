@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach, beforeEach } from "bun:test";
-import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, act, within } from "@testing-library/react";
 import { VoiceCall } from "./voice-call";
 
 const SCENARIO = {
@@ -34,13 +34,34 @@ let cancelled = 0;
 let paused = 0;
 let resumed = 0;
 
+interface FakeSpeechSynthesis {
+  speak: (u: FakeUtterance) => void;
+  cancel: () => void;
+  pause: () => void;
+  resume: () => void;
+  getVoices: () => { name: string; lang: string }[];
+  addEventListener: () => void;
+  removeEventListener: () => void;
+}
+
+/** happy-dom's `window`/`globalThis` don't ship the Web Speech API at all, so this test provides its own. */
+interface GlobalWithSpeech {
+  SpeechSynthesisUtterance?: typeof FakeUtterance;
+  speechSynthesis?: FakeSpeechSynthesis;
+  window: {
+    SpeechSynthesisUtterance?: typeof FakeUtterance;
+    speechSynthesis?: FakeSpeechSynthesis;
+  };
+}
+const fakeGlobal = globalThis as unknown as GlobalWithSpeech;
+
 function installSpeechMock() {
   queued = [];
   cancelled = 0;
   paused = 0;
   resumed = 0;
-  (globalThis as any).SpeechSynthesisUtterance = FakeUtterance;
-  (globalThis as any).speechSynthesis = {
+  fakeGlobal.SpeechSynthesisUtterance = FakeUtterance;
+  fakeGlobal.speechSynthesis = {
     speak: (u: FakeUtterance) => queued.push(u),
     cancel: () => {
       cancelled += 1;
@@ -55,8 +76,8 @@ function installSpeechMock() {
     addEventListener: () => {},
     removeEventListener: () => {},
   };
-  (globalThis as any).window.SpeechSynthesisUtterance = FakeUtterance;
-  (globalThis as any).window.speechSynthesis = (globalThis as any).speechSynthesis;
+  fakeGlobal.window.SpeechSynthesisUtterance = FakeUtterance;
+  fakeGlobal.window.speechSynthesis = fakeGlobal.speechSynthesis;
 }
 
 function renderCall(overrides: Partial<Parameters<typeof VoiceCall>[0]> = {}) {
@@ -157,6 +178,37 @@ describe("VoiceCall", () => {
     expect(screen.getByText(/Confirm your PIN/)).toBeTruthy();
   });
 
+  // Regression: "Show full transcript" used to be wired to the same
+  // condition as the live word-by-word highlight, so revealing the rest of
+  // the transcript silently killed the sync on the line still being spoken.
+  it("keeps live-highlighting the line being spoken after revealing the full transcript", () => {
+    renderCall();
+    answer();
+    act(() => queued[0]!.onstart!());
+    act(() => queued[0]!.onboundary!({ charIndex: 0 }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Show full transcript/i }));
+
+    // The sentence is now split into one span per word (that's how the
+    // karaoke-style highlight works), so it can no longer be matched as one
+    // block of text -- find the line by its "Caller:" label instead.
+    const spokenLine = screen.getAllByText("Caller:")[0]!.closest("p")!;
+    expect(spokenLine.className).toContain("bg-slate-800/80");
+    expect(within(spokenLine).getByText("We").className).toContain("text-white");
+  });
+
+  it("hides the transcript again after toggling show then hide", () => {
+    renderCall();
+    answer();
+    act(() => queued[0]!.onstart!());
+
+    fireEvent.click(screen.getByRole("button", { name: /Show full transcript/i }));
+    expect(screen.getByText(/Confirm your PIN/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /Hide full transcript/i }));
+    expect(screen.queryByText(/Confirm your PIN/)).toBeNull();
+  });
+
   it("releases the full transcript for review once a verdict is in", () => {
     const { rerender } = renderCall();
     rerender(
@@ -185,10 +237,46 @@ describe("VoiceCall", () => {
     expect(cancelled).toBeGreaterThan(before);
   });
 
+  // Regression: a generated scenario whose body doesn't parse into any
+  // "Caller:" lines used to leave the call connected forever -- speak() had
+  // nothing to queue, so spokenCount never advanced and nothing ever ended
+  // the call automatically.
+  it("ends the call immediately instead of hanging when the transcript has no lines", () => {
+    renderCall({ scenario: { ...SCENARIO, body: "" } });
+    answer();
+    expect(screen.getByText("Call ended")).toBeTruthy();
+    expect(queued).toHaveLength(0);
+  });
+
+  it("also ends immediately on replay of an empty transcript", () => {
+    renderCall({ scenario: { ...SCENARIO, body: "   \n  " } });
+    answer();
+    expect(screen.getByText("Call ended")).toBeTruthy();
+  });
+
   it("declining never plays any audio", () => {
     renderCall();
     fireEvent.click(screen.getByRole("button", { name: /Decline call/i }));
     expect(queued).toHaveLength(0);
     expect(screen.getByText("Call ended")).toBeTruthy();
+  });
+
+  // Regression: with no speech engine, spokenCount can never advance on its
+  // own (nothing ever calls onstart), so a "Hide full transcript" button used
+  // to be able to blank the pane with no way to ever recover the text. The
+  // fix is not offering the toggle at all in this mode, since the transcript
+  // is the only thing there is to show.
+  it("never offers a hide-transcript toggle with no speech engine, so the pane can't get stuck blank", () => {
+    delete fakeGlobal.window.speechSynthesis;
+    delete fakeGlobal.window.SpeechSynthesisUtterance;
+
+    renderCall();
+    answer();
+
+    expect(screen.getByText(/We detected unusual activity/)).toBeTruthy();
+    expect(screen.getByText(/Confirm your PIN/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Hide full transcript/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Show full transcript/i })).toBeNull();
+    expect(screen.getByText("Audio unavailable — transcript shown")).toBeTruthy();
   });
 });

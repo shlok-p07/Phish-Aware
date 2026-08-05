@@ -21,12 +21,9 @@ link, or a real credential prompt.
 ## Why it's interesting
 
 - **The scenarios are LLM-generated, not templated.** A two-stage pipeline
-  models each attack on the employee's actual role and department, drafts it,
-  then refines it for realism and grounds every red flag in the app's own
-  gradeable cue vocabulary. The approach is adapted from a peer-reviewed
-  paper — Yamin et al., ["Applications of LLMs for Generating Cyber Security
-  Exercise Scenarios"](https://ieeexplore.ieee.org/document/10695083) (IEEE
-  Access, 2024) — not an ad-hoc prompt. See
+  drafts each attack for the employee's actual role and department, then
+  refines it for realism and grounds every red flag in the app's own
+  gradeable cue vocabulary. See
   [`src/server/scenarioGenerator.ts`](src/server/scenarioGenerator.ts).
 - **It's built to survive a real free-tier LLM outage.** Every model call goes
   through a Groq-primary, Gemini-fallback layer
@@ -47,8 +44,7 @@ link, or a real credential prompt.
   [orval](https://orval.dev/) from a single OpenAPI document
   (`src/api-spec/openapi.yaml`), so the client and server can't silently drift
   apart.
-- **343 tests, `tsc --noEmit`, and a production build all stay green** — this
-  README is written and kept current against that bar, not aspirationally.
+- **540 tests, `tsc --noEmit`, and a production build all stay green.**
 
 ## Table of contents
 
@@ -68,8 +64,11 @@ link, or a real credential prompt.
   and role, with difficulty that adapts to their accuracy over time.
 - **PhishAware Assistant** — an in-app chatbot (Groq/Gemini) that explains
   cues and answers phishing questions in plain language, no markdown noise.
-- **Realistic practice** in a Gmail-style inbox — flag red flags, set a
-  confidence level, get graded, cue-by-cue feedback.
+- **Realistic practice across three vectors** — a Gmail-style inbox, an SMS
+  thread, and a simulated phone call with a live, speech-synced transcript.
+  Flag red flags, set a confidence level, get graded, cue-by-cue feedback.
+- **Lessons spanning six attack vectors** — email, SMS (smishing), voice
+  (vishing), QR codes (quishing), social media, and fake websites.
 - **Personal & org analytics** — accuracy over time, per-cue and per-vector
   breakdowns, and a calibration score measuring how well confidence tracks
   actual correctness.
@@ -100,7 +99,7 @@ link, or a real credential prompt.
 | Auth          | Custom httpOnly-cookie sessions, scrypt-hashed passwords, a from-scratch OIDC/PKCE SSO layer |
 | Runtime/PM    | [Bun](https://bun.sh/)                                        |
 | Containers    | Docker + Docker Compose (production-parity builds)             |
-| Tests         | `bun test` (343 tests)                                         |
+| Tests         | `bun test` (540 tests)                                         |
 
 ## Architecture
 
@@ -181,7 +180,7 @@ Docker at all.
 | `bun run dev`       | Start the Next.js dev server                                    |
 | `bun run build`     | Production build                                                |
 | `bun run start`     | Serve the production build                                      |
-| `bun run lint`      | Run ESLint via `next lint`                                      |
+| `bun run lint`      | Run ESLint (flat config, `eslint.config.mjs`)                   |
 | `bun run typecheck` | Type-check the project with `tsc --noEmit`                     |
 | `bun test`          | Run the unit test suite                                         |
 | `bun run codegen`   | Regenerate `api-client`/`api-zod` from `api-spec/openapi.yaml`  |
@@ -192,10 +191,11 @@ Docker at all.
 
 Unit tests cover the pure domain logic (attempt grading, XP/leveling, streak
 calculation), API route handlers, the SSO/OIDC provisioning rules, and key
-UI flows (auth, onboarding, invitations, admin), including regression tests
-for real bugs found during development — e.g.
-[`src/app/(app)/admin/layout.test.tsx`](<src/app/(app)/admin/layout.test.tsx>)
-guards against a React Query cache-sharing bug that caused a refetch loop.
+UI flows (auth, onboarding, invitations, admin). This includes regression
+coverage such as
+[`src/app/(app)/admin/layout.test.tsx`](<src/app/(app)/admin/layout.test.tsx>),
+which guards against a React Query cache-sharing bug that caused a refetch
+loop.
 
 ```bash
 bun test
@@ -309,13 +309,17 @@ on-screen (`src/components/forgot-password-dialog.tsx`) rather than emailed.
 
 ## ML backend (FastAPI)
 
-`backend/` is a separate Python service, scaffolded MVC-style, for future
-phishing-likelihood model/dataset work. It's not part of the Next.js app —
-its own deploy, its own dependencies. Nothing here trains or ships a real
-model yet; the classifier is a placeholder heuristic
-(`backend/app/models/predictor.py`) so the request → response path genuinely
-works today, ready to swap in a trained model without touching the routing
-or API layer around it.
+`backend/` is a separate Python service, scaffolded MVC-style, for
+phishing-related model/dataset work. It's not part of the Next.js app — its
+own deploy, its own dependencies. Two endpoints, two different states:
+message classification (is this specific message phishing?) is still a
+placeholder heuristic (`backend/app/models/predictor.py`), ready to swap in
+a trained model without touching the routing or API layer around it.
+User-awareness prediction (how likely is this person to fall for phishing,
+based on their onboarding survey/quiz answers) already runs a real trained
+model (`src/server/mlClient.ts` calls it from
+`src/app/api/onboarding/submit/route.ts`); if the service is unavailable,
+onboarding falls back to diagnostic quiz accuracy instead.
 
 <details>
 <summary><strong>Running it locally</strong></summary>

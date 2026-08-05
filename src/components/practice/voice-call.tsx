@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  PhoneIncoming, PhoneOff, Mic, MicOff, Volume2, RotateCcw, FileText, PhoneCall,
+  PhoneIncoming, PhoneOff, Mic, MicOff, RotateCcw, FileText, PhoneCall,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -70,7 +70,11 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
 
   // Once a verdict is in, the exercise is over and the transcript becomes
   // review material -- withholding it at that point would only hide the
-  // evidence the feedback is talking about.
+  // evidence the feedback is talking about. Can't derive this at render time
+  // instead: cancelling the in-flight speechSynthesis utterance is an
+  // unavoidable side effect, and it belongs in the same effect as the state
+  // update it's paired with, not split across two.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (reviewing) {
       setShowTranscript(true);
@@ -129,6 +133,14 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
   );
 
   const answer = () => {
+    // speak() silently no-ops when there's nothing to say (a scenario whose
+    // body didn't parse into any "Caller:" lines) -- without this, the call
+    // would connect and just sit there indefinitely with nothing ever
+    // advancing spokenCount, and no automatic way to end it.
+    if (lines.length === 0) {
+      endCall();
+      return;
+    }
     setPhase("connected");
     setElapsed(0);
     setSpokenCount(0);
@@ -142,6 +154,10 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
   };
 
   const replay = () => {
+    if (lines.length === 0) {
+      endCall();
+      return;
+    }
     setPhase("connected");
     setElapsed(0);
     setSpokenCount(0);
@@ -160,6 +176,12 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
 
   const visibleLines = showTranscript ? lines.length : spokenCount;
   const listening = phase === "connected" && !muted;
+  // Which line is being read aloud right now, independent of whether the
+  // full transcript is also revealed -- these are two separate questions
+  // ("how many lines can I see" vs. "which one is the caller saying this
+  // instant") and conflating them used to turn off the live word-by-word
+  // highlight the moment someone hit "Show full transcript".
+  const currentSpeakingLine = listening ? spokenCount - 1 : -1;
 
   return (
     <Card
@@ -222,7 +244,7 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
             </div>
             <div aria-live="polite" className="space-y-2">
               {lines.slice(0, visibleLines).map((line, index) => {
-                const isCurrent = !showTranscript && index === visibleLines - 1 && listening;
+                const isCurrent = index === currentSpeakingLine;
                 const words = splitWords(line.text);
                 return (
                   <p
@@ -312,19 +334,15 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
                 Replay
               </Button>
             )}
-
-            <span
-              className="w-10 h-10 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center"
-              aria-hidden
-            >
-              <Volume2 className="w-4 h-4" />
-            </span>
           </div>
         )}
 
-        {/* Escape hatch: anyone who can't use the audio (no speech engine, deaf
-            or hard of hearing, muted device) still needs the words. */}
-        {!reviewing && phase !== "incoming" && (
+        {/* Escape hatch: anyone who can't use the audio (deaf or hard of
+            hearing, muted device) still needs the words. Not offered when
+            there's no speech engine at all -- the transcript is already
+            forced on for that case (see answer()), and hiding it here would
+            blank the pane with no way for spokenCount to ever advance again. */}
+        {!reviewing && phase !== "incoming" && hasSpeech && (
           <div className="flex justify-center">
             <button
               type="button"

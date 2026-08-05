@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "db:init": "set -a && . ./.env && set +a && mongosh \"$MONGODB_URI\" phishaware-db/init/01-validators.js && mongosh \"$MONGODB_URI\" phishaware-db/init/02-indexes.js",

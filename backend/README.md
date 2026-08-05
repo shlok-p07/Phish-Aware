@@ -7,13 +7,14 @@ dependencies, its own lifecycle. The Next.js app is expected to call this
 service over HTTP once it exists in production, the same way any external
 API would be consumed.
 
-Nothing here trains or ships a real model yet — the classifier is a
-placeholder heuristic (see `app/models/predictor.py`) so the whole
-request → response path is genuinely working today, not just scaffolding.
-Swap the heuristic for a real trained model when there's a dataset to train
-one on; nothing above `Predictor` needs to change.
+Two prediction endpoints, two different states. Message classification
+(is this specific message phishing?) is still a placeholder heuristic (see
+`app/models/predictor.py`) -- the request → response path works end to end,
+but swap the heuristic for a real trained model when there's a dataset to
+train one on; nothing above `Predictor` needs to change.
 
-User-awareness prediction is a separate endpoint from message classification.
+User-awareness prediction (how likely is this person to fall for phishing,
+based on their survey/quiz answers?) already runs a real trained model.
 Export the fitted Colab preprocessing + estimator pipeline to
 `models_store/phishing_awareness_v1.joblib`, set `AWARENESS_MODEL_VERSION`, and
 call `POST /predictions/awareness`. The model's native 0-100 result is validated

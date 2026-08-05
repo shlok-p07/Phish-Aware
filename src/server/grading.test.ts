@@ -54,6 +54,25 @@ describe("gradeAttempt — verdict + cue accounting", () => {
     expect(result.correct).toBe(false);
     expect(result.correctVerdict).toBe(false);
   });
+
+  // The practice UI only ever toggles a cue, so it can't produce duplicates --
+  // but the request body has no uniqueness constraint, so a raw POST could.
+  it("dedupes repeated entries in selectedCues instead of counting each repeat", () => {
+    const scenario = makeScenario({ cues: [cue("urgency_language")] });
+    const result = gradeAttempt(
+      scenario,
+      true,
+      ["urgency_language", "urgency_language", "urgency_language"],
+      70,
+    );
+    expect(result.caughtCues).toEqual(["urgency_language"]);
+  });
+
+  it("dedupes repeated false cues the same way", () => {
+    const scenario = makeScenario({ cues: [] });
+    const result = gradeAttempt(scenario, true, ["spelling_grammar", "spelling_grammar"], 70);
+    expect(result.falseCues).toEqual(["spelling_grammar"]);
+  });
 });
 
 describe("gradeAttempt — XP", () => {
@@ -93,6 +112,18 @@ describe("gradeAttempt — XP", () => {
     const result = gradeAttempt(scenario, false, manyFalse, 90);
     expect(result.xpAwarded).toBeGreaterThanOrEqual(0);
   });
+
+  it("doesn't award extra XP for repeating the same caught cue", () => {
+    const scenario = makeScenario({ cues: [cue("urgency_language")] });
+    // 15 base + 1 caught * 5 = 20, same as a single non-repeated selection.
+    const result = gradeAttempt(
+      scenario,
+      true,
+      ["urgency_language", "urgency_language", "urgency_language"],
+      70,
+    );
+    expect(result.xpAwarded).toBe(20);
+  });
 });
 
 describe("gradeAttempt — calibration note", () => {
@@ -106,5 +137,52 @@ describe("gradeAttempt — calibration note", () => {
     const scenario = makeScenario({ isPhish: true, cues: [] });
     const result = gradeAttempt(scenario, false, [], 90);
     expect(result.calibrationNote).toMatch(/confident/i);
+  });
+
+  // Boundary values, not just interior ones -- >=65 and <40 are both
+  // inclusive/exclusive at the exact threshold, and confidence is a real
+  // reachable 0-100 integer from the API, not just the 50/60/70/80/90 the
+  // rest of this suite happens to use.
+  it("treats exactly 65 as confident (inclusive) when correct", () => {
+    const scenario = makeScenario({ cues: [] });
+    const result = gradeAttempt(scenario, true, [], 65);
+    expect(result.calibrationNote).toMatch(/great calibration/i);
+  });
+
+  it("treats 64 as not-yet-confident when correct", () => {
+    const scenario = makeScenario({ cues: [] });
+    const result = gradeAttempt(scenario, true, [], 64);
+    expect(result.calibrationNote).toMatch(/keep practicing/i);
+  });
+
+  it("treats exactly 39 as hesitant (below 40) when correct", () => {
+    const scenario = makeScenario({ cues: [] });
+    const result = gradeAttempt(scenario, true, [], 39);
+    expect(result.calibrationNote).toMatch(/hesitant/i);
+  });
+
+  it("treats exactly 40 as no longer hesitant when correct", () => {
+    const scenario = makeScenario({ cues: [] });
+    const result = gradeAttempt(scenario, true, [], 40);
+    expect(result.calibrationNote).toMatch(/keep practicing/i);
+  });
+
+  it("treats exactly 65 as confident when wrong, too", () => {
+    const scenario = makeScenario({ isPhish: true, cues: [] });
+    const result = gradeAttempt(scenario, false, [], 65);
+    expect(result.calibrationNote).toMatch(/confident/i);
+  });
+
+  it("treats exactly 39 as good instinct to hesitate when wrong", () => {
+    const scenario = makeScenario({ isPhish: true, cues: [] });
+    const result = gradeAttempt(scenario, false, [], 39);
+    expect(result.calibrationNote).toMatch(/good instinct/i);
+  });
+
+  it("falls back to the middle-band note for 40-64 regardless of verdict", () => {
+    const correctScenario = makeScenario({ cues: [] });
+    const wrongScenario = makeScenario({ isPhish: true, cues: [] });
+    expect(gradeAttempt(correctScenario, true, [], 50).calibrationNote).toMatch(/keep practicing/i);
+    expect(gradeAttempt(wrongScenario, false, [], 50).calibrationNote).toMatch(/keep practicing/i);
   });
 });

@@ -121,10 +121,10 @@ export function pickIsPhish(): boolean {
 }
 
 /**
- * Phase 1 (new users, no interaction history yet): pick a persuasion tactic
- * and an attack type at random, with the attack type constrained to what's
- * realistic for the user's department. Phase 2 (tracked in project memory
- * as not yet built) replaces the random picks with a 70/30 weighted
+ * Phase 1 (current): new users have no interaction history yet, so pick a
+ * persuasion tactic and an attack type at random, with the attack type
+ * constrained to what's realistic for the user's department.
+ * TODO Phase 2: replace the random picks with a 70/30 weighted
  * explore/exploit choice over each user's per-tactic/attack-type accuracy
  * history once enough attempts exist to compute it.
  */

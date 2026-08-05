@@ -73,17 +73,10 @@ export interface GenerateScenarioParams {
 }
 
 /**
- * Two-stage generation, modeled on Yamin et al., "Applications of LLMs for
- * Generating Cyber Security Exercise Scenarios" (IEEE Access, 2024,
- * arnumber=10695083): that paper runs two LLMs in parallel -- one playing a
- * "CISO" who knows the organization and drafts a scenario narrative at high
- * temperature (treating the model's generative/"hallucinatory" reach as a
- * creative asset), the other a "Cyber Security Expert" who refines that
- * draft at lower temperature against explicit realism/technical-soundness
- * criteria. Here that maps onto our actual data need: stage 1 drafts a
- * creative, department-specific pretext; stage 2 refines it for realism and
- * grounds its red flags strictly in this product's own cue vocabulary
- * (CUE_LABELS) so the output is gradeable, not just narratively convincing.
+ * Two-stage generation: stage 1 drafts a creative, department-specific
+ * pretext at a higher temperature; stage 2 refines it at a lower temperature
+ * for realism and grounds its red flags strictly in this product's own cue
+ * vocabulary (CUE_LABELS), so the output is gradeable, not just plausible.
  */
 /** Per-vector framing for the draft/refine prompts -- what medium it is, how the model should shape sender/body/links/attachments for it. */
 const VECTOR_BRIEF: Record<PracticeVector, { medium: string; shape: string }> = {

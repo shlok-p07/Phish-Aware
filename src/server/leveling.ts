@@ -7,6 +7,11 @@ const THRESHOLDS: { level: Level; min: number; max: number | null }[] = [
 ];
 
 export function levelForXp(xp: number): Level {
+  // Every real write path floors xpAwarded at 0 before it ever reaches here,
+  // so negative/NaN shouldn't occur -- but failing open to "advanced" for
+  // input the loop above can't match is the wrong default. Match
+  // levelForAwarenessScore's guard below: fail closed to "beginner".
+  if (!Number.isFinite(xp) || xp < 0) return "beginner";
   for (const t of THRESHOLDS) {
     if (xp >= t.min && (t.max === null || xp < t.max)) {
       return t.level;
@@ -28,9 +33,10 @@ export function minimumXpForLevel(level: Level): number {
 }
 
 export function xpProgress(xp: number): { xpIntoLevel: number; xpToNextLevel: number } {
-  const current = THRESHOLDS.find((t) => xp >= t.min && (t.max === null || xp < t.max)) ?? THRESHOLDS[2]!;
+  const safeXp = !Number.isFinite(xp) || xp < 0 ? 0 : xp;
+  const current = THRESHOLDS.find((t) => safeXp >= t.min && (t.max === null || safeXp < t.max)) ?? THRESHOLDS[0]!;
   if (current.max === null) {
-    return { xpIntoLevel: xp - current.min, xpToNextLevel: 0 };
+    return { xpIntoLevel: safeXp - current.min, xpToNextLevel: 0 };
   }
-  return { xpIntoLevel: xp - current.min, xpToNextLevel: current.max - xp };
+  return { xpIntoLevel: safeXp - current.min, xpToNextLevel: current.max - safeXp };
 }

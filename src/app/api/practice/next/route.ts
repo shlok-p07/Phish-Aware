@@ -55,10 +55,23 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   const pool = await scenarios.find({ vector, isOnboarding: false }).toArray();
   let candidates: ScenarioDoc[] = pool.filter((s) => !attemptedIds.has(s._id.toString()));
 
+  // Someone who has worked through everything used to wait on a live two-stage
+  // LLM call before seeing anything -- up to ~40s, and longer once the client
+  // retries. If either provider is rate limited or unconfigured they waited
+  // that long only to be told there was nothing. Resurfacing a scenario they
+  // have already seen is instant and strictly better than a spinner, and the
+  // background top-up still brings in fresh material for next round.
+  const exhausted = candidates.length === 0 && pool.length > 0;
+  if (exhausted) {
+    candidates = pool;
+  }
+
   if (candidates.length > 0) {
     const availableGenerated = candidates.filter((s) => s.source === "ai_generated").length;
     topUpPoolInBackground(genParams, user?.orgId ?? null, availableGenerated);
   } else {
+    // Only now is blocking justified: this vector has nothing stored at all,
+    // so generation is the only way to answer the request.
     const generated = await generatePhishingScenario(genParams);
     if (generated) {
       const id = new ObjectId();
@@ -72,10 +85,6 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
       };
       await scenarios.insertOne(inserted);
       candidates = [inserted];
-    } else if (pool.length > 0) {
-      // Nothing unattempted left and live generation also failed -- better
-      // to resurface something they've seen before than a hard dead end.
-      candidates = pool;
     }
   }
 

@@ -29,6 +29,14 @@ const nextConfig: NextConfig = {
   },
   // Smaller, self-contained production build for the Docker image.
   output: "standalone",
+  // Lint is its own gate (`bun run lint`), run separately, not a build-blocker
+  // -- the same split most CI setups use. eslint.config.mjs used to be broken
+  // outright (next lint's eslintrc bridging hit a circular-JSON bug and
+  // crashed before linting anything), so this had no practical effect before;
+  // now that lint actually runs, leaving this unset would make `bun run build`
+  // fail on the app's existing lint backlog instead of just its own compile
+  // errors, which is a different, separate cleanup effort.
+  eslint: { ignoreDuringBuilds: true },
 };
 
 export default nextConfig;

@@ -21,6 +21,15 @@ describe("levelForXp", () => {
     expect(levelForXp(400)).toBe("advanced");
     expect(levelForXp(10_000)).toBe("advanced");
   });
+
+  // Every real write path floors xpAwarded at 0, so this shouldn't be
+  // reachable through normal use -- but the loop matches none of the
+  // thresholds for negative/NaN input, and the old fallback defaulted to
+  // "advanced", the opposite of a safe default for bad input.
+  it("fails closed to beginner for negative or non-finite XP", () => {
+    expect(levelForXp(-10)).toBe("beginner");
+    expect(levelForXp(Number.NaN)).toBe("beginner");
+  });
 });
 
 describe("xpProgress", () => {
@@ -35,6 +44,11 @@ describe("xpProgress", () => {
 
   it("caps out at the advanced band with no next level", () => {
     expect(xpProgress(500)).toEqual({ xpIntoLevel: 100, xpToNextLevel: 0 });
+  });
+
+  it("fails closed to the beginner band for negative or non-finite XP", () => {
+    expect(xpProgress(-10)).toEqual({ xpIntoLevel: 0, xpToNextLevel: 150 });
+    expect(xpProgress(Number.NaN)).toEqual({ xpIntoLevel: 0, xpToNextLevel: 150 });
   });
 });
 

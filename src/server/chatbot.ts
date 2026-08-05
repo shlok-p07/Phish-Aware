@@ -14,13 +14,7 @@ const MAX_HISTORY_MESSAGES = 12;
  * Grounds the assistant in PhishAware's own taxonomy (the exact cue,
  * attack-type, and persuasion-tactic vocabulary the practice loop and
  * scenario generator use) rather than generic phishing trivia, so its
- * explanations reinforce the same vocabulary the product teaches. This is
- * the same "inject structured domain context into the prompt" idea
- * cyber-exercise-generation research (e.g. LLM-based scenario generators
- * that ground output in a curated knowledge base rather than free
- * generation) uses to keep output relevant and consistent -- here the
- * "retrieval" is just the app's own fixed taxonomy rather than a vector
- * store, since that's the entire corpus this assistant needs.
+ * explanations reinforce the same vocabulary the product teaches.
  */
 function buildSystemPrompt(): string {
   const cueList = Object.values(CUE_LABELS).join(", ");
@@ -55,8 +49,10 @@ Guidelines:
 function stripMarkdown(text: string): string {
   return text
     .replace(/\*\*(.+?)\*\*/g, "$1") // **bold** -> bold
+    .replace(/\*(.+?)\*/g, "$1") // *emphasis* -> emphasis
     .replace(/^#{1,6}\s+/gm, "") // "### Heading" -> "Heading"
-    .replace(/^[ \t]*[-*]\s+/gm, ""); // "- item" / "* item" -> "item"
+    .replace(/^[ \t]*[-*]\s+/gm, "") // "- item" / "* item" -> "item"
+    .replace(/\*/g, ""); // any asterisk still left over is unterminated markdown, not prose
 }
 
 /**
@@ -64,9 +60,10 @@ function stripMarkdown(text: string): string {
  * Tries Groq first, then falls back to Gemini on any failure (see
  * llm/llmComplete.ts) so a single provider's rate limit or outage never
  * surfaces to the user as a stall -- the assistant just keeps answering
- * from whichever provider is available. Returns null only if both
- * providers are unconfigured/fail, so callers can surface a clean
- * "assistant unavailable" response rather than blocking the chat UI.
+ * from whichever provider is available. Returns null if both providers are
+ * unconfigured/fail, or if a provider technically "succeeds" with a blank
+ * reply, so callers can surface a clean "assistant unavailable" response
+ * rather than showing an empty chat bubble.
  */
 export async function getChatbotReply(messages: ChatMessage[]): Promise<string | null> {
   const trimmed = messages.slice(-MAX_HISTORY_MESSAGES);
@@ -76,6 +73,8 @@ export async function getChatbotReply(messages: ChatMessage[]): Promise<string |
     messages: trimmed,
     temperature: 0.6,
   });
+  if (!reply) return null;
 
-  return reply ? stripMarkdown(reply) : reply;
+  const stripped = stripMarkdown(reply).trim();
+  return stripped.length > 0 ? stripped : null;
 }

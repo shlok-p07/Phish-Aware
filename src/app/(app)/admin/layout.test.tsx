@@ -5,26 +5,17 @@ import { installNextNavigationMock, nextNavigationMockState } from "@/test/mock-
 
 /**
  * Regression test: a user with no org visiting /admin/create should hit
- * GET /api/org a handful of times at most, not in an unbounded loop. This
- * mounts the real AdminLayout wrapping the real CreateOrgPage, wired to the
- * real @/api-client hooks and a real QueryClient (only the network layer is
- * faked), because the actual bug here only reproduced when both components
- * were mounted together: AdminLayout gated `children` on its own org-query
- * isLoading, and CreateOrgPage independently subscribed to that same query
- * key. Since the org query 404s forever (no org yet), every fetch reset the
- * shared query's status to "pending", which flipped AdminLayout's isLoading
- * back to true, unmounting CreateOrgPage mid-request -- whose remount fired
- * another fetch, forever. A stub child can't catch this class of bug.
+ * GET /api/org a handful of times at most, not in an unbounded loop. Mounts
+ * the real AdminLayout wrapping the real CreateOrgPage against a real
+ * QueryClient (only the network layer is faked) -- a stub child wouldn't
+ * catch this, since the bug only reproduced with both components mounted
+ * together sharing one query key.
  *
- * Other test files mock.module("@/api-client", ...) with a partial factory
- * (src/test/mock-api-client.ts), and Bun's mock.module mutates the module's
- * exports in place for the rest of the process -- there's no way to revert
- * it from here (mock.restore() only resets mock() spies, not mock.module()).
- * If that mock wins the race against this file's own dynamic imports, this
- * test degrades to asserting against static mocked hooks instead of real
- * react-query behavior, but it must not crash -- hence keeping every hook
- * CreateOrgPage/AdminLayout use present in that shared mock (see
- * src/test/mock-api-client.ts's useCreateOrg entry).
+ * Note: src/test/mock-api-client.ts mocks "@/api-client" for other test
+ * files, and Bun's mock.module can't be reverted once set. Every hook this
+ * file's components use has to stay present in that shared mock so this
+ * test can't crash if it loses that race, even though it should be getting
+ * the real module.
  */
 
 installNextNavigationMock();

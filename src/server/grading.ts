@@ -21,9 +21,14 @@ export function gradeAttempt(
   const actualCueIds = scenario.cues.map((c) => c.type);
   const correctVerdict = userVerdict === scenario.isPhish;
 
-  const caughtCues = selectedCues.filter((c) => actualCueIds.includes(c));
-  const missedCues = actualCueIds.filter((c) => !selectedCues.includes(c));
-  const falseCues = selectedCues.filter((c) => !actualCueIds.includes(c));
+  // The client can only toggle each cue once, but the request body is just a
+  // JSON array with no uniqueness constraint -- dedupe here so a raw POST
+  // with repeated entries can't farm extra XP (or extra penalty) per repeat.
+  const uniqueSelectedCues = Array.from(new Set(selectedCues));
+
+  const caughtCues = uniqueSelectedCues.filter((c) => actualCueIds.includes(c));
+  const missedCues = actualCueIds.filter((c) => !uniqueSelectedCues.includes(c));
+  const falseCues = uniqueSelectedCues.filter((c) => !actualCueIds.includes(c));
 
   let xpAwarded = 0;
   if (correctVerdict) {
