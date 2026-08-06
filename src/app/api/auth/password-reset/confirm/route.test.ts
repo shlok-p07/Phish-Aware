@@ -86,6 +86,24 @@ describe("POST /api/auth/password-reset/confirm", () => {
     expect(res.status).toBe(400);
   });
 
+  it("unlocks an account that was locked out by failed sign-ins", async () => {
+    // The reset is the self-service unlock -- otherwise a locked-out user with
+    // a genuinely forgotten password would have to wait the 30 minutes out and
+    // then still be told to reset.
+    seedUser({
+      failedLoginAttempts: 5,
+      lockedUntil: new Date(Date.now() + 30 * 60 * 1000),
+      mustResetPassword: true,
+    });
+    const res = await postConfirm({ email: EMAIL, code: CODE, newPassword: "brand-new-password" });
+    expect(res.status).toBe(200);
+
+    const user = fakeUsersState.docs[0]!;
+    expect(user.failedLoginAttempts).toBe(0);
+    expect(user.lockedUntil).toBeNull();
+    expect(user.mustResetPassword).toBe(false);
+  });
+
   it("does not touch the password of an unrelated account sharing no code match", async () => {
     const other = seedUser({ email: "bob@acme.test", passwordHash: "bobs-hash" });
     seedUser();

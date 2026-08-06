@@ -307,6 +307,24 @@ as account passwords, never stored or logged in plain text. The app has no
 mailer, so the code comes back directly in the API response and is shown
 on-screen (`src/components/forgot-password-dialog.tsx`) rather than emailed.
 
+### Account lockout
+
+Five consecutive wrong passwords lock the account for 30 minutes and flag it
+`mustResetPassword` (`src/server/loginLockout.ts`). While the lock is live,
+sign-in is refused before the password is checked at all, so a correct guess
+during the window neither signs anyone in nor reveals that it was correct
+(`423` + `code: ACCOUNT_LOCKED`). The reset requirement outlives the lock: once
+the 30 minutes are up the account still can't be signed into until its password
+has been changed (`403` + `code: PASSWORD_RESET_REQUIRED`). Completing the
+forgot-password flow clears both immediately, which is also the self-service
+unlock — a locked-out user doesn't have to wait the timer out. Any successful
+sign-in resets the counter, so the five failures have to be consecutive.
+
+This is deliberately separate from `src/server/rateLimit.ts`: that one is an
+in-process counter keyed by IP + email that dies with the process, while this
+lives on the user document, so failures spread across many IPs (or across a
+redeploy) still add up.
+
 ## ML backend (FastAPI)
 
 `backend/` is a separate Python service, scaffolded MVC-style, for

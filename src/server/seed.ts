@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { scenariosCollection, usersCollection, lessonsCollection, specDefaults } from "@/db";
 import { hashPassword } from "./password";
+import { clearedLockoutFields } from "./loginLockout";
 import { SEED_SCENARIOS } from "./seedScenarios";
 import { LESSONS } from "./lessons";
 
@@ -95,6 +96,7 @@ export async function seedIfEmpty(): Promise<void> {
           status: "active" as const,
           passwordResetCodeHash: null,
           passwordResetExpiresAt: null,
+          ...clearedLockoutFields(),
           ...specDefaults(),
         };
       }),

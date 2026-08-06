@@ -14,7 +14,11 @@
     "db:seed": "tsx --env-file=.env src/db/seed-cli.ts",
     "db:migrate-invites": "tsx --env-file=.env src/db/migrate-invited-users.ts",
     "sso:demo": "tsx --env-file=.env src/db/sso-demo.ts",
-    "codegen": "orval --config ./src/api-spec/orval.config.ts"
+    "codegen": "orval --config ./src/api-spec/orval.config.ts",
+    "test:ui": "vitest run",
+    "test:ui:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:all": "bun test && vitest run"
   },
   "dependencies": {
     "@google/genai": "^2.15.0",
@@ -85,13 +89,16 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "@vitest/coverage-v8": "^4.1.10",
     "ajv": "^8.17.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "happy-dom": "^20.11.1",
     "orval": "^8.20.0",
     "tsx": "^4.23.1",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.10"
   },
   "trustedDependencies": [
     "unrs-resolver"

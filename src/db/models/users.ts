@@ -48,6 +48,18 @@ export interface UserDoc extends SpecConventions {
   // whenever there's no reset in progress. Never store the raw code.
   passwordResetCodeHash: string | null;
   passwordResetExpiresAt: Date | null;
+  // Brute-force lockout (see src/server/loginLockout.ts). Consecutive failed
+  // password attempts; reset to 0 on any successful sign-in or password reset.
+  // All three are optional for legacy rows created before the lockout existed
+  // -- read them through the helpers, which default to "no failures, no lock".
+  failedLoginAttempts?: number;
+  /** Set when the attempt counter trips; sign-in is refused until it passes. */
+  lockedUntil?: Date | null;
+  /**
+   * Outlives the lock: once an account has been locked out, the right password
+   * alone is no longer enough -- it has to be reset before signing in again.
+   */
+  mustResetPassword?: boolean;
 }
 
 export type InsertUser = Omit<UserDoc, "_id">;

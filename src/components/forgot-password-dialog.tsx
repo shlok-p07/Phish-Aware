@@ -22,10 +22,22 @@ type Step = "email" | "code";
  * directly in the response, and this dialog just shows it on-screen (and
  * pre-fills it below) instead of telling anyone to go check an inbox.
  */
-export function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function ForgotPasswordDialog({
+  open,
+  onOpenChange,
+  initialEmail = "",
+  onResetComplete,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Pre-fills the address, e.g. the one that just got locked out. */
+  initialEmail?: string;
+  /** Fired once the new password is saved -- the account is unlocked by then. */
+  onResetComplete?: () => void;
+}) {
   const { toast } = useToast();
   const [step, setStep] = useState<Step>("email");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [revealedCode, setRevealedCode] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -35,7 +47,7 @@ export function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; on
 
   const reset = () => {
     setStep("email");
-    setEmail("");
+    setEmail(initialEmail);
     setRevealedCode(null);
     setCode("");
     setNewPassword("");
@@ -79,6 +91,7 @@ export function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; on
         onSuccess: () => {
           toast({ title: "Password updated", description: "You can log in with your new password now." });
           handleOpenChange(false);
+          onResetComplete?.();
         },
         onError: (err) => {
           toast({

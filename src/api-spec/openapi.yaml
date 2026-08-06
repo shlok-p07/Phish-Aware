@@ -96,6 +96,13 @@ paths:
       operationId: login
       tags: [auth]
       summary: Log in with email + password
+      description: >-
+        Five consecutive wrong passwords lock the account for 30 minutes and
+        require a password reset. While locked, sign-in is refused before the
+        password is even checked (423); once the lock expires the reset is still
+        required (403). Both bodies carry a machine-readable `code`
+        (`ACCOUNT_LOCKED` / `PASSWORD_RESET_REQUIRED`). A successful password
+        reset clears the lock immediately.
       requestBody:
         required: true
         content:
@@ -111,6 +118,10 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           description: Invalid credentials
+        "403":
+          description: Account disabled, invitation not finished, or a password reset is required after a lockout
+        "423":
+          description: Locked out after too many failed sign-in attempts
 
   /auth/password-reset/request:
     post:

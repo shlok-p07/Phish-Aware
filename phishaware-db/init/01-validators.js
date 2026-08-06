@@ -140,6 +140,12 @@ make("users", ["orgId", "email", "name", "role"], {
   // App-specific, spec-unlisted: password-reset flow (see
   // src/app/api/auth/password-reset/**).
   passwordResetCodeHash: strOrNull, passwordResetExpiresAt: dateOrNull,
+  // App-specific, spec-unlisted: per-account brute-force lockout (see
+  // src/server/loginLockout.ts). Not in `required` -- rows written before the
+  // lockout existed simply don't have them, and the app reads them as
+  // "no failures, no lock".
+  failedLoginAttempts: num, lockedUntil: dateOrNull,
+  mustResetPassword: { bsonType: "bool" },
 });
 
 make("profiles", ["userId", "orgId"], {

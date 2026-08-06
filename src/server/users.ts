@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import { specDefaults, type OrgRole, type UserDoc, type UserStatus } from "@/db";
+import { clearedLockoutFields } from "./loginLockout";
 
 /**
  * A fresh user document with every gameplay field zeroed.
@@ -50,6 +51,7 @@ export function buildUserDoc(fields: {
     lastLoginAt: fields.lastLoginAt ?? null,
     passwordResetCodeHash: null,
     passwordResetExpiresAt: null,
+    ...clearedLockoutFields(),
     ...specDefaults(now),
   };
 }

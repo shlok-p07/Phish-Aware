@@ -1,4 +1,4 @@
-import { describe, expect, it, afterEach, beforeEach } from "bun:test";
+import { describe, expect, it, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup, fireEvent, act, within } from "@testing-library/react";
 import { VoiceCall } from "./voice-call";
 

@@ -54,6 +54,12 @@ import {
 	MIN_PASSWORD_SCORE,
 } from "@/components/password-strength";
 import { ssoErrorMessage } from "@/lib/sso-errors";
+import {
+	ACCOUNT_LOCKED_CODE,
+	authErrorCode,
+	authErrorMessage,
+	isLockoutCode,
+} from "@/lib/auth-errors";
 import { ForgotPasswordDialog } from "@/components/forgot-password-dialog";
 
 const loginSchema = z.object({
@@ -88,6 +94,14 @@ export default function AuthPage() {
 
 	const [ssoError, setSsoError] = useState<string | null>(null);
 	const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+	// Captured when the dialog is opened rather than read live off the form, so
+	// the prefill can't shift under the user mid-reset. Also the dialog's key --
+	// a different address gets a fresh dialog instead of stale inner state.
+	const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+	// Set when the server refuses the sign-in because the account is locked out
+	// (or was, and now needs a new password). A persistent banner rather than a
+	// toast: it's an instruction the user has to act on, not a status update.
+	const [lockout, setLockout] = useState<{ code: string; message: string } | null>(null);
 	// Identifier-first sign-in: ask for the email, look up whether its domain
 	// has an identity provider, and only fall back to a password field when it
 	// doesn't. Saves SSO users from ever seeing a password box they can't use
@@ -193,7 +207,13 @@ export default function AuthPage() {
 		);
 	};
 
+	const openForgotPassword = (email: string) => {
+		setForgotPasswordEmail(email);
+		setForgotPasswordOpen(true);
+	};
+
 	const onLogin = (values: z.infer<typeof loginSchema>) => {
+		setLockout(null);
 		loginMutation.mutate(
 			{ data: values },
 			{
@@ -206,6 +226,21 @@ export default function AuthPage() {
 					router.replace("/dashboard");
 				},
 				onError: (err) => {
+					// A lockout isn't a retryable "wrong password" -- the only way
+					// forward is a reset, so it gets a banner with the button on it
+					// instead of a toast that scrolls away.
+					const code = authErrorCode(err);
+					if (isLockoutCode(code)) {
+						setLockout({
+							code: code!,
+							message: authErrorMessage(
+								err,
+								"This account is locked. Reset your password to sign in.",
+							),
+						});
+						loginForm.setValue("password", "");
+						return;
+					}
 					toast({
 						title: "Login failed",
 						description: err?.message || "Invalid credentials",
@@ -311,6 +346,32 @@ export default function AuthPage() {
 					</div>
 				)}
 
+				{lockout && (
+					<div
+						role="alert"
+						className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4"
+					>
+						<Lock className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+						<div className="min-w-0 flex-1 space-y-2">
+							<p className="font-semibold text-sm text-foreground">
+								{lockout.code === ACCOUNT_LOCKED_CODE
+									? "Account locked"
+									: "Password reset required"}
+							</p>
+							<p className="text-sm text-muted-foreground">{lockout.message}</p>
+							<Button
+								type="button"
+								size="sm"
+								variant="destructive"
+								className="font-semibold hover:cursor-pointer"
+								onClick={() => openForgotPassword(loginForm.getValues("email"))}
+							>
+								Reset your password
+							</Button>
+						</div>
+					</div>
+				)}
+
 				<Card className="border shadow-sm">
 					<Tabs value={tab} onValueChange={setChosenTab} className="w-full">
 						<CardHeader className="pb-4">
@@ -380,7 +441,9 @@ export default function AuthPage() {
 														onChange={(e) => {
 															field.onChange(e);
 															// Editing the address invalidates the lookup we
-															// already ran for the previous one.
+															// already ran for the previous one -- and the
+															// lockout banner, which was about the old one.
+															setLockout(null);
 															if (loginStep === "password") {
 																setLoginStep("email");
 																loginForm.setValue("password", "");
@@ -428,7 +491,7 @@ export default function AuthPage() {
 									<div className="text-right">
 										<button
 											type="button"
-											onClick={() => setForgotPasswordOpen(true)}
+											onClick={() => openForgotPassword(loginForm.getValues("email"))}
 											className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors hover:cursor-pointer"
 										>
 											Forgot your password?
@@ -625,7 +688,13 @@ export default function AuthPage() {
 					</div>
 				)}
 			</div>
-			<ForgotPasswordDialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen} />
+			<ForgotPasswordDialog
+				key={forgotPasswordEmail}
+				open={forgotPasswordOpen}
+				onOpenChange={setForgotPasswordOpen}
+				initialEmail={forgotPasswordEmail}
+				onResetComplete={() => setLockout(null)}
+			/>
 		</div>
 	);
 }

@@ -373,6 +373,7 @@ export const getLoginUrl = () => {
 }
 
 /**
+ * Five consecutive wrong passwords lock the account for 30 minutes and require a password reset. While locked, sign-in is refused before the password is even checked (423); once the lock expires the reset is still required (403). Both bodies carry a machine-readable `code` (`ACCOUNT_LOCKED` / `PASSWORD_RESET_REQUIRED`). A successful password reset clears the lock immediately.
  * @summary Log in with email + password
  */
 export const login = async (authLoginInput: AuthLoginInput, options?: Parameters<typeof customFetch>[1]): Promise<User> => {

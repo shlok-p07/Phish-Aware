@@ -162,6 +162,81 @@ describe("AuthPage — identifier-first sign in", () => {
     });
   });
 
+  it("shows an unlock banner instead of a toast when the account is locked out", async () => {
+    // A lockout is an instruction, not a retryable failure -- the password box
+    // is cleared and the only useful next action is put on screen.
+    apiClientMockState.discoverSso = (_payload, handlers) =>
+      handlers.onSuccess?.({ ssoAvailable: false });
+    apiClientMockState.login = (_payload, handlers) =>
+      handlers.onError?.(
+        Object.assign(new Error("HTTP 423 Locked"), {
+          data: { error: "Too many failed sign-in attempts.", code: "ACCOUNT_LOCKED" },
+        }),
+      );
+
+    renderPage();
+    typeEmail("someone@gmail.com");
+    clickPrimary();
+    await waitFor(() => loginForm().getByRole("button", { name: "Log in" }));
+
+    const password = loginForm().getByPlaceholderText("••••••••");
+    fireEvent.change(password, { target: { value: "wrong" } });
+    clickPrimary();
+
+    const banner = await screen.findByRole("alert");
+    expect(within(banner).getByText("Account locked")).toBeDefined();
+    expect(within(banner).getByRole("button", { name: /Reset your password/i })).toBeDefined();
+    expect((password as HTMLInputElement).value).toBe("");
+  });
+
+  it("labels the post-lock reset requirement differently from a live lock", async () => {
+    apiClientMockState.login = (_payload, handlers) =>
+      handlers.onError?.(
+        Object.assign(new Error("HTTP 403 Forbidden"), {
+          data: { error: "Reset your password to sign in again.", code: "PASSWORD_RESET_REQUIRED" },
+        }),
+      );
+
+    renderPage();
+    typeEmail("someone@gmail.com");
+    // Editing the address bounces back to the email step, so the skip has to
+    // come after it, not before.
+    fireEvent.click(loginForm().getByRole("button", { name: /Use a password instead/i }));
+    await waitFor(() => loginForm().getByRole("button", { name: "Log in" }));
+
+    fireEvent.change(loginForm().getByPlaceholderText("••••••••"), { target: { value: "pw" } });
+    clickPrimary();
+
+    const banner = await screen.findByRole("alert");
+    expect(within(banner).getByText("Password reset required")).toBeDefined();
+  });
+
+  it("clears the lockout banner once the address is changed", async () => {
+    apiClientMockState.login = (_payload, handlers) =>
+      handlers.onError?.(
+        Object.assign(new Error("HTTP 423 Locked"), {
+          data: { error: "Too many failed sign-in attempts.", code: "ACCOUNT_LOCKED" },
+        }),
+      );
+
+    renderPage();
+    typeEmail("someone@gmail.com");
+    // Editing the address bounces back to the email step, so the skip has to
+    // come after it, not before.
+    fireEvent.click(loginForm().getByRole("button", { name: /Use a password instead/i }));
+    await waitFor(() => loginForm().getByRole("button", { name: "Log in" }));
+
+    fireEvent.change(loginForm().getByPlaceholderText("••••••••"), { target: { value: "pw" } });
+    clickPrimary();
+    await screen.findByRole("alert");
+
+    // The banner was about the previous address, so it can't survive an edit.
+    typeEmail("other@gmail.com");
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+  });
+
   it("returns to the email step when the address is edited", async () => {
     apiClientMockState.discoverSso = (_payload, handlers) =>
       handlers.onSuccess?.({ ssoAvailable: false });

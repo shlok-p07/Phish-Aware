@@ -4,6 +4,7 @@ import { ConfirmPasswordResetBody } from "@/api-zod";
 import { hashPassword, verifyPassword } from "@/server/password";
 import { normalizeEmail } from "@/server/sso/domain";
 import { rateLimit, clientIp } from "@/server/rateLimit";
+import { clearedLockoutFields } from "@/server/loginLockout";
 import { json, error, withErrorHandling } from "@/server/http";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,9 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
         passwordHash: hashPassword(body.newPassword),
         passwordResetCodeHash: null,
         passwordResetExpiresAt: null,
+        // Doubles as the self-service unlock: a brute-force lockout is lifted
+        // by choosing a new password, not by waiting the 30 minutes out.
+        ...clearedLockoutFields(),
         updatedAt: now,
       },
     },

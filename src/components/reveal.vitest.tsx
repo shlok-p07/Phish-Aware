@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from "bun:test";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, act } from "@testing-library/react";
 import { Reveal } from "./reveal";
 
