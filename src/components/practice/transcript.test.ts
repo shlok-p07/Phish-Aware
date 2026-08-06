@@ -24,6 +24,35 @@ describe("parseTranscript", () => {
   it("drops a line that is nothing but a prefix", () => {
     expect(parseTranscript("Caller:\nCaller: Real line.")).toEqual([{ text: "Real line." }]);
   });
+
+  // Regression: generated bodies often come back with every turn on one line,
+  // because the model doesn't reliably emit "\n" inside a JSON string. Splitting
+  // on newlines alone collapsed the whole call into a single line, so the
+  // transcript arrived in one lump and the call ended seconds after connecting.
+  it("splits turns that share a line, when the model omitted the newlines", () => {
+    const body =
+      "Caller: Hi, this is Karen from internal IT. Caller: I'm following up on the laptop refresh. Caller: Can you confirm your password?";
+    expect(parseTranscript(body)).toEqual([
+      { text: "Hi, this is Karen from internal IT." },
+      { text: "I'm following up on the laptop refresh." },
+      { text: "Can you confirm your password?" },
+    ]);
+  });
+
+  it("leaves a correctly newline-separated body untouched", () => {
+    expect(parseTranscript("Caller: One.\nCaller: Two.")).toEqual([
+      { text: "One." },
+      { text: "Two." },
+    ]);
+  });
+
+  // Only a speaker label starts a new turn -- a stray colon mid-sentence must
+  // not chop the line in half.
+  it("does not split on an unrelated colon", () => {
+    expect(parseTranscript("Caller: The reference is: 4471.")).toEqual([
+      { text: "The reference is: 4471." },
+    ]);
+  });
 });
 
 describe("splitWords", () => {

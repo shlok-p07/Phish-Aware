@@ -103,7 +103,7 @@ const VECTOR_BRIEF: Record<PracticeVector, { medium: string; shape: string }> = 
     shape: `{
   "sender": "the caller ID shown on the phone: either a raw phone number (e.g. \\"+1 (415) 555-0110\\") or a short caller-name label (e.g. \\"Bank Security\\"); never an email address",
   "subject": "",
-  "body": "a realistic transcript of ONLY the caller's side of the call, as consecutive \\"Caller: ...\\" lines -- never include a \\"You:\\" line or invent anything said by the recipient. The trainee reacts to this call themselves; scripting their response for them would give away how they're supposed to respond. Keep it concise (roughly 3-6 lines) and make it read like natural spoken dialogue, as if only the scammer's side of the call was captured.",
+  "body": "a realistic transcript of ONLY the caller's side of the call, as consecutive \\"Caller: ...\\" lines separated by real newline escapes (\\\\n) -- every turn after the first MUST start on its own line, never run together on one -- and never include a \\"You:\\" line or invent anything said by the recipient. The trainee reacts to this call themselves; scripting their response for them would give away how they're supposed to respond. Keep it concise (roughly 3-6 lines) and make it read like natural spoken dialogue, as if only the scammer's side of the call was captured.",
   "links": [],
   "attachments": []`,
   },

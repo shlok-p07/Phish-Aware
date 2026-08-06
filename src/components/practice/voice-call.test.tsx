@@ -168,28 +168,25 @@ describe("VoiceCall", () => {
     expect(screen.getByText(/1 more line went unheard/)).toBeTruthy();
   });
 
-  // Anyone who can't use the audio still needs the words.
-  it("can reveal the whole transcript on demand", () => {
+  // There is no manual reveal any more, so the only way to see a line is to
+  // have heard it -- nothing should be able to surface the rest of the call.
+  it("offers no way to reveal unspoken lines mid-call", () => {
     renderCall();
     answer();
-    fireEvent.click(screen.getByRole("button", { name: /Show full transcript/i }));
+    act(() => queued[0]!.onstart!());
 
     expect(screen.getByText(/We detected unusual activity/)).toBeTruthy();
-    expect(screen.getByText(/Confirm your PIN/)).toBeTruthy();
+    expect(screen.queryByText(/Confirm your PIN/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /transcript/i })).toBeNull();
   });
 
-  // Regression: "Show full transcript" used to be wired to the same
-  // condition as the live word-by-word highlight, so revealing the rest of
-  // the transcript silently killed the sync on the line still being spoken.
-  it("keeps live-highlighting the line being spoken after revealing the full transcript", () => {
+  it("highlights the word the caller is saying on the live line", () => {
     renderCall();
     answer();
     act(() => queued[0]!.onstart!());
     act(() => queued[0]!.onboundary!({ charIndex: 0 }));
 
-    fireEvent.click(screen.getByRole("button", { name: /Show full transcript/i }));
-
-    // The sentence is now split into one span per word (that's how the
+    // The sentence is split into one span per word (that's how the
     // karaoke-style highlight works), so it can no longer be matched as one
     // block of text -- find the line by its "Caller:" label instead.
     const spokenLine = screen.getAllByText("Caller:")[0]!.closest("p")!;
@@ -211,18 +208,6 @@ describe("VoiceCall", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^Mute call$/i }));
     expect(carets()).toHaveLength(0);
-  });
-
-  it("hides the transcript again after toggling show then hide", () => {
-    renderCall();
-    answer();
-    act(() => queued[0]!.onstart!());
-
-    fireEvent.click(screen.getByRole("button", { name: /Show full transcript/i }));
-    expect(screen.getByText(/Confirm your PIN/)).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: /Hide full transcript/i }));
-    expect(screen.queryByText(/Confirm your PIN/)).toBeNull();
   });
 
   it("releases the full transcript for review once a verdict is in", () => {

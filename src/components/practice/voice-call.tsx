@@ -52,10 +52,6 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
   const [activeWord, setActiveWord] = useState(-1);
   const [elapsed, setElapsed] = useState(0);
   const [muted, setMuted] = useState(false);
-  // Only the manual toggle needs to be state. Whether the transcript is
-  // actually visible is derived below -- reviewing and "no speech engine" both
-  // force it on, and in both of those cases the toggle button isn't rendered.
-  const [transcriptToggled, setTranscriptToggled] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   const startedRef = useRef(false);
@@ -180,15 +176,14 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
   };
 
   /*
-   * Normally the transcript is earned line by line as the caller speaks, so the
-   * learner has to listen. Forced on in the two cases where the toggle button
-   * isn't offered:
+   * The transcript is earned line by line as the caller speaks -- there is no
+   * manual reveal, so the only way to see a line is to have heard it. Two cases
+   * hand over the whole thing anyway:
    *   reviewing  -- the exercise is over and the feedback refers to these words
    *   !hasSpeech -- there's nothing to listen to, so gating it leaves a blank
    *                 pane with no way for spokenCount to ever advance
-   * Otherwise it follows the manual toggle.
    */
-  const showTranscript = reviewing || !hasSpeech || transcriptToggled;
+  const showTranscript = reviewing || !hasSpeech;
 
   const visibleLines = showTranscript ? lines.length : spokenCount;
   const listening = phase === "connected" && !muted;
@@ -357,23 +352,6 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
                 Replay
               </Button>
             )}
-          </div>
-        )}
-
-        {/* Escape hatch: anyone who can't use the audio (deaf or hard of
-            hearing, muted device) still needs the words. Not offered when
-            there's no speech engine at all -- the transcript is already
-            forced on for that case, and hiding it here would blank the pane
-            with no way for spokenCount to ever advance again. */}
-        {!reviewing && phase !== "incoming" && hasSpeech && (
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={() => setTranscriptToggled((v) => !v)}
-              className="text-[11px] text-slate-400 hover:text-slate-200 underline underline-offset-2"
-            >
-              {showTranscript ? "Hide full transcript" : "Show full transcript"}
-            </button>
           </div>
         )}
 

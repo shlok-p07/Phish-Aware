@@ -15,14 +15,31 @@ export interface TranscriptLine {
 }
 
 /**
+ * Whitespace sitting in front of a `Caller:`/`You:` label that isn't already at
+ * the start of a line. Anchored with `m` so labels that do start their own line
+ * are left alone.
+ */
+const SPEAKER_MID_LINE = /(?!^)[ \t]*(?=(?:Caller|You)\s*:)/gim;
+
+/**
  * Splits a stored voice scenario body into the lines the caller speaks.
  *
  * Stored bodies are consecutive `Caller: ...` lines (see the voice brief in
  * server/scenarioGenerator.ts). The prefix is display furniture, not something
  * the voice should read aloud.
+ *
+ * Generated bodies don't always honour that contract: the model frequently
+ * returns every turn run together on one line, because emitting a real newline
+ * inside a JSON string is exactly the sort of thing it gets wrong. Splitting on
+ * "\n" alone then yields a single line, which is not a cosmetic problem -- the
+ * whole transcript lands in one lump instead of tracking the voice, one
+ * utterance is queued instead of several, and the call ends seconds after it
+ * connects. So a speaker label appearing mid-line is treated as a line break
+ * too.
  */
 export function parseTranscript(body: string): TranscriptLine[] {
   return body
+    .replace(SPEAKER_MID_LINE, "\n")
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
