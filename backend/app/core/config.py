@@ -20,8 +20,6 @@ class Settings(BaseSettings):
     awareness_model_filename: str = "phishing_awareness_v1.joblib"
     awareness_metadata_filename: str = "phishing_awareness_v1.metadata.json"
     awareness_model_version: str = "awareness-v1.0.0"
-    awareness_model_filename: str = "phishing_awareness_v1.joblib"
-    awareness_model_version: str = "awareness-v1.0.0"
     # Where raw/processed datasets live once real data arrives.
     data_dir: Path = BACKEND_ROOT / "data"
 

@@ -48,6 +48,8 @@ db.scenarios.createIndex({ emotionalLevers: 1 });
 
 // attempts
 db.attempts.createIndex({ userId: 1, createdAt: -1 });
+db.attempts.createIndex({ userId: 1, attackType: 1, createdAt: -1 });
+db.attempts.createIndex({ userId: 1, leversPresent: 1, createdAt: -1 });
 db.attempts.createIndex({ campaignId: 1 });
 
 // reviews

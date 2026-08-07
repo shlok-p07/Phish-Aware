@@ -38,7 +38,7 @@ function matches(doc: FakeDoc, query: Record<string, unknown>): boolean {
 function makeFakeCollection(docs: FakeDoc[]) {
   return {
     findOne: async (query: Record<string, unknown>) => docs.find((d) => matches(d, query)) ?? null,
-    find: (query: Record<string, unknown>) => ({
+    find: (query: Record<string, unknown> = {}) => ({
       toArray: async () => docs.filter((d) => matches(d, query)),
     }),
     countDocuments: async (query: Record<string, unknown>) =>
@@ -73,6 +73,7 @@ function makeFakeCollection(docs: FakeDoc[]) {
 /** Shared, mutable seed data -- one array per collection name. */
 export const fakeDbState = {
   users: [] as FakeDoc[],
+  scenarios: [] as FakeDoc[],
   organizations: [] as FakeDoc[],
   invitations: [] as FakeDoc[],
   ssoConnections: [] as FakeDoc[],
@@ -83,6 +84,7 @@ export const fakeDbState = {
 
 export function resetFakeDbState() {
   fakeDbState.users = [];
+  fakeDbState.scenarios = [];
   fakeDbState.organizations = [];
   fakeDbState.invitations = [];
   fakeDbState.ssoConnections = [];
@@ -112,6 +114,7 @@ export async function installMongoMock() {
   mock.module("@/db", () => ({
     ...realDb,
     usersCollection: () => makeFakeCollection(fakeDbState.users),
+    scenariosCollection: () => makeFakeCollection(fakeDbState.scenarios),
     organizationsCollection: () => makeFakeCollection(fakeDbState.organizations),
     invitationsCollection: () => makeFakeCollection(fakeDbState.invitations),
     ssoConnectionsCollection: () => makeFakeCollection(fakeDbState.ssoConnections),

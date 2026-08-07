@@ -65,6 +65,8 @@ export * from './ssoTestResult';
 export * from './submitAttemptInput';
 export * from './surveyFeatures';
 export * from './surveyFeaturesWorkMode';
+export * from './taxonomyPerformanceArea';
+export * from './taxonomyPerformanceAreaCategory';
 export * from './trainingAssignment';
 export * from './updateMemberRoleInput';
 export * from './updateOrgSettingsInput';

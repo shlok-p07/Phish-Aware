@@ -53,6 +53,12 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     explanation: graded.explanation,
     calibrationNote: graded.calibrationNote,
     xpAwarded: graded.xpAwarded,
+    // Snapshot server-owned taxonomy from the scenario so adaptive history
+    // remains usable even if scenario metadata changes later.
+    leversPresent: scenario.emotionalLevers ?? [],
+    // Omit rather than write undefined/null for legacy static scenarios; the
+    // Mongo enum accepts only real taxonomy values when the field is present.
+    ...(scenario.attackType ? { attackType: scenario.attackType } : {}),
     ...specDefaults(),
   });
 

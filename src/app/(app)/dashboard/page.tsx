@@ -128,7 +128,7 @@ export default function DashboardPage() {
 			</div>
 
 			<div className="grid md:grid-cols-2 gap-6 md:flex-1">
-				{/* Strong/Weak Cues */}
+				{/* Taxonomy strengths/focus areas from the adaptive rules engine */}
 				<Card className="shadow-sm flex flex-col">
 					<CardHeader variant="band">
 						<CardTitle className="text-lg flex items-center gap-2">
@@ -137,15 +137,18 @@ export default function DashboardPage() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="pt-4 flex-1 flex flex-col">
-						{summary.strongCues.length > 0 ? (
+						{summary.strengths.length > 0 ? (
 							<div className="space-y-2">
-								{summary.strongCues.map((cue) => (
+								{summary.strengths.map((area) => (
 									<div
-										key={cue.id}
+										key={`${area.category}:${area.id}`}
 										className="flex items-center gap-3 p-2 rounded-lg bg-success/10 border border-success/20 text-success"
 									>
 										<ShieldCheck className="w-5 h-5" />
-										<span className="font-semibold text-sm">{cue.label}</span>
+										<div className="min-w-0">
+											<p className="font-semibold text-sm">{area.label}</p>
+											<p className="text-xs opacity-80">{area.category === "attack_type" ? "Attack type" : "Persuasion tactic"} · {area.accuracyRate}% across {area.attempts}</p>
+										</div>
 									</div>
 								))}
 							</div>
@@ -173,15 +176,18 @@ export default function DashboardPage() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="pt-4 flex-1 flex flex-col">
-						{summary.weakCues.length > 0 ? (
+						{summary.focusAreas.length > 0 ? (
 							<div className="space-y-2">
-								{summary.weakCues.map((cue) => (
+								{summary.focusAreas.map((area) => (
 									<div
-										key={cue.id}
+										key={`${area.category}:${area.id}`}
 										className="flex items-center gap-3 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive"
 									>
 										<ShieldAlert className="w-5 h-5" />
-										<span className="font-semibold text-sm">{cue.label}</span>
+										<div className="min-w-0">
+											<p className="font-semibold text-sm">{area.label}</p>
+											<p className="text-xs opacity-80">{area.category === "attack_type" ? "Attack type" : "Persuasion tactic"} · {area.accuracyRate}% across {area.attempts}</p>
+										</div>
 									</div>
 								))}
 							</div>

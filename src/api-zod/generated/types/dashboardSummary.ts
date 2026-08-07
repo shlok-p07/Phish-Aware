@@ -5,8 +5,8 @@
  * PhishAware API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CueOption } from './cueOption';
 import type { Level } from './level';
+import type { TaxonomyPerformanceArea } from './taxonomyPerformanceArea';
 
 export interface DashboardSummary {
   name: string;
@@ -15,8 +15,8 @@ export interface DashboardSummary {
   xpToNextLevel: number;
   xpIntoLevel: number;
   streak: number;
-  strongCues: CueOption[];
-  weakCues: CueOption[];
+  strengths: TaxonomyPerformanceArea[];
+  focusAreas: TaxonomyPerformanceArea[];
   badges: string[];
   totalAttempts: number;
   accuracyRate: number;

@@ -1,3 +1,7 @@
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "integration: tests multiple application layers together",
+    "model_integration: loads and executes the real awareness model artifact",
+]

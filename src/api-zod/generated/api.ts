@@ -391,13 +391,19 @@ export const GetDashboardResponse = zod.object({
   "xpToNextLevel": zod.number().int(),
   "xpIntoLevel": zod.number().int(),
   "streak": zod.number().int(),
-  "strongCues": zod.array(zod.object({
-  "id": zod.enum(['sender_domain', 'mismatched_link', 'urgency_language', 'generic_greeting', 'credential_request', 'spelling_grammar', 'unexpected_attachment', 'suspicious_qr']),
-  "label": zod.string()
+  "strengths": zod.array(zod.object({
+  "id": zod.string(),
+  "category": zod.enum(['attack_type', 'persuasion_tactic']),
+  "label": zod.string(),
+  "attempts": zod.number().int(),
+  "accuracyRate": zod.number()
 })),
-  "weakCues": zod.array(zod.object({
-  "id": zod.enum(['sender_domain', 'mismatched_link', 'urgency_language', 'generic_greeting', 'credential_request', 'spelling_grammar', 'unexpected_attachment', 'suspicious_qr']),
-  "label": zod.string()
+  "focusAreas": zod.array(zod.object({
+  "id": zod.string(),
+  "category": zod.enum(['attack_type', 'persuasion_tactic']),
+  "label": zod.string(),
+  "attempts": zod.number().int(),
+  "accuracyRate": zod.number()
 })),
   "badges": zod.array(zod.string()),
   "totalAttempts": zod.number().int(),

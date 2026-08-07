@@ -5,12 +5,12 @@ import type { ScenarioDoc } from "@/db";
 import { GetNextPracticeScenarioResponse } from "@/api-zod";
 import { json, error, requireUserId, withErrorHandling } from "@/server/http";
 import {
-  pickAttackProfile,
-  pickVector,
-  pickIsPhish,
   difficultyForAwarenessScore,
+  pickIsPhish,
+  pickVector,
   type VectorPreference,
 } from "@/server/attackProfiles";
+import { selectAttackProfile } from "@/server/attackProfileSelector";
 import { generatePhishingScenario } from "@/server/scenarioGenerator";
 import { topUpPoolInBackground } from "@/server/scenarioPool";
 import { personalizeScenario } from "@/server/personalize";
@@ -29,8 +29,19 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   const attempted = await (await attemptsCollection()).find({ userId }).toArray();
   const attemptedIds = new Set(attempted.map((a) => a.scenarioId.toString()));
 
+  // Generate a fresh scenario on (almost) every round rather than once and
+  // reusing it -- an unattempted generated scenario would otherwise just sit
+  // in the pool and keep getting served back on every refresh/next call
+  // until someone actually completes it, which looked like the generator was
+  // stuck repeating the same department/attack-type combo. Phase 1 (see
+  // project's AI-pipeline spec): department/work type feed the prompt,
+  // tactic/attack type are selected by the adaptive rules engine using this
+  // user's persisted taxonomy history, with cold-start and 30% exploration.
   const user = await (await usersCollection()).findOne({ _id: userId });
-  const { persuasionTactic, attackType } = pickAttackProfile(user?.department ?? null);
+  const { persuasionTactic, attackType } = selectAttackProfile({
+    department: user?.department ?? null,
+    history: attempted,
+  });
   const vector = pickVector(vectorPreference);
   const isPhish = pickIsPhish();
   const genParams = {

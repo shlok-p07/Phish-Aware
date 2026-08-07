@@ -82,6 +82,9 @@ describe("generatePhishingScenario", () => {
     expect(result!.isOnboarding).toBe(false);
     // Difficulty always comes from our own params, never from the model.
     expect(result!.difficulty).toBe(BASE_PARAMS.difficulty);
+    expect(result!.emotionalLevers).toEqual(["urgency"]);
+    expect(result!.attackType).toBe("invoice_fraud");
+    expect(result!.source).toBe("ai_generated");
     expect(result!.cues).toHaveLength(1);
     expect(result!.cues[0]!.type).toBe("urgency_language");
   });
@@ -115,6 +118,9 @@ describe("generatePhishingScenario", () => {
     expect(result!.isPhish).toBe(true);
     expect(result!.vector).toBe("email");
     expect(result!.isOnboarding).toBe(false);
+    expect(result!.emotionalLevers).toEqual(["urgency"]);
+    expect(result!.attackType).toBe("invoice_fraud");
+    expect(result!.source).toBe("ai_generated");
   });
 
   it("returns null when the draft stage returns invalid JSON", async () => {

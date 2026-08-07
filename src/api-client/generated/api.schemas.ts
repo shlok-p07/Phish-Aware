@@ -353,6 +353,22 @@ export interface AttemptResult {
   badgesEarned: string[];
 }
 
+export type TaxonomyPerformanceAreaCategory = typeof TaxonomyPerformanceAreaCategory[keyof typeof TaxonomyPerformanceAreaCategory];
+
+
+export const TaxonomyPerformanceAreaCategory = {
+  attack_type: 'attack_type',
+  persuasion_tactic: 'persuasion_tactic',
+} as const;
+
+export interface TaxonomyPerformanceArea {
+  id: string;
+  category: TaxonomyPerformanceAreaCategory;
+  label: string;
+  attempts: number;
+  accuracyRate: number;
+}
+
 export interface DashboardSummary {
   name: string;
   level: Level;
@@ -360,8 +376,8 @@ export interface DashboardSummary {
   xpToNextLevel: number;
   xpIntoLevel: number;
   streak: number;
-  strongCues: CueOption[];
-  weakCues: CueOption[];
+  strengths: TaxonomyPerformanceArea[];
+  focusAreas: TaxonomyPerformanceArea[];
   badges: string[];
   totalAttempts: number;
   accuracyRate: number;

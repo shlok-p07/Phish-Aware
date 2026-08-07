@@ -1,7 +1,7 @@
 import { usersCollection, attemptsCollection } from "@/db";
 import { GetDashboardResponse } from "@/api-zod";
 import { xpProgress } from "@/server/leveling";
-import { CUE_LABELS, type CueId } from "@/server/cues";
+import { taxonomyPerformanceAreas } from "@/server/attackProfileSelector";
 import { json, error, requireUserId, withErrorHandling } from "@/server/http";
 import { percent } from "@/lib/utils";
 
@@ -16,39 +16,24 @@ export const GET = withErrorHandling(async () => {
   }
   const attempts = await (await attemptsCollection()).find({ userId: user._id }).toArray();
 
-  const cueStats = new Map<string, { caught: number; missed: number }>();
-  for (const a of attempts) {
-    for (const c of a.caughtCues) {
-      const s = cueStats.get(c) ?? { caught: 0, missed: 0 };
-      s.caught++;
-      cueStats.set(c, s);
-    }
-    for (const c of a.missedCues) {
-      const s = cueStats.get(c) ?? { caught: 0, missed: 0 };
-      s.missed++;
-      cueStats.set(c, s);
-    }
-  }
-
-  const rated = Array.from(cueStats.entries())
-    .map(([cueId, s]) => ({
-      cueId: cueId as CueId,
-      rate: s.caught / (s.caught + s.missed),
-      total: s.caught + s.missed,
-    }))
-    .filter((r) => r.total >= 1);
-
-  const strongCues = rated
-    .filter((r) => r.rate >= 0.6)
-    .sort((a, b) => b.rate - a.rate)
+  const taxonomyAreas = taxonomyPerformanceAreas({
+    department: user.department,
+    history: attempts,
+  });
+  // Any observed error makes an area eligible for focused practice; shared
+  // engine weights rank high-confidence errors, underexposure, and recency.
+  const focusAreas = taxonomyAreas
+    .filter((area) => area.incorrect > 0)
+    .sort((a, b) => b.weight - a.weight)
     .slice(0, 3)
-    .map((r) => ({ id: r.cueId, label: CUE_LABELS[r.cueId] }));
-
-  const weakCues = rated
-    .filter((r) => r.rate < 0.6)
-    .sort((a, b) => a.rate - b.rate)
+    .map(({ incorrect: _incorrect, weight: _weight, ...area }) => area);
+  // A strength requires an error-free classified history. Lower weakness
+  // weight (generally more exposure and more recent success) ranks first.
+  const strengths = taxonomyAreas
+    .filter((area) => area.incorrect === 0)
+    .sort((a, b) => a.weight - b.weight)
     .slice(0, 3)
-    .map((r) => ({ id: r.cueId, label: CUE_LABELS[r.cueId] }));
+    .map(({ incorrect: _incorrect, weight: _weight, ...area }) => area);
 
   const { xpIntoLevel, xpToNextLevel } = xpProgress(user.xp);
   const totalAttempts = attempts.length;
@@ -63,8 +48,8 @@ export const GET = withErrorHandling(async () => {
       xpToNextLevel,
       xpIntoLevel,
       streak: user.streak,
-      strongCues,
-      weakCues,
+      strengths,
+      focusAreas,
       badges: user.badges,
       totalAttempts,
       accuracyRate,

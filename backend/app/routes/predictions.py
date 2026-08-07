@@ -38,4 +38,13 @@ def awareness(
     body: AwarenessPredictionRequest,
     predictor: AwarenessPredictor = Depends(available_awareness_predictor),
 ) -> AwarenessPredictionResponse:
-    return predict_awareness(body, predictor)
+    try:
+        return predict_awareness(body, predictor)
+    except Exception as exc:
+        # Inference is an optional enhancement to onboarding. Present a stable
+        # unavailable response so the Next.js caller can use diagnostic
+        # accuracy, without leaking model/library internals to the client.
+        raise HTTPException(
+            status_code=503,
+            detail="Awareness model inference failed",
+        ) from exc

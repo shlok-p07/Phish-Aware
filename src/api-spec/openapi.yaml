@@ -1362,8 +1362,8 @@ components:
         - xpToNextLevel
         - xpIntoLevel
         - streak
-        - strongCues
-        - weakCues
+        - strengths
+        - focusAreas
         - badges
         - totalAttempts
         - accuracyRate
@@ -1380,19 +1380,35 @@ components:
           type: integer
         streak:
           type: integer
-        strongCues:
+        strengths:
           type: array
           items:
-            $ref: "#/components/schemas/CueOption"
-        weakCues:
+            $ref: "#/components/schemas/TaxonomyPerformanceArea"
+        focusAreas:
           type: array
           items:
-            $ref: "#/components/schemas/CueOption"
+            $ref: "#/components/schemas/TaxonomyPerformanceArea"
         badges:
           type: array
           items:
             type: string
         totalAttempts:
+          type: integer
+        accuracyRate:
+          type: number
+
+    TaxonomyPerformanceArea:
+      type: object
+      required: [id, category, label, attempts, accuracyRate]
+      properties:
+        id:
+          type: string
+        category:
+          type: string
+          enum: [attack_type, persuasion_tactic]
+        label:
+          type: string
+        attempts:
           type: integer
         accuracyRate:
           type: number

@@ -27,6 +27,10 @@ export const PERSUASION_TACTIC_LABELS: Record<PersuasionTacticId, string> = {
   social_proof: "Social Proof",
 };
 
+export const PERSUASION_TACTICS = Object.keys(
+  PERSUASION_TACTIC_LABELS,
+) as PersuasionTacticId[];
+
 export type AttackTypeId =
   | "credential_harvesting"
   | "bec"
@@ -85,7 +89,7 @@ export const DEPARTMENT_ATTACK_TYPES: Record<Department, AttackTypeId[]> = {
   Sales: [...UNIVERSAL_ATTACK_TYPES, "bec", "invoice_fraud"],
 };
 
-function eligibleAttackTypes(department: string | null): AttackTypeId[] {
+export function eligibleAttackTypes(department: string | null): AttackTypeId[] {
   if (!isDepartment(department)) return UNIVERSAL_ATTACK_TYPES;
   return DEPARTMENT_ATTACK_TYPES[department];
 }
@@ -132,9 +136,8 @@ export function pickAttackProfile(department: string | null): {
   persuasionTactic: PersuasionTacticId;
   attackType: AttackTypeId;
 } {
-  const tactics = Object.keys(PERSUASION_TACTIC_LABELS) as PersuasionTacticId[];
   return {
-    persuasionTactic: pickRandom(tactics),
+    persuasionTactic: pickRandom(PERSUASION_TACTICS),
     attackType: pickRandom(eligibleAttackTypes(department)),
   };
 }

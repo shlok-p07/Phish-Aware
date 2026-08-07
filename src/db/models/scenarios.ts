@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 import { getCollection } from "../client";
 import type { SpecConventions } from "./specConventions";
 import type { CueId } from "@/server/cues";
+import type { AttackTypeId, PersuasionTacticId } from "@/server/attackProfiles";
 
 export interface ScenarioLink {
   text: string;
@@ -33,10 +34,10 @@ export interface ScenarioDoc extends SpecConventions {
   cues: ScenarioCue[];
   difficulty: number; // 1-5, per the shared spec
   isOnboarding: boolean; // app-specific, spec-unlisted -- see 01-validators.js header
-  // Matches the shared schema's `source` enum (01-validators.js) -- lets the
-  // practice-pool logic (src/server/scenarioPool.ts) tell live-generated
-  // scenarios apart from the static library ones without a new field.
-  source: "library" | "ai_generated";
+  /** Existing shared-schema taxonomy fields; optional on legacy/static rows. */
+  emotionalLevers?: PersuasionTacticId[];
+  attackType?: AttackTypeId;
+  source?: "library" | "ai_generated";
 }
 
 // orgId defaults to null (global library scenario) when omitted by callers.

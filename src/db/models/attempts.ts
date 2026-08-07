@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 import { getCollection } from "../client";
 import type { SpecConventions } from "./specConventions";
 import type { CueId } from "@/server/cues";
+import type { AttackTypeId, PersuasionTacticId } from "@/server/attackProfiles";
 
 export type Verdict = "phish" | "legit";
 
@@ -22,6 +23,9 @@ export interface AttemptDoc extends SpecConventions {
   explanation: string;
   calibrationNote: string;
   xpAwarded: number;
+  /** Server-copied scenario taxonomy snapshot; absent on historical rows. */
+  leversPresent?: PersuasionTacticId[];
+  attackType?: AttackTypeId;
 }
 
 export type InsertAttempt = Omit<AttemptDoc, "_id">;

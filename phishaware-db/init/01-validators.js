@@ -29,6 +29,11 @@ db = db.getSiblingDB("phishaware");
 const ROLE = ["admin", "manager", "employee"];
 const VECTOR = ["email", "sms", "voice", "qr", "social", "web"];
 const LEVER = ["urgency", "curiosity", "authority", "fear", "reward", "trust", "scarcity", "social_proof"];
+const ATTACK_TYPE = [
+  "credential_harvesting", "bec", "invoice_fraud", "payroll_fraud",
+  "mfa_fatigue", "cloud_file_sharing_scam", "it_helpdesk_scam",
+  "package_delivery_scam", "software_update_scam", "malware_delivery",
+];
 const CUE = ["sender_domain", "mismatched_link", "urgency_language",
   "generic_greeting", "credential_request", "spelling_grammar",
   "unexpected_attachment", "suspicious_qr"];
@@ -185,6 +190,7 @@ make("scenarios", ["isPhish", "vector"], {
   attachments: { bsonType: "array", items: attachmentItem },
   cues: { bsonType: "array", items: cueItem },
   emotionalLevers: { bsonType: "array", items: { enum: LEVER } },
+  attackType: { enum: ATTACK_TYPE },
   targetRoles: { bsonType: "array", items: str },
   source: { enum: ["library", "ai_generated"] },
   isActive: { bsonType: "bool" },
@@ -210,6 +216,7 @@ make("attempts", ["userId", "orgId", "scenarioId", "verdict", "correct"], {
   falseCues: { bsonType: "array", items: { enum: CUE } },
   explanation: str, calibrationNote: str,
   leversPresent: { bsonType: "array", items: { enum: LEVER } },
+  attackType: { enum: ATTACK_TYPE },
   timeToDecideMs: num, xpAwarded: num,
 });
 

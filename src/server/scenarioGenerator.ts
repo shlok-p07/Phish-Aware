@@ -28,6 +28,9 @@ export interface GeneratedScenarioContent {
   cues: ScenarioCue[];
   difficulty: number;
   isOnboarding: false;
+  emotionalLevers: PersuasionTacticId[];
+  attackType: AttackTypeId;
+  source: "ai_generated";
 }
 
 const CUE_IDS = Object.keys(CUE_LABELS) as CueId[];
@@ -293,6 +296,11 @@ export async function generatePhishingScenario(
       cues,
       difficulty: params.difficulty,
       isOnboarding: false,
+      // Taxonomy is selected by our deterministic application code, never
+      // accepted from the LLM response.
+      emotionalLevers: [params.persuasionTactic],
+      attackType: params.attackType,
+      source: "ai_generated",
     };
   } catch (err) {
     console.error("[scenarioGenerator] generation failed, caller should fall back:", err);
