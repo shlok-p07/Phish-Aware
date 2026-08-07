@@ -26,53 +26,16 @@ import { useChatbot, ChatMessageList, ChatComposer } from "@/components/chatbot-
 import type { CueId } from "@/server/cues";
 import { CUE_REGION, findBodyMatch, highlightClass } from "@/components/practice/cue-highlight";
 import { VoiceCall } from "@/components/practice/voice-call";
+import { useAttemptFlow } from "@/components/practice/use-attempt-flow";
+import { parseSender, isNumericSender } from "@/components/practice/sender";
+import {
+  SCENARIO_TIMES, INBOX_DECOYS, MESSAGE_DECOYS, CALL_LOG_DECOYS,
+} from "@/components/practice/decoys";
 import Link from "next/link";
 import { PageHeader, PageShell } from "@/components/page-shell";
 import { EmptyState, PageHeaderSkeleton } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Define the steps of the practice loop
-type PracticeStep = 'inspect' | 'cues' | 'confidence' | 'feedback';
-
-// Parse "Name <email@x.com>" or a bare address into display parts.
-function parseSender(raw: string) {
-  const m = raw.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
-  if (m && m[2]) {
-    const email = m[2].trim();
-    return { name: (m[1].trim() || email), email };
-  }
-  if (raw.includes("@")) {
-    return { name: raw.trim(), email: raw.trim() };
-  }
-  return { name: raw.trim(), email: "" };
-}
-
-const TIMES = ["8:14 AM", "9:03 AM", "10:47 AM", "11:22 AM", "1:38 PM", "3:05 PM", "4:51 PM"];
-
-// Decoy inbox rows to sell the mailbox metaphor (non-interactive).
-const DECOYS = [
-  { name: "Google Calendar", subject: "Reminder: Team sync at 2:00 PM", snippet: "You have an event starting soon.", time: "7:45 AM" },
-  { name: "GitHub", subject: "[phish-aware] 3 new pull requests", snippet: "Activity across repositories you follow.", time: "Yesterday" },
-  { name: "LinkedIn", subject: "You appeared in 7 searches this week", snippet: "See who's been looking at your profile.", time: "Yesterday" },
-  { name: "Spotify", subject: "Your Wrapped is almost here", snippet: "A year of listening, wrapped up for you.", time: "Mon" },
-];
-
-// Decoy conversation rows to sell the messaging-app metaphor for sms scenarios.
-const MESSAGE_DECOYS = [
-  { name: "Mom", snippet: "Don't forget to call grandma this weekend!", time: "9:12 AM" },
-  { name: "Uber", snippet: "Your driver is 3 minutes away.", time: "Yesterday" },
-  { name: "Chase Bank", snippet: "Your statement is ready to view.", time: "Mon" },
-];
-
-const CALL_LOG_DECOYS = [
-  { name: "City Utilities", snippet: "Scheduled payment reminder.", time: "Yesterday" },
-  { name: "Pharmacy Refill", snippet: "Your refill is ready for pickup.", time: "Mon" },
-  { name: "School Office", snippet: "Attendance follow-up call.", time: "Mon" },
-];
-
-// A sender that reads as a phone number/short code gets a phone glyph instead
-// of an initial -- an initial from "+1 (302)..." would just show "+".
-const isNumericSender = (name: string) => /^[+\d]/.test(name.trim());
 
 // What to practice: a specific vector, or "mixed" to keep randomizing every
 // round (the original behavior). A lesson's "Put it to practice" link can
@@ -102,21 +65,13 @@ export default function PracticePage() {
   const submitAttempt = useSubmitAttempt();
   const chat = useChatbot();
 
-  // Local state
-  const [step, setStep] = useState<PracticeStep>('inspect');
-  const [verdict, setVerdict] = useState<boolean | null>(null); // true = phishing
-  // CueId, not string: the API takes CueId[], and typing this loosely was what
-  // forced the `as any[]` cast at the submit call below.
-  const [selectedCues, setSelectedCues] = useState<CueId[]>([]);
-  const [confidence, setConfidence] = useState<number>(50);
-  const [result, setResult] = useState<AttemptResult | null>(null);
-  // The red flag currently being hovered on the results screen -- drives the
-  // highlight in the email (mirrors the landing page's InboxPreview mechanic).
-  const [activeCue, setActiveCue] = useState<string | null>(null);
-  // Index into the shared chat conversation where the scenario-specific
-  // explanation reply will land, so we can surface just that answer inline as
-  // its own card instead of opening the floating popup. Null until requested.
-  const [explainIndex, setExplainIndex] = useState<number | null>(null);
+  // The verdict -> cues -> confidence -> feedback progression, extracted so it
+  // can be tested without rendering this page.
+  const flow = useAttemptFlow();
+  const {
+    step, verdict, selectedCues, confidence, result, activeCue, explainIndex,
+    setConfidence, setActiveCue, setExplainIndex, toggleCue,
+  } = flow;
 
   // Hoisted above the loading/error early-returns below so these hooks run on
   // every render regardless of which branch is taken -- conditionally calling
@@ -154,26 +109,10 @@ export default function PracticePage() {
     );
   }
 
-  const handleVerdict = (isPhishing: boolean) => {
-    setVerdict(isPhishing);
-    setStep(isPhishing ? 'cues' : 'confidence'); // Skip cues if legit, they're "red flags"
-    setSelectedCues([]);
-  };
+  const handleVerdict = flow.commitVerdict;
 
-  // Lets someone change their mind about the verdict itself, not just the
-  // cues/confidence after it -- nothing is scored until "Submit Verdict", so
-  // there's no reason to lock them out of reconsidering before that point.
-  const handleBackToInspect = () => {
-    setVerdict(null);
-    setSelectedCues([]);
-    setStep('inspect');
-  };
+  const handleBackToInspect = flow.backToInspect;
 
-  const toggleCue = (cueId: CueId) => {
-    setSelectedCues(prev =>
-      prev.includes(cueId) ? prev.filter(id => id !== cueId) : [...prev, cueId]
-    );
-  };
 
   const handleSubmit = () => {
     if (verdict === null) return;
@@ -187,8 +126,7 @@ export default function PracticePage() {
       }
     }, {
       onSuccess: (data) => {
-        setResult(data);
-        setStep('feedback');
+        flow.applyResult(data);
         // Pre-invalidate so dashboard updates behind the scenes
         queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
@@ -199,13 +137,7 @@ export default function PracticePage() {
   // The call pane silences itself on unmount, and it remounts per scenario id,
   // so nothing here needs to stop audio explicitly.
   const resetAndNext = () => {
-    setResult(null);
-    setVerdict(null);
-    setSelectedCues([]);
-    setConfidence(50);
-    setActiveCue(null);
-    setExplainIndex(null);
-    setStep('inspect');
+    flow.reset();
     queryClient.invalidateQueries({ queryKey: getGetNextPracticeScenarioQueryKey() });
   };
 
@@ -214,13 +146,7 @@ export default function PracticePage() {
   // change out from under it.
   const handleVectorFilterChange = (next: GetNextPracticeScenarioVector) => {
     setVectorFilter(next);
-    setResult(null);
-    setVerdict(null);
-    setSelectedCues([]);
-    setConfidence(50);
-    setActiveCue(null);
-    setExplainIndex(null);
-    setStep('inspect');
+    flow.reset();
   };
 
   // Helper to get cue label
@@ -248,7 +174,7 @@ export default function PracticePage() {
 
   const { name: senderName, email: senderEmail } = parseSender(scenario.sender);
   const initial = (senderName || "?").charAt(0).toUpperCase();
-  const timestamp = TIMES[parseInt(scenario.id.slice(-6), 16) % TIMES.length];
+  const timestamp = SCENARIO_TIMES[parseInt(scenario.id.slice(-6), 16) % SCENARIO_TIMES.length];
   const snippet = scenario.body.replace(/\s+/g, " ").trim().slice(0, 64);
   // Text-message senders are phone numbers/short codes -- an initial from
   // "+1 (302)..." would just show "+", so those get a phone glyph instead.
@@ -451,7 +377,7 @@ export default function PracticePage() {
           <p className="text-xs font-medium text-muted-foreground truncate">{snippet}…</p>
         </div>
         {/* Decoys */}
-        {DECOYS.map((d, i) => (
+        {INBOX_DECOYS.map((d, i) => (
           <div key={i} className="px-4 py-3 opacity-60 cursor-default select-none">
             <div className="flex items-center justify-between gap-2 mb-1">
               <span className="font-medium text-sm text-foreground truncate">{d.name}</span>
@@ -861,7 +787,7 @@ export default function PracticePage() {
                     </div>
                     <Button
                       className="w-full mt-4 py-6 rounded-lg font-bold"
-                      onClick={() => setStep('confidence')}
+                      onClick={() => flow.goToConfidence()}
                     >
                       Next <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
@@ -899,7 +825,7 @@ export default function PracticePage() {
                       {submitAttempt.isPending ? "Submitting..." : "Submit Verdict"}
                     </Button>
 
-                    <Button variant="ghost" className="w-full font-bold" onClick={() => setStep(verdict ? 'cues' : 'inspect')}>
+                    <Button variant="ghost" className="w-full font-bold" onClick={flow.backFromConfidence}>
                       Back
                     </Button>
                   </div>

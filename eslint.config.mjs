@@ -15,7 +15,7 @@ import nextTypescript from "eslint-config-next/typescript";
 /** @type {import("eslint").Linter.Config[]} */
 const config = [
   {
-    ignores: [
+    ignores: ["coverage/**", 
       ".next/**",
       "node_modules/**",
       "backend/**",
