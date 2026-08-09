@@ -1,29 +1,17 @@
-import { describe, expect, it, beforeEach, mock } from "bun:test";
+import { describe, expect, it, beforeEach } from "bun:test";
 import { NextRequest } from "next/server";
-import {
-  installUsersCollectionMock,
-  fakeUsersState,
-  resetFakeUsersState,
-} from "@/test/mock-users-collection";
+import { installMongoMock, fakeDbState, resetFakeDbState } from "@/test/mock-mongo";
+import { installSessionMock, fakeSessionState, resetFakeSessionState } from "@/test/mock-session";
 import { hashPassword } from "@/server/password";
 import { __resetRateLimits } from "@/server/rateLimit";
 import { LOCKOUT_MS, MAX_FAILED_ATTEMPTS } from "@/server/loginLockout";
 import { ACCOUNT_LOCKED_CODE, PASSWORD_RESET_REQUIRED_CODE } from "@/lib/auth-errors";
 import { buildUserDoc } from "@/server/users";
 
-await installUsersCollectionMock();
-
+await installMongoMock();
 // The route only needs a session to exist; the cookie plumbing is next/headers'
 // problem and is covered by src/server/session.ts's own tests.
-const realSession = await import("@/server/session");
-let sessionsCreated = 0;
-mock.module("@/server/session", () => ({
-  ...realSession,
-  createSession: async () => {
-    sessionsCreated += 1;
-    return "test-session-token";
-  },
-}));
+await installSessionMock();
 
 const { POST } = await import("./route");
 
@@ -45,7 +33,7 @@ function seedUser(overrides: Partial<Record<string, unknown>> = {}) {
     ...buildUserDoc({ name: "Alice", email: EMAIL, passwordHash: hashPassword(PASSWORD) }),
     ...overrides,
   };
-  fakeUsersState.docs.push(doc as never);
+  fakeDbState.users.push(doc as never);
   return doc as Record<string, unknown>;
 }
 
@@ -59,9 +47,9 @@ async function failTimes(n: number) {
 }
 
 beforeEach(() => {
-  resetFakeUsersState();
+  resetFakeDbState();
   __resetRateLimits();
-  sessionsCreated = 0;
+  resetFakeSessionState();
 });
 
 describe("POST /api/auth/login — lockout", () => {
@@ -70,7 +58,7 @@ describe("POST /api/auth/login — lockout", () => {
     const res = await postLogin(PASSWORD);
 
     expect(res.status).toBe(200);
-    expect(sessionsCreated).toBe(1);
+    expect(fakeSessionState.createdCount).toBe(1);
     expect(user.failedLoginAttempts).toBe(0);
     expect(user.lockedUntil).toBeNull();
     expect(user.mustResetPassword).toBe(false);
@@ -107,7 +95,7 @@ describe("POST /api/auth/login — lockout", () => {
     const res = await postLogin(PASSWORD);
     expect(res.status).toBe(423);
     expect(await res.json()).toMatchObject({ code: ACCOUNT_LOCKED_CODE });
-    expect(sessionsCreated).toBe(0);
+    expect(fakeSessionState.createdCount).toBe(0);
   });
 
   it("does not extend a live lock when guessing continues", async () => {
@@ -142,7 +130,7 @@ describe("POST /api/auth/login — lockout", () => {
     const res = await postLogin(PASSWORD);
     expect(res.status).toBe(403);
     expect(await res.json()).toMatchObject({ code: PASSWORD_RESET_REQUIRED_CODE });
-    expect(sessionsCreated).toBe(0);
+    expect(fakeSessionState.createdCount).toBe(0);
     expect(user.mustResetPassword).toBe(true);
   });
 
@@ -156,7 +144,7 @@ describe("POST /api/auth/login — lockout", () => {
 
     const res = await postLogin("brand-new-password");
     expect(res.status).toBe(200);
-    expect(sessionsCreated).toBe(1);
+    expect(fakeSessionState.createdCount).toBe(1);
   });
 
   it("treats a legacy row with no lockout fields as unlocked", async () => {

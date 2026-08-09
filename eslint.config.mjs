@@ -49,6 +49,29 @@ const config = [
       ],
     },
   },
+  {
+    /*
+     * Bun's mock.module() is process-global and permanent, so two files each
+     * installing their own factory for one module path is an order-dependent
+     * bug: the tests pass in isolation and fail in the full run, and the fix is
+     * far from the symptom. src/test/mock-module-registry.ts enforces one owner
+     * per path at install time -- but only for calls that go through it, so
+     * this rule keeps mock.module() out of every other file. See that module's
+     * header for the "@/db" collision that motivated both.
+     */
+    files: ["**/*.ts", "**/*.tsx"],
+    ignores: ["src/test/mock-module-registry.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.object.name='mock'][callee.property.name='module']",
+          message:
+            "Call installModuleMock() from @/test/mock-module-registry instead of mock.module() directly -- it enforces one mock factory per module path, which mock.module() alone cannot.",
+        },
+      ],
+    },
+  },
 ];
 
 export default config;

@@ -1,7 +1,8 @@
-import { describe, expect, it, beforeEach, mock } from "bun:test";
+import { describe, expect, it, beforeEach } from "bun:test";
 import { ObjectId } from "mongodb";
 import { NextRequest } from "next/server";
 import { installMongoMock, fakeDbState, resetFakeDbState } from "@/test/mock-mongo";
+import { installSessionMock, resetFakeSessionState } from "@/test/mock-session";
 
 await installMongoMock();
 
@@ -9,8 +10,7 @@ await installMongoMock();
 // Next.js request scope. Faking it here isn't about avoiding that error --
 // it's that this file is testing the seat-limit/invitation logic, not cookie
 // plumbing, so a fake token is exactly as good as a real one for that.
-const realSession = await import("@/server/session");
-mock.module("@/server/session", () => ({ ...realSession, createSession: async () => "fake-token" }));
+await installSessionMock();
 
 const { POST } = await import("./route");
 
@@ -75,6 +75,7 @@ function seedActiveMember(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   resetFakeDbState();
+  resetFakeSessionState();
 });
 
 describe("POST /api/invitations/[token]/accept", () => {

@@ -1,4 +1,4 @@
-import { mock } from "bun:test";
+import { installModuleMock } from "@/test/mock-module-registry";
 
 /**
  * Bun's mock.module() replaces a module path globally for the whole test
@@ -86,13 +86,9 @@ function mutation(pick: () => MutateFn) {
   });
 }
 
-let installed = false;
-
 /** Idempotent -- safe to call from every test file that needs @/api-client mocked. */
 export function installApiClientMock() {
-  if (installed) return;
-  installed = true;
-  mock.module("@/api-client", () => ({
+  installModuleMock("@/api-client", "@/test/mock-api-client", () => ({
     useGetNextPracticeScenario: () => ({
       data: apiClientMockState.nextPracticeScenario,
       isLoading: false,

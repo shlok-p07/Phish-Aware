@@ -1,4 +1,4 @@
-import { mock } from "bun:test";
+import { installModuleMock } from "@/test/mock-module-registry";
 
 /**
  * Shared mock for the two lowest-level LLM provider modules (groqClient,
@@ -25,17 +25,21 @@ export function resetLlmMockState() {
   llmMockState.geminiClient = null;
 }
 
-let installed = false;
-
-/** Idempotent -- safe to call from every test file that exercises llmComplete's real logic. */
+/**
+ * Idempotent -- safe to call from every test file that exercises llmComplete's real logic.
+ *
+ * The specifiers are spelled with the "@/" alias rather than the "./groqClient"
+ * llmComplete.ts itself uses, because Bun resolves a relative specifier against
+ * the file calling mock.module() -- which is now the registry, not this file.
+ * Both spellings resolve to the same file, which is what the module registry
+ * keys on.
+ */
 export function installLlmProviderMocks() {
-  if (installed) return;
-  installed = true;
-  mock.module("./groqClient", () => ({
+  installModuleMock("@/server/llm/groqClient", "@/server/llm/test-provider-mock", () => ({
     getGroqClient: () => llmMockState.groqClient,
     GROQ_MODEL: "llama-3.3-70b-versatile",
   }));
-  mock.module("./geminiClient", () => ({
+  installModuleMock("@/server/llm/geminiClient", "@/server/llm/test-provider-mock", () => ({
     getGeminiClient: () => llmMockState.geminiClient,
     GEMINI_MODEL: "gemini-2.5-flash",
   }));

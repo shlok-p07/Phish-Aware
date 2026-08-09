@@ -1,17 +1,12 @@
-import { afterAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { ObjectId } from "mongodb";
 import { NextRequest } from "next/server";
 import { fakeDbState, installMongoMock, resetFakeDbState } from "@/test/mock-mongo";
+import { installSessionMock, fakeSessionState, resetFakeSessionState } from "@/test/mock-session";
 import type { SurveyFeatures } from "@/lib/onboarding-survey";
 
 await installMongoMock();
-
-let authenticatedUserId: ObjectId | null = null;
-const realSession = await import("@/server/session");
-mock.module("@/server/session", () => ({
-  ...realSession,
-  getUserIdFromRequest: async () => authenticatedUserId,
-}));
+await installSessionMock();
 
 const { POST } = await import("./route");
 
@@ -52,7 +47,7 @@ function seedUser() {
     xp: 0,
   };
   fakeDbState.users.push(user);
-  authenticatedUserId = id;
+  fakeSessionState.userId = id;
   return user;
 }
 
@@ -74,7 +69,7 @@ function postOnboarding(body: unknown) {
 
 beforeEach(() => {
   resetFakeDbState();
-  authenticatedUserId = null;
+  resetFakeSessionState();
   process.env.ML_SERVICE_URL = "http://ml.test";
   globalThis.fetch = ORIGINAL_FETCH;
 });

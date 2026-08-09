@@ -1,4 +1,4 @@
-import { mock } from "bun:test";
+import { installModuleMock } from "@/test/mock-module-registry";
 
 /**
  * A minimal in-memory stand-in for the handful of MongoDB collection/session
@@ -104,14 +104,10 @@ function fakeSession() {
   };
 }
 
-let installed = false;
-
 /** Idempotent -- safe to call from every test file that needs this "@/db" mock. */
 export async function installMongoMock() {
-  if (installed) return;
-  installed = true;
   const realDb = await import("@/db");
-  mock.module("@/db", () => ({
+  installModuleMock("@/db", "@/test/mock-mongo", () => ({
     ...realDb,
     usersCollection: () => makeFakeCollection(fakeDbState.users),
     scenariosCollection: () => makeFakeCollection(fakeDbState.scenarios),

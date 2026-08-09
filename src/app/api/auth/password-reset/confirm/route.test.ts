@@ -1,11 +1,11 @@
 import { describe, expect, it, beforeEach } from "bun:test";
 import { ObjectId } from "mongodb";
 import { NextRequest } from "next/server";
-import { installUsersCollectionMock, fakeUsersState, resetFakeUsersState } from "@/test/mock-users-collection";
+import { installMongoMock, fakeDbState, resetFakeDbState } from "@/test/mock-mongo";
 import { hashPassword, verifyPassword } from "@/server/password";
 import { __resetRateLimits } from "@/server/rateLimit";
 
-await installUsersCollectionMock();
+await installMongoMock();
 
 const { POST } = await import("./route");
 
@@ -31,12 +31,12 @@ function seedUser(overrides: Record<string, unknown> = {}) {
     passwordResetExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
     ...overrides,
   };
-  fakeUsersState.docs.push(doc);
+  fakeDbState.users.push(doc);
   return doc;
 }
 
 beforeEach(() => {
-  resetFakeUsersState();
+  resetFakeDbState();
   __resetRateLimits();
 });
 
@@ -46,7 +46,7 @@ describe("POST /api/auth/password-reset/confirm", () => {
     const res = await postConfirm({ email: EMAIL, code: CODE, newPassword: "brand-new-password" });
     expect(res.status).toBe(200);
 
-    const user = fakeUsersState.docs[0]!;
+    const user = fakeDbState.users[0]!;
     expect(verifyPassword("brand-new-password", user.passwordHash as string)).toBe(true);
   });
 
@@ -54,7 +54,7 @@ describe("POST /api/auth/password-reset/confirm", () => {
     seedUser();
     await postConfirm({ email: EMAIL, code: CODE, newPassword: "brand-new-password" });
 
-    const user = fakeUsersState.docs[0]!;
+    const user = fakeDbState.users[0]!;
     expect(user.passwordResetCodeHash).toBeNull();
     expect(user.passwordResetExpiresAt).toBeNull();
   });
@@ -98,7 +98,7 @@ describe("POST /api/auth/password-reset/confirm", () => {
     const res = await postConfirm({ email: EMAIL, code: CODE, newPassword: "brand-new-password" });
     expect(res.status).toBe(200);
 
-    const user = fakeUsersState.docs[0]!;
+    const user = fakeDbState.users[0]!;
     expect(user.failedLoginAttempts).toBe(0);
     expect(user.lockedUntil).toBeNull();
     expect(user.mustResetPassword).toBe(false);

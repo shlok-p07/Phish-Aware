@@ -1,4 +1,4 @@
-import { mock } from "bun:test";
+import { installModuleMock } from "@/test/mock-module-registry";
 
 /**
  * Fakes configurationFor() from "@/server/sso/oidc" -- the real one does an
@@ -23,13 +23,9 @@ export function resetSsoOidcMockState() {
   ssoOidcMockState.configurationFor = async () => defaultFakeConfig();
 }
 
-let installed = false;
-
 export async function installSsoOidcMock() {
-  if (installed) return;
-  installed = true;
   const real = await import("@/server/sso/oidc");
-  mock.module("@/server/sso/oidc", () => ({
+  installModuleMock("@/server/sso/oidc", "@/test/mock-sso-oidc", () => ({
     ...real,
     configurationFor: () => ssoOidcMockState.configurationFor(),
   }));

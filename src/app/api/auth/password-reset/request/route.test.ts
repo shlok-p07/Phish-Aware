@@ -1,11 +1,11 @@
 import { describe, expect, it, beforeEach } from "bun:test";
 import { ObjectId } from "mongodb";
 import { NextRequest } from "next/server";
-import { installUsersCollectionMock, fakeUsersState, resetFakeUsersState } from "@/test/mock-users-collection";
+import { installMongoMock, fakeDbState, resetFakeDbState } from "@/test/mock-mongo";
 import { verifyPassword } from "@/server/password";
 import { __resetRateLimits } from "@/server/rateLimit";
 
-await installUsersCollectionMock();
+await installMongoMock();
 
 const { POST } = await import("./route");
 
@@ -26,12 +26,12 @@ function seedUser(overrides: Record<string, unknown> = {}) {
     passwordHash: "some-real-hash",
     ...overrides,
   };
-  fakeUsersState.docs.push(doc);
+  fakeDbState.users.push(doc);
   return doc;
 }
 
 beforeEach(() => {
-  resetFakeUsersState();
+  resetFakeDbState();
   __resetRateLimits();
 });
 
@@ -50,7 +50,7 @@ describe("POST /api/auth/password-reset/request", () => {
 
     expect(body.ok).toBe(true);
     expect(typeof body.code).toBe("string");
-    expect(verifyPassword(body.code, fakeUsersState.docs[0]!.passwordResetCodeHash as string)).toBe(true);
+    expect(verifyPassword(body.code, fakeDbState.users[0]!.passwordResetCodeHash as string)).toBe(true);
   });
 
   it("never generates a code for a guest account with no password set", async () => {
@@ -76,10 +76,10 @@ describe("POST /api/auth/password-reset/request", () => {
     expect(first.code).not.toBe(second.code);
     // The first code no longer verifies against whatever is now stored.
     expect(
-      verifyPassword(first.code, fakeUsersState.docs[0]!.passwordResetCodeHash as string),
+      verifyPassword(first.code, fakeDbState.users[0]!.passwordResetCodeHash as string),
     ).toBe(false);
     expect(
-      verifyPassword(second.code, fakeUsersState.docs[0]!.passwordResetCodeHash as string),
+      verifyPassword(second.code, fakeDbState.users[0]!.passwordResetCodeHash as string),
     ).toBe(true);
   });
 

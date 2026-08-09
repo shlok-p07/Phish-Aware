@@ -1,4 +1,4 @@
-import { mock } from "bun:test";
+import { installModuleMock } from "@/test/mock-module-registry";
 
 /**
  * Fakes just the two openid-client functions the SSO callback route calls
@@ -28,13 +28,9 @@ export function resetOpenidClientMockState() {
   };
 }
 
-let installed = false;
-
 export async function installOpenidClientMock() {
-  if (installed) return;
-  installed = true;
   const real = await import("openid-client");
-  mock.module("openid-client", () => ({
+  installModuleMock("openid-client", "@/test/mock-openid-client", () => ({
     ...real,
     authorizationCodeGrant: (...args: unknown[]) => openidClientMockState.authorizationCodeGrant(...args),
     fetchUserInfo: (...args: unknown[]) => openidClientMockState.fetchUserInfo(...args),

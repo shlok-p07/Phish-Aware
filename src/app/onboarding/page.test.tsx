@@ -1,6 +1,7 @@
-import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
+import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { installModuleMock } from "@/test/mock-module-registry";
 import { installApiClientMock, apiClientMockState, resetApiClientMockState } from "@/test/mock-api-client";
 import {
   installNextNavigationMock,
@@ -38,7 +39,7 @@ const STUB_SURVEY_ANSWERS = {
 // The real OnboardingSurvey's own validation/rendering is already covered by
 // src/lib/onboarding-survey.test.ts -- this stub isolates the onboarding
 // *page's* own back-and-forth/state logic, which is what this file tests.
-mock.module("@/components/onboarding-survey", () => ({
+installModuleMock("@/components/onboarding-survey", "@/app/onboarding/page.test", () => ({
   OnboardingSurvey: ({
     onComplete,
     initialAnswers,
@@ -58,7 +59,7 @@ mock.module("@/components/onboarding-survey", () => ({
 
 let submittedPayloads: unknown[] = [];
 
-mock.module("@/hooks/use-toast", () => ({
+installModuleMock("@/hooks/use-toast", "@/app/onboarding/page.test", () => ({
   useToast: () => ({ toast: () => {} }),
 }));
 

@@ -1,4 +1,4 @@
-import { mock } from "bun:test";
+import { installModuleMock } from "@/test/mock-module-registry";
 
 /**
  * Bun's mock.module() replaces a module path globally for the whole test
@@ -24,13 +24,9 @@ export function resetNextNavigationMockState() {
   nextNavigationMockState.push = () => {};
 }
 
-let installed = false;
-
 /** Idempotent -- safe to call from every test file that needs "next/navigation" mocked. */
 export function installNextNavigationMock() {
-  if (installed) return;
-  installed = true;
-  mock.module("next/navigation", () => ({
+  installModuleMock("next/navigation", "@/test/mock-next-navigation", () => ({
     usePathname: () => nextNavigationMockState.pathname,
     useSearchParams: () => nextNavigationMockState.searchParams,
     useRouter: () => ({
