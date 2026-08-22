@@ -153,6 +153,68 @@ export const LESSONS: Lesson[] = [
           },
         ],
       },
+      {
+        kind: "compare",
+        heading: "When the address is genuine and it is still an attack",
+        intro:
+          "Everything so far assumes the attacker had to fake the sender. Sometimes they do not have to. If they have got into a real mailbox at a real supplier, the domain is correct, the signature is correct, and the message arrives inside a thread you started. Every check on the previous screens passes. Here is what still gives it away.",
+        rows: [
+          {
+            label: "Who is writing",
+            genuine: "The person who has always handled this account",
+            fake: "The same person, but the mailbox is no longer only theirs",
+            note:
+              "This is called thread hijacking. The attacker reads the mailbox first, waits for a live conversation about money, and replies to it. Nothing about the address is wrong, because nothing about the address was changed.",
+          },
+          {
+            label: "What changed",
+            genuine: "Nothing. An invoice arrives the way it always does",
+            fake: "The bank details are new, or the amount, or the payment deadline",
+            note:
+              "A change to where money goes is the entire point of the attack. Treat any new account number as unverified no matter how ordinary the email around it looks.",
+          },
+          {
+            label: "Where a reply goes",
+            genuine: "Straight back to the address that wrote to you",
+            fake: "A reply-to that differs by a character, or a new address \"for accounts\"",
+            note:
+              "Open the reply and read the recipient before you type. A reply-to header is separate from the from header, and mail clients show you the friendly name rather than either.",
+          },
+          {
+            label: "How to settle it",
+            genuine: "You do not need to. Nothing has changed",
+            fake: "One phone call, on the number you already had for them",
+            note:
+              "Not a number in the email signature -- that is part of the message. The number in your own records, or on their website that you navigated to yourself.",
+          },
+        ],
+      },
+      {
+        kind: "checkpoint",
+        heading: "The harder case",
+        prompt:
+          "A supplier you have worked with for years replies in an existing email thread with an updated invoice. The address is exactly right, the spelling is perfect, and it quotes your last message back to you. The only difference is a new bank account. What should you do?",
+        options: [
+          {
+            label: "Call them on the number you already had and confirm the account",
+            correct: true,
+            feedback:
+              "Right, and notice what made this one hard: every signal you were taught to read came back clean, because the attacker did not need to fake any of them. They were reading a real mailbox. When the only unusual thing is where the money goes, that is the thing to verify, and it has to be verified on a channel the email cannot reach -- a number you already held, not one printed in the message.",
+          },
+          {
+            label: "Pay it. The address and the thread history both check out",
+            correct: false,
+            feedback:
+              "This is how the largest losses happen, and it is not carelessness -- the checks genuinely passed. Business email compromise works precisely because there is nothing to spot in the headers: the mailbox is real and the thread is real. The rule that survives is narrower than \"check the sender\". It is that a change to payment details is always confirmed by voice, on a number you looked up yourself.",
+          },
+          {
+            label: "Reply to the email and ask them to confirm the new account",
+            correct: false,
+            feedback:
+              "Understandable, but a reply goes to whoever controls that mailbox -- which right now includes the attacker. They will confirm it, warmly and promptly, possibly with a letterhead. Verification only means something on a channel the attacker does not already hold, which is why it has to be a phone number you had before this message arrived.",
+          },
+        ],
+      },
     ],
     redFlags: ["sender_domain", "urgency_language", "credential_request", "generic_greeting"],
   },
@@ -292,6 +354,61 @@ export const LESSONS: Lesson[] = [
             correct: false,
             feedback:
               "This is the most common and most costly assumption in this whole lesson. The number attached to a text is filled in by whoever sends it, and nothing in the phone network verifies it. A faked message can land in the same thread as your bank's real ones, directly underneath a genuine message, which is exactly what makes it convincing. Treat a matching number as meaning nothing at all, and verify by calling a number you looked up yourself.",
+          },
+        ],
+      },
+      {
+        kind: "steps",
+        heading: "The version with no link at all",
+        intro:
+          "The advice so far was: do not tap the link. Attackers noticed. A growing share of smishing contains no link -- it gives you a phone number and asks you to call, which walks straight past the one rule most people know.",
+        steps: [
+          {
+            action: "Notice that a number in a message is still part of the message.",
+            lookFor:
+              "\"Call us on ...\" inside a text you were not expecting. The number is chosen by whoever wrote it, exactly like the link was.",
+            warningSign:
+              "Treating a phone number as more trustworthy than a URL. It is the same untrusted input in a different shape.",
+          },
+          {
+            action: "Look up the organisation's number yourself.",
+            lookFor: "The back of your card, a previous statement, or the app.",
+            warningSign:
+              "Searching for the number online and calling the first result. Paid search results have been used to place fake support numbers above real ones.",
+          },
+          {
+            action: "Expect the call to be good.",
+            lookFor:
+              "Hold music, a menu, a polite agent who already knows your name. A call centre is cheap to run, and running one is the whole business.",
+            warningSign:
+              "Assuming a professional-sounding call proves anything. It proves they invested in the call.",
+          },
+          {
+            action: "Never read out a code, and never install anything.",
+            lookFor:
+              "The two asks that turn a conversation into a loss: a one-time code, or remote-access software.",
+            warningSign:
+              "\"Just to verify it is you.\" No genuine organisation needs a code read back to them; the code exists to prove you are you to them, not the reverse.",
+          },
+        ],
+      },
+      {
+        kind: "checkpoint",
+        heading: "One more",
+        prompt:
+          "A text with no link says there is a suspicious payment on your account and gives a number to call. You are cautious, so you do not use that number. You search the bank's name and call the top result instead. Is that safe?",
+        options: [
+          {
+            label: "Not necessarily -- a search result can be an advert",
+            correct: true,
+            feedback:
+              "Correct, and this is a genuinely underrated trap. The top of a results page is often paid placement, and fake support numbers have been bought there for banks, airlines and software companies. You did the right thing by refusing the number in the message; finish it by using a number from something you already have -- the back of your card, a statement, or the app.",
+          },
+          {
+            label: "Yes -- searching avoids the number in the text, so it is fine",
+            correct: false,
+            feedback:
+              "It is a real improvement on calling the number in the text, so the instinct is sound. But it can land in the same place: adverts sit above organic results, and fake support numbers get placed there deliberately. The safe source is something you already hold rather than something you looked up in the moment -- your card, a statement, or the app.",
           },
         ],
       },
@@ -462,6 +579,67 @@ export const LESSONS: Lesson[] = [
           },
         ],
       },
+      {
+        kind: "steps",
+        heading: "The call that survives every check",
+        intro:
+          "Suppose the caller ID matches your bank exactly, they know your name and the last four digits of your card, and they are calm and helpful. Every check on the previous screens has passed. There is one ask that still ends the conversation.",
+        steps: [
+          {
+            action: "Understand what a one-time code is for.",
+            lookFor:
+              "A code proves to the organisation that you are you. It travels one way. There is no situation in which they need you to say it back.",
+            warningSign:
+              "\"We have sent a code to confirm your identity -- read it to me.\" That sentence is the attack, whatever preceded it.",
+          },
+          {
+            action: "Assume the details they know were already public or already stolen.",
+            lookFor:
+              "Your name, address, employer, and the last four digits of a card are all obtainable. They establish nothing.",
+            warningSign:
+              "Feeling reassured because they knew something about you. That is the purpose of knowing it.",
+          },
+          {
+            action: "Refuse to be kept on the line.",
+            lookFor:
+              "Any reason you should not hang up: a case reference expiring, a transfer in progress, a colleague joining.",
+            warningSign:
+              "\"Stay on the line while you check.\" Verification you perform while the caller is listening is not verification.",
+          },
+          {
+            action: "Hang up, wait, then dial a number you already had.",
+            lookFor: "A pause long enough that the line is genuinely clear.",
+            warningSign:
+              "Redialling immediately on the same call, or calling a number the caller gave you.",
+          },
+        ],
+      },
+      {
+        kind: "checkpoint",
+        heading: "The hardest one",
+        prompt:
+          "Your phone shows your bank's real number. The caller knows your name, your address, and the last four digits of your card. They say a fraudulent payment is going through and they have sent a code to stop it -- they just need you to read it back. What do they actually have if you read it out?",
+        options: [
+          {
+            label: "Whatever the code authorises -- usually a login or a payment",
+            correct: true,
+            feedback:
+              "Exactly. The code was genuine and the message was genuine; the bank really did send it. What was false was who wanted it. A one-time code is a password with a short life, and reading it aloud hands over whatever it was protecting -- often the login itself. Nothing else in the call matters, including the correct caller ID, because caller ID is filled in by the caller.",
+          },
+          {
+            label: "Nothing -- the code only works on your own device",
+            correct: false,
+            feedback:
+              "This is the belief the attack depends on. A one-time code is not tied to your device; it is a secret the bank sent to you so that you could prove you are you. Once you say it out loud, whoever hears it can use it, and they are usually already sitting on the login page waiting. The code is the thing being stolen, not a protection against the theft.",
+          },
+          {
+            label: "Only the ability to stop the payment they described",
+            correct: false,
+            feedback:
+              "The payment described almost certainly does not exist -- it is there to supply the urgency. The code authorises whatever the attacker has queued up, which is typically a login or a transfer out. A code never does the specific thing a caller tells you it does, because the caller is not the one who sent it.",
+          },
+        ],
+      },
     ],
     redFlags: ["urgency_language", "credential_request", "generic_greeting"],
   },
@@ -603,6 +781,68 @@ export const LESSONS: Lesson[] = [
             correct: false,
             feedback:
               "The preview only shows you the address; it does not judge it, and that is the gap these attacks live in. An address engineered to contain a familiar brand name looks reassuring in a preview, which is precisely why the brand is put there. Read the last two parts before the first single slash and decide whether that is the organisation you expect -- \"microsoft.com.verify-login.net\" belongs to verify-login.net.",
+          },
+        ],
+      },
+      {
+        kind: "compare",
+        heading: "When the code is in a place you trust",
+        intro:
+          "Everything so far was about reading the destination before you open it. The harder version does not need a suspicious-looking code at all: it needs a sticker. A printed square placed over a real one, in a real location, inherits all the trust of the place it is standing in.",
+        rows: [
+          {
+            label: "Where it is",
+            genuine: "Printed as part of the sign, poster or menu",
+            fake: "A sticker on top, or a laminated card taped nearby",
+            note:
+              "Run a thumbnail over the corner. A code that lifts was added by somebody, and it was not the council or the restaurant.",
+          },
+          {
+            label: "What it matches",
+            genuine: "The same organisation named on the sign around it",
+            fake: "A shortener, or a domain that has nothing to do with the venue",
+            note:
+              "The sign says one organisation and the address says another. That mismatch is the whole tell, and you can see it before opening anything.",
+          },
+          {
+            label: "What happens next",
+            genuine: "Information, a menu, a timetable",
+            fake: "A payment form, or a login for something unrelated",
+            note:
+              "A parking meter can legitimately take a payment. It cannot legitimately want your email password.",
+          },
+          {
+            label: "What the location proves",
+            genuine: "Nothing on its own",
+            fake: "Nothing on its own",
+            note:
+              "This is the point of the screen. A code being somewhere official means somebody could reach that spot with a sticker. Physical placement is not authentication, and it is the assumption the attack is built on.",
+          },
+        ],
+      },
+      {
+        kind: "checkpoint",
+        heading: "In the wild",
+        prompt:
+          "You are at a car park you have used for years. The payment sign is the council's, worn and clearly old, and there is a crisp QR code on it. Your phone previews the address as a shortened link. What is the safest read?",
+        options: [
+          {
+            label: "The mismatch in wear is worth more than the code looking tidy",
+            correct: true,
+            feedback:
+              "Good. A new code on an old sign is the single most useful observation available, and it needs no technical knowledge at all -- just noticing that two things which should have aged together did not. The shortener seals it: a council publishing its own payment page has no reason to hide the address. Pay at the machine, or use the council's own app.",
+          },
+          {
+            label: "It is fine -- the sign is genuinely the council's",
+            correct: false,
+            feedback:
+              "The sign is the council's. The sticker on it need not be, and that gap is the entire attack. Trust in a location transfers to everything standing in it, which is why placing a code somewhere official is worth the price of a printer. Judge the code, not the signpost holding it.",
+          },
+          {
+            label: "Open it and decide once the page loads",
+            correct: false,
+            feedback:
+              "Riskier than it sounds, and unnecessary here since you already have two signals without opening anything: a new code on a weathered sign, and a shortened address hiding the destination. A convincing payment page tells you nothing you did not already know, and by then you are reading the attacker's copy rather than the council's.",
           },
         ],
       },
@@ -753,6 +993,68 @@ export const LESSONS: Lesson[] = [
             correct: false,
             feedback:
               "Understandably tempting, but it inverts the check. Impersonating a real employee is easier and more convincing than inventing a fictional one, because everything you just verified is published for anyone to copy. You have confirmed that the person exists, not that you are talking to them. What is hard to fake is the account's history -- its age and its mutual connections -- so look at those, and reach the person through the company's own site.",
+          },
+        ],
+      },
+      {
+        kind: "compare",
+        heading: "When it comes from someone you actually know",
+        intro:
+          "The advice so far leans on the message being unsolicited, from a stranger, with a thin profile. The harder version has none of those properties: the account belongs to a real friend or colleague and has been taken over. Years of history, mutual connections, the right photo.",
+        rows: [
+          {
+            label: "The account",
+            genuine: "Your friend, writing as themselves",
+            fake: "Your friend's account, with somebody else at the keyboard",
+            note:
+              "Nothing in the profile is wrong, because nothing in the profile was changed. Checking it is time spent confirming something that was never in doubt.",
+          },
+          {
+            label: "How they write",
+            genuine: "The rhythm and shorthand you are used to",
+            fake: "Slightly formal, slightly off, or oddly efficient",
+            note:
+              "This is a real signal but a weak one, and it is getting weaker: an attacker can read the thread above and copy the tone. Do not lean on it alone.",
+          },
+          {
+            label: "What they want",
+            genuine: "Conversation, or something that costs you nothing",
+            fake: "Money, a code, a vote, or a link -- with a reason it is urgent",
+            note:
+              "The ask is the reliable part. A friend needing a payment or a verification code, right now, is the shape of the attack regardless of how natural the chat feels.",
+          },
+          {
+            label: "How to settle it",
+            genuine: "You do not need to",
+            fake: "Contact them another way. Phone, in person, a different app",
+            note:
+              "Replying in the same thread asks the attacker whether the attacker is real. Any channel you already had works; the point is that it is not the one they control.",
+          },
+        ],
+      },
+      {
+        kind: "checkpoint",
+        heading: "Someone you trust",
+        prompt:
+          "A close colleague messages you on a platform you have used together for years. They are locked out of their account and ask you to forward the verification code that is about to arrive on your phone. The chat history above is genuinely yours. What is happening?",
+        options: [
+          {
+            label: "Their account is compromised and the code is for yours",
+            correct: true,
+            feedback:
+              "Correct on both counts, and the second half is the part people miss. A code arriving on your phone can only be for something of yours -- it is how an attacker who already has your username gets past the second factor. The request is self-contradicting: a person locked out of their own account cannot be helped by a code sent to you. Reach them by phone, and tell them their account is being used.",
+          },
+          {
+            label: "Forward it -- the history proves it is really them",
+            correct: false,
+            feedback:
+              "The history is real, which is exactly what makes this convincing, but it proves who owns the account rather than who is typing. And look at where the code is going: it arrived on your phone, so it belongs to something of yours. Forwarding it hands over your account, not theirs. Verify on a different channel before doing anything.",
+          },
+          {
+            label: "Ask them a personal question only they would know",
+            correct: false,
+            feedback:
+              "Better than complying, and a fair instinct. But someone reading a years-long thread can often answer personal questions from the thread itself, and you have just told them which fact to look for. Move to a channel they do not control -- a phone call settles it in seconds and cannot be researched.",
           },
         ],
       },
@@ -907,6 +1209,68 @@ export const LESSONS: Lesson[] = [
             correct: false,
             feedback:
               "This is the exact confusion the address is built to produce, so it is worth walking through. Ownership is decided by the last two parts before the first single slash: here that is account-verify.net. \"microsoft.com\" in front of it is a subdomain, free for that owner to name anything, including a real company's domain. The padlock only means the connection is encrypted -- certificates are free and issued to whoever owns the domain. Read right to left and stop at the second part.",
+          },
+        ],
+      },
+      {
+        kind: "compare",
+        heading: "When the address bar is telling the truth",
+        intro:
+          "Reading the domain is the strongest habit on this vector, and attackers have a way around it: host the page somewhere genuinely reputable. A form on a well-known cloud service sits on that service's real domain, with a real certificate. The address bar is not lying. It is answering a different question.",
+        rows: [
+          {
+            label: "What the domain tells you",
+            genuine: "Who runs the site you are on",
+            fake: "Who runs the site you are on",
+            note:
+              "Identical, because in both cases it is accurate. A file-sharing or form-building service really is hosting the page -- it just hosts pages for anybody who signs up.",
+          },
+          {
+            label: "Who wrote the page",
+            genuine: "The organisation the page claims to be from",
+            fake: "Anyone with a free account on that platform",
+            note:
+              "This is the question the address bar cannot answer, and the whole reason the technique works.",
+          },
+          {
+            label: "What it asks for",
+            genuine: "Nothing sensitive, or something appropriate to that platform",
+            fake: "Your email password, on a page that is not your email provider",
+            note:
+              "The reliable check on this vector: does the organisation asking for the credential own the place you are typing it? A document service asking for your work email password does not.",
+          },
+          {
+            label: "Where you should be instead",
+            genuine: "Already where you meant to be",
+            fake: "Your provider's own sign-in page, opened yourself",
+            note:
+              "Never sign in to something from a link. Open a new tab and go to the service directly -- then any prompt that was fake simply is not there.",
+          },
+        ],
+      },
+      {
+        kind: "checkpoint",
+        heading: "The last one",
+        prompt:
+          "A link opens a document-preview page on a well-known cloud provider. The padlock is closed, the certificate is valid, and the domain genuinely belongs to that provider. The page says the document is protected and asks for your work email password. What does the valid certificate prove?",
+        options: [
+          {
+            label: "That the connection is encrypted, and nothing about who wrote the page",
+            correct: true,
+            feedback:
+              "Exactly right, and it is the distinction this whole vector turns on. A certificate proves you are really talking to that host and that nobody can read the traffic. It says nothing about whether the content is honest, because the host serves content uploaded by its users. The decisive question here is simpler: the page is asking for an email password, and it is not your email provider. Leave, open your mail yourself, and see whether anything was ever waiting.",
+          },
+          {
+            label: "That the page is operated by the provider named in the address",
+            correct: false,
+            feedback:
+              "Close, and the distinction matters. The certificate proves the *host* is that provider, which is true -- but the page was uploaded by one of its users, who could be anybody with a free account. Encryption protects the delivery, not the contents. What settles it is that an email password is being requested somewhere that is not your email provider.",
+          },
+          {
+            label: "That the document is genuinely shared with you",
+            correct: false,
+            feedback:
+              "A certificate says nothing at all about the document. It is a statement about the connection to the host. Treat the whole page as a claim: if a document really were waiting for you, it would still be there when you open your mail or that service yourself, in a tab you opened. That is the check, and it costs about ten seconds.",
           },
         ],
       },

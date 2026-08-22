@@ -273,6 +273,14 @@
 [data-vector='sms']   { --vector-h: 142; --vector-s: 55%; --vector-dl: -11%; }
 [data-vector='voice'] { --vector-h: 271; --vector-s: 55%; --vector-dl: 0%; }
 [data-vector='web']   { --vector-h: 21;  --vector-s: 70%; --vector-dl: -3%; }
+/* qr and social had no entry, so both fell through to the :root default of
+   215/15% -- a near-grey. Two of the six lesson cards therefore rendered with no
+   colour identity and a washed-out title, which is what "portrayed in similar
+   colors" was pointing at. Hues chosen to sit clearly apart from the four above
+   and from each other; the -dl nudges follow the same rule as sms and web, since
+   cyan and pink read light at the same lightness. */
+[data-vector='qr']     { --vector-h: 190; --vector-s: 65%; --vector-dl: -6%; }
+[data-vector='social'] { --vector-h: 330; --vector-s: 60%; --vector-dl: -2%; }
 
 :root {
   --vector-l-fg: 36%;
@@ -289,6 +297,8 @@
    scale is inverted, so the same correction has to lighten them instead. */
 .dark [data-vector='sms'] { --vector-dl: 11%; }
 .dark [data-vector='web'] { --vector-dl: 3%; }
+.dark [data-vector='qr'] { --vector-dl: 6%; }
+.dark [data-vector='social'] { --vector-dl: 2%; }
 
 html.high-contrast {
   --vector-l-fg: 26%;

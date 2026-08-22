@@ -25,7 +25,8 @@
     "db:dedupe-departments": "bun run scripts/dedupe-departments.ts",
     "db:normalize-sso-domains": "bun run scripts/normalize-sso-domains.ts",
     "db:prune-orphans": "bun run scripts/prune-orphans.ts",
-    "db:prune-test-accounts": "bun run scripts/prune-test-accounts.ts"
+    "db:prune-test-accounts": "bun run scripts/prune-test-accounts.ts",
+    "a11y:contrast": "bun run scripts/audit-contrast.ts"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",

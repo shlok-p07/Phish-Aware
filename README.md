@@ -189,7 +189,7 @@ Docker at all.
 | `bun run test:all`  | Both suites: `bun test && vitest run` |
 | `bun run sso:demo`  | Create a demo org and SSO connection to try single sign-on locally |
 
-### Database maintenance
+### Maintenance and audits
 
 One-off and diagnostic scripts. All are idempotent, all default to reporting
 rather than changing anything, and each exists because of a specific bug, which
@@ -197,6 +197,7 @@ its file header explains.
 
 | Script                              | What it does |
 | ----------------------------------- | ------------ |
+| `bun run a11y:contrast`             | Checks every text/background pairing the app uses against WCAG, across light, dark and both high-contrast themes, with a spread of customer accents substituted in. Exits non-zero on any failure |
 | `bun run db:verify`                 | Read-only. Asks the server which stored documents its own validators reject, and checks provisioning is idempotent. Safe against production and in CI |
 | `bun run db:prune-orphans`          | Removes rows whose owning user or organisation is gone. Both delete paths cascade now; this clears what earlier versions left |
 | `bun run db:dedupe-departments`     | Keeps one department per (organisation, name). Needed before the unique index can be created |

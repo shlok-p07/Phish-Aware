@@ -25,68 +25,222 @@ import { Building2 } from "lucide-react";
 const SAFE_HEX = /^#[0-9a-f]{6}$/i;
 
 /**
- * Converts `#rrggbb` into the `H S% L%` channel triplet this theme stores.
+ * The surfaces an accent has to be legible against, as HSL lightness.
  *
- * Not cosmetic -- this is the bug that made branding do nothing at all. The
- * design tokens hold bare HSL channels and are consumed as `hsl(var(--primary))`
- * (see globals.css), so writing a hex produced `hsl(#0f766e)`, which is invalid
- * CSS. The browser dropped the declaration and every branded colour silently
- * stayed default. It looked like the setting had not saved.
- *
- * Emitting channels also makes `--primary-border` work for free: it derives
- * itself from `--primary` with `hsl(from ...)`.
+ * Taken from globals.css: --card is 0 0% 100% in light and 222 24% 11% in dark.
+ * Cards are what accent text actually sits on, and they are the more demanding
+ * of the two surfaces in each theme.
  */
-export function hexToHslChannels(hex: string): string {
+const LIGHT_CARD: Hsl = { h: 0, s: 0, l: 100 };
+const DARK_CARD: Hsl = { h: 222, s: 24, l: 11 };
+
+/** WCAG AA for normal-size text. `text-primary` is used at body size, so 3:1 is not enough. */
+const MIN_CONTRAST = 4.5;
+
+/**
+ * What the high-contrast setting has to actually deliver.
+ *
+ * globals.css already pushes its own tokens further when html.high-contrast is
+ * set -- vector foregrounds go from 36% to 26% lightness, and muted foregrounds
+ * tighten too. The accent was the one colour that ignored the setting: an
+ * organisation with a custom accent got AA-level text no matter what the reader
+ * had asked for. Audited across four themes and eleven accents, that was all 109
+ * of the remaining failures, and every one of them was here.
+ */
+const MIN_CONTRAST_HIGH = 7;
+
+/**
+ * Solved for slightly above the bar rather than exactly on it.
+ *
+ * Aiming at the threshold itself leaves the result on a knife edge: rounding the
+ * lightness to a whole percent, and floating-point noise in the ratio, both put
+ * a value verified at 4.50 on the wrong side of 4.50. A tenth of a point costs
+ * nothing perceptually and makes the guarantee hold.
+ */
+const CONTRAST_MARGIN = 0.1;
+
+/**
+ * The heaviest accent tint the app paints behind accent-coloured text.
+ *
+ * 23 places combine `bg-primary/10` or `bg-primary/15` with `text-primary`:
+ * avatar initials, step numbers, the selected practice option, icon tiles. That
+ * is the accent mixed into both the text and the surface behind it, and it is
+ * the case that actually looked wrong. Checking contrast against the bare card
+ * is not enough -- measured that way the default blue still came out at 4.19 on
+ * a 15% tint, and the worst accent at 3.75. So the target is the tinted
+ * background, which is what is really rendered.
+ */
+const TINT_ALPHA = 0.15;
+
+interface Hsl {
+  h: number;
+  s: number;
+  l: number;
+}
+
+export function hexToHsl(hex: string): Hsl {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
   const b = parseInt(hex.slice(5, 7), 16) / 255;
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
-  const lightness = (max + min) / 2;
+  const l = (max + min) / 2;
   const delta = max - min;
+  if (delta === 0) return { h: 0, s: 0, l: l * 100 };
+  const s = delta / (1 - Math.abs(2 * l - 1));
+  let h: number;
+  if (max === r) h = ((g - b) / delta) % 6;
+  else if (max === g) h = (b - r) / delta + 2;
+  else h = (r - g) / delta + 4;
+  h *= 60;
+  if (h < 0) h += 360;
+  return { h, s: s * 100, l: l * 100 };
+}
 
-  let hue = 0;
-  let saturation = 0;
-  if (delta !== 0) {
-    saturation = delta / (1 - Math.abs(2 * lightness - 1));
-    if (max === r) hue = ((g - b) / delta) % 6;
-    else if (max === g) hue = (b - r) / delta + 2;
-    else hue = (r - g) / delta + 4;
-    hue *= 60;
-    if (hue < 0) hue += 360;
+function channelToLinear(value: number): number {
+  const c = value / 255;
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+}
+
+type Rgb = readonly [number, number, number];
+
+function hslToRgb({ h, s, l }: Hsl): Rgb {
+  const sat = s / 100;
+  const light = l / 100;
+  const c = (1 - Math.abs(2 * light - 1)) * sat;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = light - c / 2;
+  const sector = Math.floor(((((h % 360) + 360) % 360)) / 60) % 6;
+  const [r, g, b] = [
+    [c, x, 0],
+    [x, c, 0],
+    [0, c, x],
+    [0, x, c],
+    [x, 0, c],
+    [c, 0, x],
+  ][sector]!;
+  return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+}
+
+/** Relative luminance, per WCAG. */
+function luminance(rgb: Rgb): number {
+  return (
+    0.2126 * channelToLinear(rgb[0]) +
+    0.7152 * channelToLinear(rgb[1]) +
+    0.0722 * channelToLinear(rgb[2])
+  );
+}
+
+/** `foreground` at `alpha` composited over `background`, which is what a /15 tint is. */
+function composite(foreground: Rgb, background: Rgb, alpha: number): Rgb {
+  return [
+    foreground[0] * alpha + background[0] * (1 - alpha),
+    foreground[1] * alpha + background[1] * (1 - alpha),
+    foreground[2] * alpha + background[2] * (1 - alpha),
+  ];
+}
+
+function contrast(a: Rgb, b: Rgb): number {
+  const la = luminance(a);
+  const lb = luminance(b);
+  const hi = Math.max(la, lb);
+  const lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/**
+ * Contrast of an accent against the worst surface it is drawn on: a tint of
+ * itself over the card.
+ */
+function accentContrast(accent: Hsl, card: Hsl): number {
+  const rgb = hslToRgb(accent);
+  const tinted = composite(rgb, hslToRgb(card), TINT_ALPHA);
+  return contrast(rgb, tinted);
+}
+
+/**
+ * The nearest lightness to what the admin chose that is still legible.
+ *
+ * This is the fix for the reported problem. A single accent has to serve as a
+ * button background *and* as body text via `text-primary`, on both a white card
+ * and a near-black one, and no single lightness does all four: measured against
+ * the real tokens, every colour tried failed AA in one theme or the other --
+ * including the product's own default blue, at 3.40 on dark. A pale brand yellow
+ * scored 1.32 on a white card, which is the "mixing into both colours" that
+ * makes text hard to read.
+ *
+ * Hue and saturation are left exactly as chosen, because that is what a brand
+ * colour actually is; only lightness moves, and only as far as it must. Light
+ * themes darken, dark themes lighten. A very pale accent therefore renders as a
+ * deeper version of the same hue rather than as an unreadable wash -- a visible
+ * change, and the right trade against text nobody can read.
+ */
+export function legibleLightness(base: Hsl, card: Hsl, minContrast = MIN_CONTRAST): number {
+  // Solved on whole percentages, because that is what gets emitted: channels()
+  // rounds, and solving on the fractional value let a result verified at 7.00
+  // ship as 6.99 once rounded. Verify the number you are actually going to use.
+  const target = minContrast + CONTRAST_MARGIN;
+  const start = { ...base, l: Math.round(base.l) };
+  if (accentContrast(start, card) >= target) return start.l;
+  // Move away from the surface: darken on light, lighten on dark.
+  const step = card.l > 50 ? -1 : 1;
+  let l = start.l;
+  for (let i = 0; i < 100; i++) {
+    l += step;
+    if (l < 0 || l > 100) break;
+    if (accentContrast({ ...base, l }, card) >= target) return l;
   }
+  // A hue with no lightness that clears the bar at all -- only reachable at the
+  // AAA threshold for a few saturated hues. Land on the extreme, which is the
+  // most legible value available rather than an arbitrary one.
+  return card.l > 50 ? 0 : 100;
+}
 
-  return `${Math.round(hue)} ${Math.round(saturation * 100)}% ${Math.round(lightness * 100)}%`;
+/** Black or white channels, whichever is readable on this colour. */
+function readableForeground(colour: Hsl): string {
+  const own = hslToRgb(colour);
+  const white = hslToRgb({ h: 0, s: 0, l: 100 });
+  const black = hslToRgb({ h: 0, s: 0, l: 0 });
+  return contrast(own, white) >= contrast(own, black) ? "0 0% 100%" : "0 0% 0%";
+}
+
+/** `H S% L%`, the shape the theme's tokens are stored in. */
+function channels({ h, s, l }: Hsl): string {
+  return `${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%`;
+}
+
+export function accentCss(hex: string): string {
+  const base = hexToHsl(hex);
+
+  const rule = (selector: string, card: Hsl, minContrast: number) => {
+    const solved = { ...base, l: legibleLightness(base, card, minContrast) };
+    return (
+      `${selector}{--primary:${channels(solved)};` +
+      `--primary-foreground:${readableForeground(solved)};` +
+      `--ring:${channels(solved)};}`
+    );
+  };
+
+  // One rule per theme in globals.css, in cascade order. A single value cannot
+  // be legible on both a white card and a near-black one, and the high-contrast
+  // setting asks for more than AA on top of that -- so each combination is
+  // solved separately rather than approximated by one compromise.
+  return [
+    rule(":root", LIGHT_CARD, MIN_CONTRAST),
+    rule(".dark", DARK_CARD, MIN_CONTRAST),
+    rule("html.high-contrast", LIGHT_CARD, MIN_CONTRAST_HIGH),
+    rule("html.high-contrast.dark", DARK_CARD, MIN_CONTRAST_HIGH),
+  ].join("");
 }
 
 export function OrgAccent({ accentColor }: { accentColor: string | null | undefined }) {
   if (!accentColor || !SAFE_HEX.test(accentColor)) return null;
 
-  const channels = hexToHslChannels(accentColor);
-  // Tailwind's tokens are the indirection: overriding --primary retints
-  // everything built on it, so nothing needs a branded variant.
-  const css = `:root{--primary:${channels};--primary-foreground:${readableForeground(accentColor)};--ring:${channels};}`;
-
-  // Not user-authored markup: a validated hex, converted to three numbers, in a
-  // fixed template. There is no other way to set a custom property at :root from
-  // a client component, and a style attribute on a wrapper would not reach the
+  // Not user-authored markup: a validated hex reduced to numbers inside a fixed
+  // template. There is no other way to set a custom property at :root from a
+  // client component, and a style attribute on a wrapper would not reach the
   // tokens components already consume.
-  return <style dangerouslySetInnerHTML={{ __html: css }} />;
-}
-
-/**
- * Black or white channels, whichever is readable on this colour.
- *
- * Returned as channels rather than a hex for the same reason as above: the
- * theme's foreground token is consumed through hsl() too.
- */
-function readableForeground(hex: string): string {
-  const channel = (start: number) => {
-    const value = parseInt(hex.slice(start, start + 2), 16) / 255;
-    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  };
-  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
-  return luminance > 0.179 ? "0 0% 0%" : "0 0% 100%";
+  return <style dangerouslySetInnerHTML={{ __html: accentCss(accentColor) }} />;
 }
 
 /**

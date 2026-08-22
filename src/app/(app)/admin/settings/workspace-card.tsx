@@ -152,7 +152,10 @@ export function WorkspaceCard({ org }: { org: Org }) {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Six-digit hex. Leave empty to use the PhishAware blue.
+              Six-digit hex. Leave empty to use the PhishAware blue. Your hue is kept
+              exactly; a very pale or very dark shade is deepened or lightened where it
+              would otherwise be unreadable as text, and light and dark mode get their own
+              adjustment.
             </p>
           </div>
 
