@@ -3,6 +3,7 @@ import { GetDashboardResponse } from "@/api-zod";
 import { xpProgress } from "@/server/leveling";
 import { taxonomyPerformanceAreas } from "@/server/attackProfileSelector";
 import { json, error, requireUserId, withErrorHandling } from "@/server/http";
+import { reviewSummary } from "@/server/reviewSchedule";
 import { percent } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export const GET = withErrorHandling(async () => {
   const totalAttempts = attempts.length;
   const correctAttempts = attempts.filter((a) => a.correct).length;
   const accuracyRate = totalAttempts > 0 ? percent(correctAttempts / totalAttempts) : 0;
+  const retention = await reviewSummary(user._id);
 
   return json(
     GetDashboardResponse.parse({
@@ -53,6 +55,11 @@ export const GET = withErrorHandling(async () => {
       badges: user.badges,
       totalAttempts,
       accuracyRate,
+      retention: {
+        ...retention,
+        // Zod's date-time string, not a Date: this crosses the wire.
+        nextDueAt: retention.nextDueAt ? retention.nextDueAt.toISOString() : null,
+      },
     }),
   );
 });

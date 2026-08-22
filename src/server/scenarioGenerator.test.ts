@@ -6,7 +6,9 @@ import {
   resetLlmMockState,
   groqReturningInOrder,
   groqThrowing,
+  rateLimitHeaders,
 } from "./llm/test-provider-mock";
+import { resetRateLimiter } from "./llm/rateLimiter";
 
 installLlmProviderMocks();
 
@@ -55,11 +57,18 @@ function groqCapturing(...contents: (string | null)[]) {
   llmMockState.groqClient = {
     chat: {
       completions: {
-        create: async (args: unknown) => {
+        // Mirrors the SDK: create() is synchronous and returns something with
+        // withResponse(), which is how the rate-limit headers arrive.
+        create: (args: unknown) => {
           calls.push(args as (typeof calls)[number]);
           const content = call < contents.length ? contents[call]! : null;
           call++;
-          return { choices: [{ message: { content } }] };
+          return {
+            withResponse: async () => ({
+              data: { choices: [{ message: { content } }] },
+              response: { headers: rateLimitHeaders() },
+            }),
+          };
         },
       },
     },
@@ -70,6 +79,9 @@ function groqCapturing(...contents: (string | null)[]) {
 describe("generatePhishingScenario", () => {
   beforeEach(() => {
     resetLlmMockState();
+    // Token budgets are process-global, so a drained bucket would leak
+    // into the next case and make acquire() wait out the test timeout.
+    resetRateLimiter();
   });
 
   it("returns a well-formed scenario when both the draft and refine stages succeed", async () => {
@@ -130,10 +142,22 @@ describe("generatePhishingScenario", () => {
   });
 
   it("returns null when the draft stage has no content, without ever calling refine", async () => {
-    const calls = groqCapturing(null, refinedJson());
+    // Empty from every model in the draft lane. One empty completion is worth a
+    // retry on the lane's other model -- that is a separate token bucket, not a
+    // second attempt at an exhausted one -- so the fake has to exhaust both
+    // before "the draft produced nothing" is actually true.
+    const calls = groqCapturing(null, null, refinedJson());
     const result = await generatePhishingScenario(BASE_PARAMS);
     expect(result).toBeNull();
-    expect(calls.length).toBe(1);
+    // Both draft models attempted; refine never reached.
+    expect(calls.length).toBe(2);
+  });
+
+  it("retries the draft on the lane's other model when the first returns nothing", async () => {
+    const calls = groqCapturing(null, draftJson(), refinedJson());
+    const result = await generatePhishingScenario(BASE_PARAMS);
+    expect(result).not.toBeNull();
+    expect(calls.length).toBe(3);
   });
 
   it("returns null when the refine stage responds with invalid JSON", async () => {

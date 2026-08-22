@@ -50,7 +50,7 @@ async function main() {
     const orgId = user.orgId!;
     const email = user.email?.trim().toLowerCase();
     if (!email) {
-      console.log(`  SKIP   ${user._id.toString()} — no email on the row`);
+      console.log(`  SKIP   ${user._id.toString()}: no email on the row`);
       skipped += 1;
       continue;
     }
@@ -60,13 +60,13 @@ async function main() {
 
     const alreadyInvited = await invitations.findOne({ orgId, email, status: "pending" });
     if (alreadyInvited) {
-      console.log(`  SKIP   ${label} — a pending invitation already exists`);
+      console.log(`  SKIP   ${label}: a pending invitation already exists`);
       skipped += 1;
       continue;
     }
 
     if (!apply) {
-      console.log(`  WOULD  ${label} — create invitation, delete user row`);
+      console.log(`  WOULD  ${label}: create invitation, delete user row`);
       converted += 1;
       continue;
     }

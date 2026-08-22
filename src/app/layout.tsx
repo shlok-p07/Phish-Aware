@@ -48,7 +48,7 @@ export const metadata: Metadata = {
 		template: "%s · PhishAware",
 	},
 	description:
-		"PhishAware — train yourself to spot phishing through a gamified, simulated inbox. Practice against realistic scams across email, SMS, voice, QR, social, and websites. No real emails, links, or credentials involved.",
+		"PhishAware: train yourself to spot phishing through a gamified, simulated inbox. Practice against realistic scams across email, SMS, voice, QR, social, and websites. No real emails, links, or credentials involved.",
 	applicationName: "PhishAware",
 	keywords: [
 		"phishing",
@@ -66,14 +66,14 @@ export const metadata: Metadata = {
 	openGraph: {
 		type: "website",
 		siteName: "PhishAware",
-		title: "PhishAware — Train yourself to spot phishing",
+		title: "PhishAware: train yourself to spot phishing",
 		description:
 			"Learn to spot phishing through a gamified, simulated inbox. No real emails, links, or credentials involved.",
 		url: siteUrl,
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "PhishAware — Train yourself to spot phishing",
+		title: "PhishAware: train yourself to spot phishing",
 		description:
 			"Learn to spot phishing through a gamified, simulated inbox. No real emails, links, or credentials involved.",
 	},

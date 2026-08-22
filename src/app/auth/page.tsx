@@ -193,7 +193,7 @@ export default function AuthPage() {
 			{
 				onSuccess: (result) => {
 					if (result.ssoAvailable && result.startUrl) {
-						// A full navigation, not a fetch — the next hop is the IdP,
+						// A full navigation, not a fetch -- the next hop is the IdP,
 						// which is cross-origin.
 						window.location.href = result.startUrl;
 						return;

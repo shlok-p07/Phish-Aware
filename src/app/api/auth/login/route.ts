@@ -16,7 +16,7 @@ import {
   mustResetPassword,
   recordFailedAttempt,
 } from "@/server/loginLockout";
-import { json, error, withErrorHandling, HttpError } from "@/server/http";
+import { json, error, withErrorHandling, HttpError, readJsonBody } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ function lockedError(lockedUntil: Date, now: Date): HttpError {
 }
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
-  const body = LoginBody.parse(await req.json());
+  const body = LoginBody.parse(await readJsonBody(req));
   const email = normalizeEmail(body.email);
 
   const limit = rateLimit(`login:${clientIp(req.headers)}:${email}`, 10, 60_000);

@@ -26,6 +26,17 @@ export async function requireUserId(): Promise<ObjectId> {
 }
 
 /**
+ * Resolve the current user id, or null when signed out.
+ *
+ * For endpoints that serve everyone but personalise for a signed-in caller --
+ * the lesson library reads the same either way, it just cannot say which ones
+ * you have finished.
+ */
+export async function optionalUserId(): Promise<ObjectId | null> {
+  return getUserIdFromRequest();
+}
+
+/**
  * Resolve the current user and require them to be an admin of an org.
  * Throws 401 if unauthenticated, 403 if not an org admin.
  */
@@ -66,6 +77,25 @@ function isDatabaseUnavailableError(err: unknown): boolean {
     message.includes("timed out") ||
     message.includes("server selection")
   );
+}
+
+/**
+ * Reads a JSON request body, turning an unparseable one into a 400.
+ *
+ * `req.json()` throws a SyntaxError on a malformed body, and an unhandled
+ * SyntaxError falls through to the 500 branch below -- so a client sending bad
+ * JSON was told the server had failed. That misreports whose fault it is, and it
+ * buries a real outage among client noise in whatever watches the error rate.
+ *
+ * A body that parses but is the wrong shape is still the caller's problem too,
+ * and is already handled: the Zod branch turns that into a 400 with details.
+ */
+export async function readJsonBody<T>(req: { json: () => Promise<unknown> }): Promise<T> {
+  try {
+    return (await req.json()) as T;
+  } catch {
+    throw new HttpError(400, "Request body is not valid JSON");
+  }
 }
 
 export function withErrorHandling<Args extends unknown[]>(

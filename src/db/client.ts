@@ -8,6 +8,8 @@ const dbName = process.env.MONGODB_DB ?? "phishaware";
 // provisioning -- on every module reload.
 const globalForMongo = globalThis as unknown as {
   _mongoClientPromise?: Promise<MongoClient>;
+  /** Schema and indexes applied. Awaited, so no write can precede it. */
+  _mongoSchemaApplied?: boolean;
   _mongoProvisioned?: boolean;
   _mongoProvisioning?: Promise<void>;
 };
@@ -22,36 +24,66 @@ function connect(): Promise<MongoClient> {
     if (!process.env.MONGODB_URI) {
       throw new Error("MONGODB_URI must be set. Did you forget to provision a database?");
     }
-    globalForMongo._mongoClientPromise = new MongoClient(process.env.MONGODB_URI).connect();
-    globalForMongo._mongoClientPromise.then((client) => provisionOnce(client)).catch(() => {});
+    // Schema before anything can write, seeding after.
+    //
+    // Both used to be fire-and-forget, which left a window where a request was
+    // validated against the previous schema: a write that a new validator
+    // permits was rejected by the old one, as a 500, until provisioning
+    // happened to finish. Brief, but it lands right after every deploy that
+    // changes a validator -- exactly when it is least expected.
+    //
+    // provisionDatabase takes the Db directly, so awaiting it here cannot
+    // deadlock. Seeding is what calls getDb(), so it stays unawaited: it
+    // resolves as soon as this callback returns.
+    globalForMongo._mongoClientPromise = new MongoClient(process.env.MONGODB_URI)
+      .connect()
+      .then(async (client) => {
+        await applySchemaOnce(client);
+        seedOnce();
+        return client;
+      });
   }
   return globalForMongo._mongoClientPromise;
 }
 
-// Applies schema validators/indexes and seeds starter content if empty, so
-// nobody has to run `bun run db:init`/`db:seed` by hand. Fire-and-forget
-// (not awaited by getDb()) since seedIfEmpty() itself calls getDb() to reach
-// the collections it seeds -- awaiting this inline from getDb() would
-// deadlock on its own in-flight promise. Runs once per process; this used to
-// live in src/instrumentation.ts, but Next.js compiles a separate Edge
-// bundle for that file that can't resolve mongodb's optional Node-only
-// encryption submodule, which broke every single route with a 500.
-function provisionOnce(client: MongoClient): void {
+/**
+ * Applies schema validators and indexes, once per process, awaited by connect().
+ *
+ * This lives here rather than in src/instrumentation.ts because Next.js compiles
+ * a separate Edge bundle for that file which cannot resolve mongodb's optional
+ * Node-only encryption submodule, and that broke every route with a 500.
+ */
+async function applySchemaOnce(client: MongoClient): Promise<void> {
+  if (globalForMongo._mongoSchemaApplied) return;
+  globalForMongo._mongoSchemaApplied = true;
+  try {
+    await provisionDatabase(client.db(dbName));
+  } catch (err) {
+    // Cleared so the next connection retries rather than running forever
+    // against a database whose schema was never applied.
+    globalForMongo._mongoSchemaApplied = false;
+    console.error("[db] schema provisioning failed:", err);
+    throw err;
+  }
+}
+
+/**
+ * Seeds starter content, once per process, deliberately not awaited.
+ *
+ * Handle kept so closeMongoClient() can drain it: short-lived CLI scripts
+ * otherwise finish and close the pool mid-flight, which surfaces as a spurious
+ * MongoNotConnectedError on an operation nobody asked for.
+ */
+function seedOnce(): void {
   if (globalForMongo._mongoProvisioned) return;
   globalForMongo._mongoProvisioned = true;
-  // Handle kept so closeMongoClient() can drain it. Short-lived CLI scripts
-  // (db:seed, db:migrate-invites) otherwise finish and close the pool while
-  // this is still mid-flight, which surfaces as a spurious
-  // MongoNotConnectedError on an operation nobody asked for.
   globalForMongo._mongoProvisioning = (async () => {
-    const db = client.db(dbName);
-    await provisionDatabase(db);
     const { seedIfEmpty } = await import("@/server/seed");
     await seedIfEmpty();
     console.log("[db] schema, indexes, and seed data are up to date.");
   })().catch((err) => {
     globalForMongo._mongoProvisioned = false;
-    console.error("[db] provisioning failed:", err);
+    console.error("[db] seeding failed:", err);
   });
 }
 

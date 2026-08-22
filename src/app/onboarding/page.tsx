@@ -179,7 +179,7 @@ export default function OnboardingPage() {
                <span className="text-2xl font-bold capitalize text-foreground">{result.level} Level</span>
             </div>
             <p className="text-sm text-muted-foreground px-4">
-              Don&apos;t worry about the score—the whole point is to practice in a safe environment. We&apos;ll tailor your scenarios to help you grow.
+              Don&apos;t worry about the score. The whole point is to practice in a safe environment. We&apos;ll tailor your scenarios to help you grow.
             </p>
           </CardContent>
           <CardFooter className="pb-8">

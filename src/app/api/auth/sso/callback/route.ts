@@ -20,6 +20,7 @@ import { buildUserDoc } from "@/server/users";
 import { createSessionRow, sessionCookieOptions, SESSION_COOKIE } from "@/server/session";
 import { siteUrl } from "@/server/siteUrl";
 import { SSO_STATE_COOKIE } from "@/server/sso/cookies";
+import { redactEmail, shortId } from "@/server/redact";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -218,7 +219,7 @@ async function handleCallback(req: NextRequest): Promise<NextResponse> {
 
   if (decision.kind === "reject") {
     console.warn(
-      `[sso] refused ${email}: ${decision.code} ` +
+      `[sso] refused ${redactEmail(email)}: ${decision.code} ` +
         `(member=${member ? member.status : "none"}, invitation=${
           invitation ? invitation.status : "none"
         }, emailVerified=${identity.emailVerified}, seats=${activeSeats}/${
@@ -299,6 +300,8 @@ async function handleCallback(req: NextRequest): Promise<NextResponse> {
   const res = NextResponse.redirect(`${siteUrl()}${destination}`, 302);
   res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(expiresAt));
   res.cookies.delete(SSO_STATE_COOKIE);
-  console.log(`[sso] ${decision.kind} -> ${email} signed in to org ${connection.orgId.toString()}`);
+  console.log(
+      `[sso] ${decision.kind} -> ${redactEmail(email)} signed in to org ${shortId(connection.orgId)}`,
+    );
   return res;
 }

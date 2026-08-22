@@ -53,7 +53,7 @@ export function GuestBanner({ createdAt }: { createdAt: string | Date }) {
       <Ghost className="h-5 w-5 shrink-0 text-warning" />
       <div className="min-w-0 flex-1 text-sm font-semibold">
         {expired ? (
-          <span>Your guest session has ended — sign up to keep going.</span>
+          <span>Your guest session has ended. Sign up to keep going.</span>
         ) : (
           <span className="flex flex-wrap items-center gap-x-1.5">
             You&apos;re browsing as a guest.

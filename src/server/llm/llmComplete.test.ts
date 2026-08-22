@@ -12,7 +12,8 @@ import {
 
 installLlmProviderMocks();
 
-const { complete, resetLlmBackoff } = await import("./llmComplete");
+const { complete } = await import("./llmComplete");
+const { resetRateLimiter } = await import("./rateLimiter");
 
 /** Mimics the shape the Groq/Gemini SDKs throw on a 429. */
 function rateLimitError(retryAfter: string | null) {
@@ -25,6 +26,29 @@ function rateLimitError(retryAfter: string | null) {
   return err;
 }
 
+/**
+ * A Groq fake in the shape the SDK actually returns: create() is synchronous and
+ * yields an object with withResponse(). The previous inline fakes were
+ * `async () => { throw ... }`, so withResponse() did not exist on the rejected
+ * promise and the thrown 429 never reached the backoff logic at all.
+ */
+function groqFailing(counter: { calls: number }, makeError: () => unknown) {
+  return {
+    chat: {
+      completions: {
+        create: () => {
+          counter.calls += 1;
+          return {
+            withResponse: async () => {
+              throw makeError();
+            },
+          };
+        },
+      },
+    },
+  };
+}
+
 const OPTIONS: CompleteOptions = {
   system: "You are a helpful assistant.",
   messages: [{ role: "user", content: "Hello" }],
@@ -34,7 +58,7 @@ const OPTIONS: CompleteOptions = {
 describe("complete (Groq -> Gemini fallback)", () => {
   beforeEach(() => {
     resetLlmMockState();
-    resetLlmBackoff();
+    resetRateLimiter();
   });
 
   it("returns Groq's result and never calls Gemini when Groq succeeds", async () => {
@@ -131,35 +155,26 @@ describe("complete (Groq -> Gemini fallback)", () => {
 describe("rate-limit backoff", () => {
   beforeEach(() => {
     resetLlmMockState();
-    resetLlmBackoff();
+    resetRateLimiter();
   });
 
   it("stops calling Groq again after it reports a 429", async () => {
-    let groqCalls = 0;
-    llmMockState.groqClient = {
-      chat: {
-        completions: {
-          create: async () => {
-            groqCalls += 1;
-            throw rateLimitError("600");
-          },
-        },
-      },
-    } as never;
+    const counter = { calls: 0 };
+    llmMockState.groqClient = groqFailing(counter, () => rateLimitError("600")) as never;
     llmMockState.geminiClient = geminiReturning("Hi from Gemini");
 
     expect(await complete(OPTIONS)).toBe("Hi from Gemini");
     expect(await complete(OPTIONS)).toBe("Hi from Gemini");
     expect(await complete(OPTIONS)).toBe("Hi from Gemini");
 
-    // Called once, then skipped for the rest of the backoff window.
-    expect(groqCalls).toBe(1);
+    // Once per model in the lane -- each is its own token bucket, so a 429 from
+    // one says nothing about the other -- and then skipped entirely for the
+    // rest of both backoff windows. Three complete() calls, two attempts.
+    expect(counter.calls).toBe(2);
   });
 
   it("still serves from Gemini while Groq is paused", async () => {
-    llmMockState.groqClient = {
-      chat: { completions: { create: async () => { throw rateLimitError("600"); } } },
-    } as never;
+    llmMockState.groqClient = groqFailing({ calls: 0 }, () => rateLimitError("600")) as never;
     llmMockState.geminiClient = geminiReturning("Hi from Gemini");
 
     await complete(OPTIONS);
@@ -167,41 +182,26 @@ describe("rate-limit backoff", () => {
   });
 
   it("backs off a 429 that carries no Retry-After header", async () => {
-    let groqCalls = 0;
-    llmMockState.groqClient = {
-      chat: {
-        completions: {
-          create: async () => {
-            groqCalls += 1;
-            throw rateLimitError(null);
-          },
-        },
-      },
-    } as never;
+    const counter = { calls: 0 };
+    llmMockState.groqClient = groqFailing(counter, () => rateLimitError(null)) as never;
     llmMockState.geminiClient = geminiReturning("Hi from Gemini");
 
     await complete(OPTIONS);
     await complete(OPTIONS);
-    expect(groqCalls).toBe(1);
+    // Both buckets tried once, then both paused.
+    expect(counter.calls).toBe(2);
   });
 
   it("keeps retrying Groq for an ordinary (non-429) failure", async () => {
-    let groqCalls = 0;
-    llmMockState.groqClient = {
-      chat: {
-        completions: {
-          create: async () => {
-            groqCalls += 1;
-            throw new Error("transient network blip");
-          },
-        },
-      },
-    } as never;
+    const counter = { calls: 0 };
+    llmMockState.groqClient = groqFailing(counter, () => new Error("transient network blip")) as never;
     llmMockState.geminiClient = geminiReturning("Hi from Gemini");
 
     await complete(OPTIONS);
     await complete(OPTIONS);
-    expect(groqCalls).toBe(2);
+    // No backoff for a transient error, so every bucket is retried every time:
+    // two models across two calls.
+    expect(counter.calls).toBe(4);
   });
 
   it("clamps an absurdly large Retry-After so a bad value can't disable a provider for a day", async () => {
@@ -211,9 +211,9 @@ describe("rate-limit backoff", () => {
       warnings.push(args.join(" "));
     };
     try {
-      llmMockState.groqClient = {
-        chat: { completions: { create: async () => { throw rateLimitError("999999999"); } } },
-      } as never;
+      llmMockState.groqClient = groqFailing({ calls: 0 }, () =>
+        rateLimitError("999999999"),
+      ) as never;
       llmMockState.geminiClient = geminiReturning("Hi from Gemini");
 
       await complete(OPTIONS);
@@ -222,30 +222,27 @@ describe("rate-limit backoff", () => {
     }
 
     const backoffWarning = warnings.find((w) => w.includes("rate limited"));
-    // MAX_BACKOFF_MS is 1 hour -- 3600s, not the ~11.5 days the raw header asked for.
-    expect(backoffWarning).toContain("3600s");
+    // Clamped to MAX_BACKOFF_MS rather than the ~11.5 days the header asked for.
+    // The cap is 10 minutes, not the hour it used to be: now that admission
+    // control budgets tokens before spending them, a long punitive blackout
+    // throws away capacity we could be using. Jitter is added on top, so this
+    // asserts the order of magnitude rather than an exact string.
+    expect(backoffWarning).toMatch(/ 6[0-9]{2}s/);
   });
 
   it("falls back to a short pause when Retry-After isn't a plain number of seconds", async () => {
-    let groqCalls = 0;
-    llmMockState.groqClient = {
-      chat: {
-        completions: {
-          create: async () => {
-            groqCalls += 1;
-            // Retry-After is spec-legal as an HTTP-date, not just seconds.
-            throw rateLimitError("Wed, 21 Oct 2026 07:28:00 GMT");
-          },
-        },
-      },
-    } as never;
+    const counter = { calls: 0 };
+    // Retry-After is spec-legal as an HTTP-date, not just seconds.
+    llmMockState.groqClient = groqFailing(counter, () =>
+      rateLimitError("Wed, 21 Oct 2026 07:28:00 GMT"),
+    ) as never;
     llmMockState.geminiClient = geminiReturning("Hi from Gemini");
 
     await complete(OPTIONS);
     await complete(OPTIONS);
     // Still backs off (doesn't crash or ignore the 429) even though it can't
-    // parse this particular format as a duration.
-    expect(groqCalls).toBe(1);
+    // parse this particular format as a duration -- once per bucket.
+    expect(counter.calls).toBe(2);
   });
 
   it("returns null without calling Gemini once Gemini itself is rate limited", async () => {

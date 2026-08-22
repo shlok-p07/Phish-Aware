@@ -127,21 +127,13 @@ describe("pickVector", () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 
-  it("honors an explicit 'email' preference every time", () => {
+  // Written as a loop over PRACTICE_VECTORS rather than one test per vector.
+  // The hand-written version covered email, sms and voice, so when qr was added
+  // it was neither honoured by pickVector nor caught here -- asking to practise
+  // QR codes silently randomised the round instead.
+  it.each([...PRACTICE_VECTORS])("honors an explicit '%s' preference every time", (vector) => {
     for (let i = 0; i < 50; i++) {
-      expect(pickVector("email")).toBe("email");
-    }
-  });
-
-  it("honors an explicit 'sms' preference every time", () => {
-    for (let i = 0; i < 50; i++) {
-      expect(pickVector("sms")).toBe("sms");
-    }
-  });
-
-  it("honors an explicit 'voice' preference every time", () => {
-    for (let i = 0; i < 50; i++) {
-      expect(pickVector("voice")).toBe("voice");
+      expect(pickVector(vector)).toBe(vector);
     }
   });
 
@@ -163,11 +155,23 @@ describe("pickIsPhish", () => {
     expect(seen.size).toBe(2);
   });
 
-  it("skews toward phishing (~65/35) rather than an even coin flip or all-one-value", () => {
-    const draws = Array.from({ length: 1000 }, () => pickIsPhish());
+  it("draws evenly, so accuracy measures judgement rather than a guessing habit", () => {
+    // This used to skew about 65/35 toward phishing, matching the static pool.
+    // Measured over a simulated session the served mix came out at 60-63%, which
+    // means a learner who answered "phishing" every round scored about 62%
+    // without exercising any judgement at all. Real mail is mostly legitimate,
+    // so an even draw is not realism -- it is the only ratio where an accuracy
+    // figure means what it appears to mean.
+    const draws = Array.from({ length: 2000 }, () => pickIsPhish());
     const phishRatio = draws.filter(Boolean).length / draws.length;
-    expect(phishRatio).toBeGreaterThan(0.5);
-    expect(phishRatio).toBeLessThan(0.85);
+    expect(phishRatio).toBeGreaterThan(0.44);
+    expect(phishRatio).toBeLessThan(0.56);
+  });
+
+  it("still produces both verdicts", () => {
+    const draws = Array.from({ length: 200 }, () => pickIsPhish());
+    expect(draws).toContain(true);
+    expect(draws).toContain(false);
   });
 });
 

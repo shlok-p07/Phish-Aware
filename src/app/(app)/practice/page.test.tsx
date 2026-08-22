@@ -291,3 +291,69 @@ describe("Practice page", () => {
     });
   });
 });
+
+/**
+ * The channel toggle against an organisation's policy.
+ *
+ * The server has refused disallowed channels since the workspace feature
+ * landed, but the toggle went on rendering all six -- so a member of an
+ * email-only organisation could pick "Voice", be served an email, and watch the
+ * control disagree with the screen. Asserted here by rendering the real page,
+ * because the API contract was already correct; only the markup was wrong.
+ */
+describe("PracticePage channel toggle", () => {
+  beforeEach(() => {
+    resetApiClientMockState();
+    resetNextNavigationMockState();
+    apiClientMockState.nextPracticeScenario = FAKE_SCENARIO;
+    apiClientMockState.cueOptions = FAKE_CUES;
+  });
+
+  afterEach(cleanup);
+
+  const withWorkspace = (practiceVectors: string[]) => {
+    apiClientMockState.currentUser = {
+      id: "u1",
+      name: "Nadia Cole",
+      workspace: {
+        orgName: "Email Only Ltd",
+        branding: { accentColor: null, logoUrl: null, welcomeMessage: null },
+        reporting: { channel: null, instructions: null },
+        practiceVectors,
+      },
+    };
+  };
+
+  it("offers every channel when the organisation sets no restriction", async () => {
+    withWorkspace([]);
+    renderPage();
+    for (const label of ["Mixed", "Email", "SMS", "Voice", "QR code", "Social DM", "Web page"]) {
+      expect(await screen.findByRole("button", { name: label })).toBeTruthy();
+    }
+  });
+
+  it("offers only the channels the organisation trains on", async () => {
+    withWorkspace(["email"]);
+    renderPage();
+    expect(await screen.findByRole("button", { name: "Email" })).toBeTruthy();
+    // Mixed stays: it means "any of the allowed ones", not "any of the six".
+    expect(screen.getByRole("button", { name: "Mixed" })).toBeTruthy();
+    for (const hidden of ["SMS", "Voice", "QR code", "Social DM", "Web page"]) {
+      expect(screen.queryByRole("button", { name: hidden })).toBeNull();
+    }
+  });
+
+  it("keeps a partial policy exactly", async () => {
+    withWorkspace(["email", "web"]);
+    renderPage();
+    expect(await screen.findByRole("button", { name: "Web page" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Email" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Voice" })).toBeNull();
+  });
+
+  it("offers every channel to a learner with no organisation", async () => {
+    apiClientMockState.currentUser = { id: "u1", name: "Solo", workspace: null };
+    renderPage();
+    expect(await screen.findByRole("button", { name: "Voice" })).toBeTruthy();
+  });
+});

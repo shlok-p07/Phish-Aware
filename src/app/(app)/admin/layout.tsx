@@ -40,7 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace("/dashboard");
       return;
     }
-    // Admin with no org yet — send them through the create flow.
+    // Admin with no org yet -- send them through the create flow.
     if (!org) router.replace("/admin/create");
   }, [ready, org, user, isAdmin, pathname, router]);
 

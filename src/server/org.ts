@@ -5,12 +5,24 @@ import {
   invitationsCollection,
   type OrganizationDoc,
 } from "@/db";
+import { readWorkspace } from "./orgBranding";
 
 /**
  * Shared org helpers. toOrgDto used to be copy-pasted into src/app/api/org/
  * route.ts and org/settings/route.ts; adding the SSO fields to only one of
  * them would have made GET and PATCH disagree about the same org.
  */
+/**
+ * Attaches current seat usage to the org payload.
+ *
+ * Usage was computed only to gate an invitation, so an admin discovered the
+ * limit by having an invite refused. Kept separate from toOrgDto, which is pure
+ * and used on paths that have no reason to hit the database again.
+ */
+export async function toOrgDtoWithSeats(org: OrganizationDoc) {
+  return { ...toOrgDto(org), seats: await seatUsage(org._id) };
+}
+
 export function toOrgDto(org: OrganizationDoc) {
   return {
     id: org._id.toString(),
@@ -21,6 +33,9 @@ export function toOrgDto(org: OrganizationDoc) {
     // needs no read of ssoConnections -- and never touches the client secret.
     ssoEnabled: org.ssoProvider !== null,
     ssoProvider: org.ssoProvider,
+    // Read through the same validator employees see, so the admin form cannot
+    // show a value the rest of the product would reject or ignore.
+    workspace: readWorkspace(org.settings, org.name),
   };
 }
 

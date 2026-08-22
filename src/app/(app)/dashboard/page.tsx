@@ -1,5 +1,8 @@
 "use client";
-import { useGetDashboard } from "@/api-client";
+import { useGetCurrentUser, useGetDashboard, useListMyTraining } from "@/api-client";
+import { NotificationBanner } from "@/components/notification-banner";
+import { RetentionCard } from "@/components/retention-card";
+import { OrgLogo } from "@/components/org-brand";
 import { Target as TargetIcon, CalendarCheck, ChevronRight, ShieldCheck, ShieldAlert, Award, Star } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -11,6 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const { data: summary, isLoading, isError, refetch } = useGetDashboard();
+  const { data: training = [] } = useListMyTraining();
+  const { data: me } = useGetCurrentUser();
+  const workspace = me?.workspace ?? null;
 
   if (isLoading) {
     return (
@@ -126,6 +132,91 @@ export default function DashboardPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			<NotificationBanner />
+
+			{/* A note from the customer's own security team. Nothing generic here --
+			    it renders only when an admin has written something. */}
+			{workspace?.branding?.welcomeMessage && (
+				<div className="flex items-start gap-3 rounded-lg border bg-card p-4 shadow-sm">
+					<OrgLogo
+						logoUrl={workspace.branding.logoUrl}
+						orgName={workspace.orgName}
+						className="mt-0.5 h-8 w-8 shrink-0"
+					/>
+					<div className="min-w-0">
+						<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+							{workspace.orgName ? `From ${workspace.orgName}` : "From your security team"}
+						</p>
+						{/* Plain text, escaped by React. Never HTML -- see orgBranding.ts. */}
+						<p className="pa-measure mt-1 text-sm leading-relaxed">
+							{workspace.branding.welcomeMessage}
+						</p>
+					</div>
+				</div>
+			)}
+
+			{/* What they have banked and what is coming back up -- the one number on
+			    this page that changes between sessions, and the only one that says
+			    what to do next. */}
+			<RetentionCard retention={summary.retention} />
+
+			{/* Assigned training. Campaigns were being created and never surfaced to
+			    the people they were assigned to, so a mandatory module was invisible to
+			    everyone except the admin who set it. */}
+			{training.length > 0 && (
+				<Card className="shadow-sm">
+					<CardHeader variant="band">
+						<CardTitle className="text-lg flex items-center gap-2">
+							<CalendarCheck className="w-5 h-5 text-primary" />
+							Assigned to you
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="pt-4 space-y-3">
+						{training.map((item) => (
+							<div key={item.id} className="rounded-lg border p-3 space-y-2">
+								<div className="flex items-start justify-between gap-3">
+									<p className="font-semibold leading-tight">{item.title}</p>
+									<span
+										className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${
+											item.status === "overdue"
+												? "bg-destructive/10 text-destructive"
+												: item.status === "completed"
+													? "bg-success/10 text-success"
+													: "bg-muted text-muted-foreground"
+										}`}
+									>
+										{item.status === "in_progress" ? "In progress" : item.status}
+									</span>
+								</div>
+								<div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+									<span>
+										{item.requiredScenarios > 0
+											? `${item.completedScenarios} of ${item.requiredScenarios} scenarios`
+											: "No scenario requirement"}
+									</span>
+									{/* What counts toward it, so nobody practises the wrong thing for a
+									    week and wonders why the bar has not moved. */}
+									<span className="text-muted-foreground">{item.focusLabel}</span>
+									{item.dueDate && <span>Due {item.dueDate}</span>}
+								</div>
+								{item.requiredScenarios > 0 && (
+									<Progress
+										value={(item.completedScenarios / item.requiredScenarios) * 100}
+										className="h-1.5"
+									/>
+								)}
+								<Button asChild size="sm" variant="outline" className="rounded-lg font-semibold">
+									<Link href="/practice">
+										Practice now <ChevronRight className="w-4 h-4 ml-1" />
+									</Link>
+								</Button>
+							</div>
+						))}
+					</CardContent>
+				</Card>
+			)}
+
 
 			<div className="grid md:grid-cols-2 gap-6 md:flex-1">
 				{/* Taxonomy strengths/focus areas from the adaptive rules engine */}

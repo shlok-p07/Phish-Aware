@@ -42,8 +42,8 @@ On Windows PowerShell, activate the environment with:
 Put these files in `backend/models_store/`:
 
 ```text
-phishing_awareness_v1.joblib
-phishing_awareness_v1.metadata.json
+phishing_awareness_v2.joblib
+phishing_awareness_v2.metadata.json
 ```
 
 Verify the download and start the service:
@@ -249,7 +249,7 @@ curl -X POST http://localhost:8001/predictions/awareness \
 ```json
 {
   "awareness_score": 0.8159700004281366,
-  "model_version": "awareness-v1.0.0"
+  "model_version": "awareness-v2.0.0"
 }
 ```
 
@@ -369,9 +369,9 @@ the existing predictor and response contracts.
 | `APP_NAME` | `PhishAware ML Service` | Name returned by health/docs |
 | `ENVIRONMENT` | `development` | Environment label |
 | `MODEL_STORE_DIR` | `backend/models_store` | Artifact directory |
-| `AWARENESS_MODEL_FILENAME` | `phishing_awareness_v1.joblib` | Joblib artifact |
-| `AWARENESS_METADATA_FILENAME` | `phishing_awareness_v1.metadata.json` | Artifact metadata |
-| `AWARENESS_MODEL_VERSION` | `awareness-v1.0.0` | Required deployed version |
+| `AWARENESS_MODEL_FILENAME` | `phishing_awareness_v2.joblib` | Joblib artifact |
+| `AWARENESS_METADATA_FILENAME` | `phishing_awareness_v2.metadata.json` | Artifact metadata |
+| `AWARENESS_MODEL_VERSION` | `awareness-v2.0.0` | Required deployed version |
 | `DATA_DIR` | `backend/data` | Local dataset directory |
 | `CORS_ORIGINS` | Localhost ports 3000 | Comma-separated browser origins |
 

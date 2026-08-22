@@ -40,7 +40,7 @@ describe("POST /api/auth/password-reset/request", () => {
     const res = await postRequest("nobody@acme.test");
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({ ok: true, code: null });
+    expect(body).toEqual({ ok: true, code: null, delivery: "shown" });
   });
 
   it("returns a real code for a matching account, hashed and stored the same way passwords are", async () => {
@@ -57,7 +57,7 @@ describe("POST /api/auth/password-reset/request", () => {
     seedUser({ email: "guest@acme.test", passwordHash: null });
     const res = await postRequest("guest@acme.test");
     const body = await res.json();
-    expect(body).toEqual({ ok: true, code: null });
+    expect(body).toEqual({ ok: true, code: null, delivery: "shown" });
   });
 
   it("does not generate a code when more than one account matches (ambiguous)", async () => {
@@ -65,7 +65,7 @@ describe("POST /api/auth/password-reset/request", () => {
     seedUser({ email: "dup@acme.test" });
     const res = await postRequest("dup@acme.test");
     const body = await res.json();
-    expect(body).toEqual({ ok: true, code: null });
+    expect(body).toEqual({ ok: true, code: null, delivery: "shown" });
   });
 
   it("invalidates the previous code when a second request comes in before it's used", async () => {

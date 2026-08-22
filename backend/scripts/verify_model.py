@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MODEL_DIR = ROOT / "models_store"
-METADATA_PATH = MODEL_DIR / "phishing_awareness_v1.metadata.json"
+METADATA_PATH = MODEL_DIR / "phishing_awareness_v2.metadata.json"
 
 
 def sha256(path: Path) -> str:

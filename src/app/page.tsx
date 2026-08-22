@@ -23,6 +23,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { VectorPreviewToggle } from "@/components/vector-preview-toggle";
 import { ComparisonTable } from "@/components/comparison-table";
 import { Reveal } from "@/components/reveal";
+import { SpotlightCard } from "@/components/spotlight-card";
+import { DomainReveal } from "@/components/domain-reveal";
 import { getUserIdFromRequest } from "@/server/session";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +48,7 @@ const WHY_VECTORS = [
     icon: Shuffle,
     stat: "3",
     label: "attack channels",
-    body: "Email, text message, and voice call — including a simulated phone call your team has to listen to, not read. Most training still stops at the inbox.",
+    body: "Email, text message, and voice call, including a simulated phone call your team has to listen to, not read. Most training still stops at the inbox.",
   },
   {
     icon: Sparkles,
@@ -82,7 +84,7 @@ const FEATURES = [
   {
     icon: Target,
     title: "Scenarios shaped by the job",
-    body: "Finance sees invoice fraud. IT sees fake help-desk requests. Each one plays out where it would really land — an inbox, a message thread, or a ringing phone.",
+    body: "Finance sees invoice fraud. IT sees fake help-desk requests. Each one plays out where it would really land: an inbox, a message thread, or a ringing phone.",
   },
   {
     icon: BarChart3,
@@ -102,7 +104,7 @@ const FEATURES = [
   {
     icon: TrendingUp,
     title: "Sharper the longer your team uses it",
-    body: "Every attempt feeds your organization's own risk picture, not an industry average — per-person accuracy, risk level, and how much of your team is actually participating.",
+    body: "Every attempt feeds your organization's own risk picture, not an industry average. Per-person accuracy, risk level, and how much of your team is actually participating.",
   },
 ];
 
@@ -190,7 +192,7 @@ export default async function LandingPage() {
                 Spam filters stop most phishing attempts before they reach an
                 inbox. The ones that get through are built to fool a person,
                 not a filter. PhishAware trains your team on exactly that,
-                across <strong className="text-foreground font-semibold">email, text, and voice</strong>{" "}
+                across <strong className="text-foreground font-semibold">email, text, voice, QR codes, social messages and spoofed sign-in pages</strong>{" "}
                 &mdash; scenarios matched to each person&apos;s role, scored the moment
                 they respond, with the data to prove your team is getting
                 sharper.
@@ -206,6 +208,7 @@ export default async function LandingPage() {
               <p className="text-sm text-muted-foreground mt-4">
                 No credit card required. Free to start.
               </p>
+              <DomainReveal />
             </div>
             <div className="flex justify-center lg:justify-end">
               <VectorPreviewToggle />
@@ -277,7 +280,7 @@ export default async function LandingPage() {
               <div className="space-y-3">
                 {WHY_VECTORS.map((w, i) => (
                   <Reveal key={w.label} delayMs={i * 80}>
-                    <div className={`group flex items-start gap-4 p-5 ${CARD} ${CARD_HOVER}`}>
+                    <SpotlightCard className={`flex items-start gap-4 p-5 ${CARD}`}>
                       <div className="shrink-0 bg-primary/10 text-primary rounded-lg p-2.5 transition-transform duration-300 group-hover:scale-110">
                         <w.icon className="w-5 h-5" />
                       </div>
@@ -292,7 +295,7 @@ export default async function LandingPage() {
                           {w.body}
                         </p>
                       </div>
-                    </div>
+                    </SpotlightCard>
                   </Reveal>
                 ))}
               </div>
@@ -317,15 +320,15 @@ export default async function LandingPage() {
           <div className="grid sm:grid-cols-2 gap-4 md:gap-6">
             {FEATURES.map((f, i) => (
               <Reveal key={f.title} delayMs={(i % 2) * 90}>
-                <div className={`group p-6 md:p-8 h-full ${CARD} ${CARD_HOVER}`}>
+                <SpotlightCard className={`p-6 md:p-8 h-full ${CARD}`}>
                   <div className="inline-flex bg-primary/10 text-primary p-3 rounded-lg mb-4 transition-transform duration-300 group-hover:scale-110">
                     <f.icon className="w-7 h-7" />
                   </div>
                   <h3 className="text-xl font-display font-bold mb-2">{f.title}</h3>
-                  <p className="text-muted-foreground font-medium leading-relaxed">
+                  <p className="pa-measure text-muted-foreground font-medium leading-relaxed">
                     {f.body}
                   </p>
-                </div>
+                </SpotlightCard>
               </Reveal>
             ))}
           </div>
@@ -388,7 +391,7 @@ export default async function LandingPage() {
               <div className="space-y-4">
                 {[
                   "Nothing is ever sent. No test emails hit your mail server, no texts hit anyone's phone, no calls are placed.",
-                  "Every scenario is rendered inside PhishAware. Links are inert and attachments are props — there is nothing to click through to.",
+                  "Every scenario is rendered inside PhishAware. Links are inert and attachments are props, so there is nothing to click through to.",
                   "We never ask for real passwords, payment details, or account access.",
                   "No deception of your staff outside the exercise, and no surprise 'gotcha' campaigns run against them.",
                 ].map((item) => (

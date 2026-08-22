@@ -99,7 +99,7 @@ function pickRandom<T>(items: readonly T[]): T {
 }
 
 /** Vectors the adaptive generator currently knows how to write. */
-export const PRACTICE_VECTORS = ["email", "sms", "voice"] as const;
+export const PRACTICE_VECTORS = ["email", "sms", "voice", "qr", "social", "web"] as const;
 export type PracticeVector = (typeof PRACTICE_VECTORS)[number];
 
 /** What the learner asked to practice: a specific vector, or "mixed" for the previous random-every-round behavior. */
@@ -107,17 +107,29 @@ export type VectorPreference = PracticeVector | "mixed";
 
 /** Picks which vector this round's scenario will be. An explicit preference is honored as-is; "mixed" (or omitted) keeps the original random draw. */
 export function pickVector(preference?: VectorPreference): PracticeVector {
-  if (preference === "email" || preference === "sms" || preference === "voice") return preference;
+  // Checked against the list rather than an inline || chain: the chain silently
+  // fell out of date when qr was added, so asking to practise QR codes quietly
+  // randomised instead, and the same would have happened to every vector added
+  // after it.
+  if (preference && preference !== "mixed" && PRACTICE_VECTORS.includes(preference)) {
+    return preference;
+  }
   return pickRandom(PRACTICE_VECTORS);
 }
 
 /**
- * ~65% phishing / ~35% legitimate. Keeps the live generator honest -- a
- * learner who could assume "it's always phishing" isn't actually practicing
- * judgment -- while matching this product's established ratio in the static
- * seed pool (src/server/seedScenarios.ts is ~60-70% phish across both vectors).
+ * An even draw. It used to be two-in-three phishing, matching the static seed
+ * pool -- which meant a learner who answered "phishing" every round scored about
+ * 62% without exercising any judgement, and the stream read as relentlessly
+ * hostile rather than like a real inbox to be sorted.
+ *
+ * Real mail is mostly legitimate, so this is not realism; it is measurement. An
+ * even draw is the only ratio where accuracy means what it appears to mean.
+ * Selection also balances the recent mix (see scenarioFit's imbalance weight),
+ * so what a learner actually sees converges on even regardless of what the pool
+ * happens to hold.
  */
-const PHISH_WEIGHTED_DRAW = [true, true, false] as const;
+const PHISH_WEIGHTED_DRAW = [true, false] as const;
 
 /** Picks whether this round's live-generated scenario should be a phish or a legitimate message. */
 export function pickIsPhish(): boolean {

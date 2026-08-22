@@ -9,12 +9,13 @@ import { GuestBanner } from "@/components/guest-banner";
 import { ChatbotProvider } from "@/components/chatbot-widget";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMounted } from "@/hooks/use-mounted";
+import { OrgAccent, OrgLogo } from "@/components/org-brand";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebarCollapsed";
 
 /**
  * Sidebar text that collapses away with the rail. The label stays in the DOM so
- * it can animate, which means it also stays in the accessibility tree — so it's
+ * it can animate, which means it also stays in the accessibility tree -- so it's
  * explicitly hidden from assistive tech once it's visually gone, and the owning
  * control carries an aria-label instead.
  */
@@ -131,8 +132,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/leaderboard", icon: BarChart3, label: "Leaderboard" },
   ];
 
+  const workspace = user.workspace ?? null;
+
   return (
     <ChatbotProvider>
+    {/* An organisation's own colour, applied once for the whole shell. Rendered
+        here rather than per page so it is in place before anything paints. */}
+    <OrgAccent accentColor={workspace?.branding?.accentColor ?? null} />
     <div className="min-h-dvh flex flex-col md:flex-row bg-background">
       {/* Desktop Sidebar */}
       <aside className={`hidden md:flex ${collapsed ? "w-20" : "w-72"} flex-col border-r border-border bg-card px-4 py-6 sticky top-0 h-dvh overflow-hidden transition-[width] duration-300 ease-in-out`}>
@@ -148,13 +154,38 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
 
+        {/* Whose workspace this is. PhishAware is the vendor mark above; an
+            employee of a customer should see their own employer here, which is
+            the difference between using a tool and being given one. */}
+        {workspace?.orgName && (
+          <div
+            className={`flex items-center mb-4 rounded-lg bg-muted/40 ${collapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2"}`}
+            title={collapsed ? workspace.orgName : undefined}
+          >
+            <OrgLogo
+              logoUrl={workspace.branding?.logoUrl}
+              orgName={workspace.orgName}
+              className="h-7 w-7 shrink-0"
+            />
+            <div
+              className={`min-w-0 transition-[opacity,max-width] duration-300 ease-in-out ${collapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-40"}`}
+              aria-hidden={collapsed || undefined}
+            >
+              <p className="truncate text-sm font-semibold leading-tight">{workspace.orgName}</p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Workspace
+              </p>
+            </div>
+          </div>
+        )}
+
         {collapsed && (
           <button onClick={toggleCollapsed} className="flex items-center justify-center p-3 mb-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors hover:cursor-pointer" aria-label="Expand sidebar">
             <PanelLeftOpen className="w-6 h-6" />
           </button>
         )}
 
-        {/* Profile bubble — links to profile screen */}
+        {/* Profile bubble -- links to profile screen */}
         <Link
           href="/profile"
           title={collapsed ? user.name : undefined}

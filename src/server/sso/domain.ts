@@ -44,3 +44,43 @@ export function domainAllowed(email: string, allowedDomains: string[]): boolean 
   }
   return allowedDomains.some((d) => d.trim().toLowerCase() === domain);
 }
+
+/**
+ * The domain an admin meant, from whatever they typed.
+ *
+ * Every place a domain is configured accepted the raw string, and there is hard
+ * evidence that is not good enough: three organisations have a full email
+ * address sitting in their SSO domain field, and one has "@northeastern.edu"
+ * with the leading sign. A domain list is matched exactly against an email's
+ * domain, so any of those silently matches nothing -- SSO simply never appears,
+ * with no error anywhere to explain why.
+ *
+ * So the three things a person actually types are all accepted and reduced to
+ * the same value:
+ *
+ *   example.com          -> example.com
+ *   @example.com         -> example.com
+ *   someone@example.com  -> example.com
+ *
+ * Anything that is not domain-shaped returns null, so the caller can reject it
+ * rather than store something unmatchable.
+ */
+export function parseDomainInput(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  let value = raw.trim().toLowerCase();
+  if (!value) return null;
+
+  // A pasted URL is a reasonable thing to type into a field labelled "domain".
+  value = value.replace(/^[a-z]+:\/\//, "").replace(/\/.*$/, "");
+  // Take the domain half of an address, and drop a bare leading sign.
+  const at = value.lastIndexOf("@");
+  if (at !== -1) value = value.slice(at + 1);
+
+  if (!value.includes(".") || /\s/.test(value)) return null;
+  // Labels of letters, digits and hyphens, not starting or ending with one, and
+  // a final label that is alphabetic -- which excludes an IP address.
+  if (!/^(?!-)[a-z0-9-]+(?<!-)(\.(?!-)[a-z0-9-]+(?<!-))*\.[a-z]{2,}$/.test(value)) {
+    return null;
+  }
+  return value;
+}

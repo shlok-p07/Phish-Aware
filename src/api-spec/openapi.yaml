@@ -27,19 +27,45 @@ tags:
   - name: org
     description: Organization admin (members, training campaigns, analytics)
   - name: invitations
-    description: Org invitations — issuing them (admin) and accepting them (public)
+    description: "Org invitations: issuing them (admin) and accepting them (public)"
   - name: sso
     description: Per-organization OIDC single sign-on
   - name: chatbot
     description: Groq-powered security-awareness assistant
 paths:
-  # NOTE — Browser-navigation endpoints deliberately absent from this spec:
+  # NOTE: browser-navigation endpoints deliberately absent from this spec:
   #   GET /auth/sso/start     302 -> the org's identity provider
   #   GET /auth/sso/callback  302 -> /dashboard or /auth?sso_error=<code>
   # Both are top-level browser navigations, not fetches. Generating react-query
   # hooks for them would produce clients that fetch() the URL, transparently
   # follow the redirect to a cross-origin IdP, and fail with an opaque CORS
   # error. The UI navigates to them with window.location.href instead.
+
+  /readyz:
+    get:
+      operationId: readinessCheck
+      tags: [health]
+      summary: Readiness check
+      description: >
+        Reports whether the app can actually serve traffic, which means the
+        database is reachable. /healthz deliberately does not check this -- it
+        answers "is the process up" -- so an uptime monitor pointed at it
+        reported healthy while the one dependency the app cannot work without
+        was down.
+
+        Always returns 200: this is a status document, not an error. Callers read
+        the `ready` field. Mirrors the ML service's /healthz + /readyz split.
+
+        Doubles as the cluster keepalive. MongoDB Atlas pauses a free-tier
+        cluster after 60 days without activity, so a scheduled request here also
+        keeps it awake (see vercel.json crons).
+      responses:
+        "200":
+          description: Readiness status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessStatus"
 
   /healthz:
     get:
@@ -60,13 +86,26 @@ paths:
       operationId: getCurrentUser
       tags: [auth]
       summary: Get the current authenticated user
+      description: >
+        Carries the caller's org workspace customisation alongside their
+        identity. The app shell already awaits this request, so branding
+        arrives with the first render rather than causing a flash of
+        unbranded UI on every page load.
       responses:
         "200":
           description: Current user
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/User"
+                allOf:
+                  - $ref: "#/components/schemas/User"
+                  - type: object
+                    properties:
+                      workspace:
+                        allOf:
+                          - $ref: "#/components/schemas/OrgWorkspace"
+                        nullable: true
+                        description: Null for a learner with no organisation.
         "401":
           description: Not authenticated
 
@@ -123,12 +162,30 @@ paths:
         "423":
           description: Locked out after too many failed sign-in attempts
 
+  /auth/account:
+    delete:
+      operationId: deleteMyAccount
+      tags: [auth]
+      summary: Permanently delete the current user's account and all their data
+      description: >
+        Removes the user, every practice attempt, every session and every
+        training assignment, then clears the session cookie. Irreversible.
+      responses:
+        "204":
+          description: Account deleted
+        "401":
+          description: Not authenticated
+
   /auth/password-reset/request:
     post:
       operationId: requestPasswordReset
       tags: [auth]
       summary: Request a password reset code
-      description: There's no email delivery in this app -- the code (if the account exists) is returned directly and shown in the UI.
+      description: >
+        There is no mail delivery in this app. Outside production the code is
+        returned directly and shown in the UI. In production it never is, and the
+        response is identical whether or not the address has an account -- see
+        POST /org/members/{id}/reset-code for the path that works there.
       requestBody:
         required: true
         content:
@@ -231,6 +288,36 @@ paths:
                 items:
                   $ref: "#/components/schemas/LessonSummary"
 
+  /lessons/{id}/complete:
+    post:
+      operationId: completeLesson
+      tags: [lessons]
+      summary: Record that the current user has finished a lesson
+      description: >
+        Idempotent. Re-reading a lesson does not create a second completion and
+        does not move the original completedAt.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Completion recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [completed]
+                properties:
+                  completed:
+                    type: boolean
+        "401":
+          description: Not authenticated
+        "404":
+          description: No such lesson
+
   /lessons/{id}:
     get:
       operationId: getLesson
@@ -279,7 +366,7 @@ paths:
           description: Which vector to practice -- a specific one, or "mixed" (default) to keep randomizing every round.
           schema:
             type: string
-            enum: [email, sms, voice, mixed]
+            enum: [email, sms, voice, qr, social, web, mixed]
       responses:
         "200":
           description: Next practice scenario (answer withheld)
@@ -370,7 +457,18 @@ paths:
     get:
       operationId: getLeaderboard
       tags: [leaderboard]
-      summary: Get the XP leaderboard (seeded sample users + current user)
+      summary: Get the XP leaderboard, scoped to the caller's department or organisation
+      parameters:
+        - in: query
+          name: scope
+          required: false
+          description: >
+            Which population to rank against. Defaults to `department` when the
+            caller has one, otherwise `organization`. An organisation boundary is
+            always applied regardless: a caller never sees another tenant.
+          schema:
+            type: string
+            enum: [department, organization]
       responses:
         "200":
           description: Leaderboard entries
@@ -449,6 +547,209 @@ paths:
         "403":
           description: Admin access required
 
+  /consents:
+    get:
+      operationId: listMyConsents
+      tags: [consents]
+      summary: What the current user has been asked, and what they answered
+      responses:
+        "200":
+          description: Policies and their current standing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsentStatus"
+        "401":
+          description: Not authenticated
+    patch:
+      operationId: recordMyConsent
+      tags: [consents]
+      summary: Record a consent decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsentDecisionInput"
+      responses:
+        "200":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsentDecisionInput"
+        "400":
+          description: Unknown policy, or a non-boolean decision
+        "401":
+          description: Not authenticated
+        "409":
+          description: >
+            The policy is required for the product to function and cannot be
+            declined; withdrawing it means deleting the account.
+
+  /notifications:
+    get:
+      operationId: listMyNotifications
+      tags: [notifications]
+      summary: The current user's notifications, newest first
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+        "401":
+          description: Not authenticated
+    patch:
+      operationId: markNotificationsRead
+      tags: [notifications]
+      summary: Mark notifications read
+      description: >
+        Omit `ids` to mark every unread one. Ownership comes from the session, not
+        from the ids -- an id list from a client is not proof of anything.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkNotificationsReadInput"
+      responses:
+        "200":
+          description: How many were updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationsMarkedResult"
+        "401":
+          description: Not authenticated
+
+  /org/audit:
+    get:
+      operationId: listOrgAuditLog
+      tags: [org]
+      summary: The organization's audit trail, newest first
+      description: >
+        Privileged actions taken inside this organization -- role changes,
+        department moves, removals, issued reset codes, campaigns, settings.
+        Records that a reset code was issued, never the code.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: Audit entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEntry"
+        "403":
+          description: Admin access required
+
+  /org/departments:
+    get:
+      operationId: listOrgDepartments
+      tags: [org]
+      summary: The organization's departments
+      description: >
+        Organization-owned records. A new organization starts from the ten
+        standard names, which map to attack types; anything added beyond those is
+        honoured everywhere a department is used and falls back to the universal
+        attack set.
+      responses:
+        "200":
+          description: Departments, alphabetically, with a headcount each
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrgDepartment"
+        "403":
+          description: Admin access required
+    post:
+      operationId: createOrgDepartment
+      tags: [org]
+      summary: Add a department
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepartmentInput"
+      responses:
+        "201":
+          description: Department created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgDepartment"
+        "400":
+          description: Missing or over-long name
+        "403":
+          description: Admin access required
+        "409":
+          description: A department with that name already exists
+
+  /org/departments/{id}:
+    patch:
+      operationId: renameOrgDepartment
+      tags: [org]
+      summary: Rename a department, carrying its members with it
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepartmentInput"
+      responses:
+        "200":
+          description: Renamed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgDepartmentSummary"
+        "400":
+          description: Missing or over-long name
+        "403":
+          description: Admin access required
+        "404":
+          description: Department not found
+        "409":
+          description: A department with that name already exists
+    delete:
+      operationId: deleteOrgDepartment
+      tags: [org]
+      summary: Delete a department; its members become unassigned
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Admin access required
+        "404":
+          description: Department not found
+
   /org/members:
     get:
       operationId: listOrgMembers
@@ -476,7 +777,7 @@ paths:
       summary: Invite a member (creates a pending invitation and returns its link)
       description: >
         Creates an invitation, not a user account. The response carries the
-        accept link exactly once, at the moment the admin needs to copy it —
+        accept link exactly once, at the moment the admin needs to copy it,
         the members list deliberately omits it. Use /org/invitations/{id}/link
         to retrieve it again later.
       requestBody:
@@ -523,7 +824,7 @@ paths:
       summary: Retrieve an existing invitation's accept link
       description: >
         POST rather than GET so react-query won't cache a bearer token in the
-        client. The token is unchanged — use /resend to rotate it.
+        client. The token is unchanged; use /resend to rotate it.
       parameters:
         - name: id
           in: path
@@ -577,7 +878,7 @@ paths:
       operationId: getInvitation
       tags: [invitations]
       summary: Look up a public invitation by its token
-      description: Public — the token is the credential. No session required.
+      description: Public. The token is the credential, so no session is required.
       parameters:
         - name: token
           in: path
@@ -604,7 +905,7 @@ paths:
       description: >
         Two modes. Password mode (`password` present) creates a new account.
         Adopt mode (empty body, authenticated session) attaches the caller's
-        existing account to the org — used when they already had a personal
+        existing account to the org, used when they already had a personal
         PhishAware account under the invited address.
       parameters:
         - name: token
@@ -634,7 +935,7 @@ paths:
         "409":
           description: >
             An account already exists for this address. The body's `code` is
-            "account_exists" — sign in, then retry with an empty body to adopt it.
+            "account_exists": sign in, then retry with an empty body to adopt it.
         "410":
           description: Invitation expired, revoked, or already accepted
 
@@ -720,7 +1021,7 @@ paths:
       summary: Run server-side preflight checks against the configured IdP
       description: >
         Validates discovery, issuer exact-match, endpoints, PKCE support, JWKS,
-        and client credentials — with no browser round trip and no user
+        and client credentials, with no browser round trip and no user
         interaction. Catches the common misconfigurations before anyone
         attempts a real sign-in.
       responses:
@@ -735,11 +1036,68 @@ paths:
         "404":
           description: No SSO connection configured
 
+  /org/members/{id}/detail:
+    get:
+      operationId: getOrgMemberDetail
+      tags: [org]
+      summary: One member's performance, in enough detail to act on
+      description: >
+        The same derivation the member sees for themselves, so a manager and the
+        person they are managing never read different numbers for the same
+        history. Scoped to the caller's own organization.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Member detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgMemberDetail"
+        "403":
+          description: Admin access required
+        "404":
+          description: Member not found
+
+  /org/members/{id}/reset-code:
+    post:
+      operationId: issueMemberResetCode
+      tags: [org]
+      summary: Issue a one-time password reset code for a member
+      description: >
+        The production path for a forgotten password, since there is no mail
+        delivery. An admin issues the code and passes it to the member out of
+        band; the member redeems it through /auth/password-reset/confirm. Scoped
+        to the caller's own organization.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: A one-time code and when it expires
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberResetCode"
+        "403":
+          description: Admin access required
+        "404":
+          description: Member not found
+        "409":
+          description: That member signs in with SSO and has no password to reset
+
   /org/members/{id}:
     patch:
-      operationId: updateOrgMemberRole
+      operationId: updateOrgMember
       tags: [org]
-      summary: Change a member's role
+      summary: Change a member's role or department
       parameters:
         - name: id
           in: path
@@ -754,7 +1112,9 @@ paths:
               $ref: "#/components/schemas/UpdateMemberRoleInput"
       responses:
         "200":
-          description: Updated member role
+          description: Updated member
+        "400":
+          description: Unrecognized department
         "403":
           description: Admin access required
         "404":
@@ -776,6 +1136,27 @@ paths:
           description: Admin access required
         "404":
           description: Member not found
+
+  /training:
+    get:
+      operationId: listMyTraining
+      tags: [training]
+      summary: Training assigned to the current user
+      description: >
+        The employee's side of a training campaign. Progress is derived from
+        practice attempts recorded since the assignment was created, because
+        nothing writes the stored progress field.
+      responses:
+        "200":
+          description: Assignments for the current user, soonest deadline first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyTrainingAssignment"
+        "401":
+          description: Not authenticated
 
   /org/training:
     get:
@@ -818,6 +1199,31 @@ paths:
           description: Target member not found
 
   /org/training/{id}:
+    get:
+      operationId: getOrgTrainingDetail
+      tags: [org]
+      summary: A campaign and who has completed it
+      description: >
+        Progress per assigned member, counted from practice attempts recorded
+        since the assignment was created -- the same derivation the employee's
+        own view uses, so the two cannot disagree.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The campaign with per-member progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrainingDetail"
+        "403":
+          description: Admin access required
+        "404":
+          description: Campaign not found
     delete:
       operationId: deleteOrgTraining
       tags: [org]
@@ -860,6 +1266,86 @@ components:
           type: string
       required:
         - status
+
+    # Everything an organisation can customise about its workspace. Every field
+    # is admin-supplied and rendered to that organisation's employees, so the
+    # server validates each one to the narrowest shape that still expresses what
+    # it is for (see src/server/orgBranding.ts) rather than trusting the form.
+    OrgWorkspace:
+      type: object
+      required: [orgName, branding, reporting, practiceVectors]
+      properties:
+        orgName:
+          type: string
+          nullable: true
+          description: >
+            The organisation's name. Exposed here because an employee needs it
+            to see whose workspace they are in, and GET /api/org is
+            admin-only -- so members had no way to read the name of the
+            organisation they belong to.
+        branding:
+          $ref: "#/components/schemas/OrgBranding"
+        reporting:
+          $ref: "#/components/schemas/OrgReporting"
+        practiceVectors:
+          type: array
+          description: >
+            Channels this organisation trains on. Empty means all of them --
+            a warehouse has no reason to drill Slack DMs.
+          items:
+            $ref: "#/components/schemas/Vector"
+
+    OrgBranding:
+      type: object
+      required: [accentColor, logoUrl, welcomeMessage]
+      properties:
+        accentColor:
+          type: string
+          nullable: true
+          pattern: "^#[0-9a-f]{6}$"
+          description: >
+            Exact six-digit hex. Reaches a CSS custom property, so anything
+            looser could break out of the declaration.
+        logoUrl:
+          type: string
+          nullable: true
+          description: "An https image URL. Never http, data:, or javascript:."
+        welcomeMessage:
+          type: string
+          nullable: true
+          description: Plain text. Rendered escaped, never as HTML.
+
+    OrgReporting:
+      type: object
+      required: [channel, instructions]
+      properties:
+        channel:
+          type: string
+          nullable: true
+          description: >
+            Where a real phishing email should go: an email address, or an
+            https link to an internal form. Training that names the actual
+            address teaches the behaviour; "tell your security team" does not.
+        instructions:
+          type: string
+          nullable: true
+
+    ReadinessStatus:
+      type: object
+      required: [ready, database]
+      properties:
+        ready:
+          type: boolean
+        database:
+          type: string
+          enum: [ok, unreachable]
+          description: >
+            Deliberately coarse. A readiness probe is unauthenticated, so it
+            reports reachability and nothing about the failure.
+        checkedAt:
+          type: string
+          format: date-time
+
 
     Level:
       type: string
@@ -989,13 +1475,29 @@ components:
 
     PasswordResetRequestOutput:
       type: object
-      required: [ok]
+      required: [ok, delivery]
       properties:
         ok:
           type: boolean
         code:
           type: string
           nullable: true
+          description: >
+            Only ever populated outside production, where there is no mail
+            delivery and showing the code in the UI is the point. In production
+            this is always null and `delivery` says how to obtain one, because
+            returning it over HTTP would let anyone who knows an address take
+            over the account.
+        delivery:
+          type: string
+          enum: [shown, out_of_band, administrator]
+          description: >
+            "shown" -- the code is in this response (never in production).
+            "out_of_band" -- it was handed to the configured delivery channel
+            (PASSWORD_RESET_WEBHOOK_URL). "administrator" -- no channel is
+            configured or delivery failed, so an organization admin issues one;
+            in that case the response is identical whether or not the address
+            has an account.
 
     PasswordResetConfirmInput:
       type: object
@@ -1149,8 +1651,12 @@ components:
     Department:
       type: string
       description: >
-        Kept in sync with DEPARTMENTS in src/lib/onboarding-survey.ts and the
-        keys of DEPARTMENT_ATTACK_TYPES in src/server/attackProfiles.ts.
+        The standard department set: what the onboarding survey offers, what a
+        new organization is seeded with, and the keys of DEPARTMENT_ATTACK_TYPES
+        in src/server/attackProfiles.ts. It is not the only set a department name
+        can come from -- organizations define their own (see /org/departments),
+        and anything outside these ten falls back to the universal attack set.
+        Kept in sync with DEPARTMENTS in src/lib/onboarding-survey.ts.
       enum:
         - Customer Support
         - Engineering
@@ -1186,17 +1692,188 @@ components:
           type: integer
 
     LessonScreen:
+      description: >
+        One screen of a lesson. The kinds beyond "prose" are what make a lesson
+        teach rather than summarise: a worked example with callouts, genuine
+        beside fake, ordered checks, and a question. Prose screens predate the
+        others and may omit "kind" entirely, so the union is matched
+        structurally rather than by a required discriminator.
+      oneOf:
+        - $ref: "#/components/schemas/LessonProseScreen"
+        - $ref: "#/components/schemas/LessonAnatomyScreen"
+        - $ref: "#/components/schemas/LessonAnnotatedScreen"
+        - $ref: "#/components/schemas/LessonCompareScreen"
+        - $ref: "#/components/schemas/LessonStepsScreen"
+        - $ref: "#/components/schemas/LessonCheckpointScreen"
+
+    LessonProseScreen:
       type: object
       required: [heading, body]
       properties:
+        kind:
+          type: string
+          enum: [prose]
         heading:
           type: string
         body:
           type: string
 
+    LessonAnatomyScreen:
+      type: object
+      required: [kind, heading, intro, sample, callouts]
+      properties:
+        kind:
+          type: string
+          enum: [anatomy]
+        heading:
+          type: string
+        intro:
+          type: string
+        sample:
+          type: object
+          required: [displayName, address, subject, body, linkText, linkHref]
+          properties:
+            displayName:
+              type: string
+            address:
+              type: string
+            subject:
+              type: string
+            body:
+              type: string
+            linkText:
+              type: string
+            linkHref:
+              type: string
+        callouts:
+          type: array
+          items:
+            type: object
+            required: [target, detail]
+            properties:
+              target:
+                type: string
+                enum: [displayName, address, subject, body, link]
+              detail:
+                type: string
+
+    LessonAnnotatedScreen:
+      type: object
+      required: [kind, heading, intro, frame, parts, callouts]
+      properties:
+        kind:
+          type: string
+          enum: [annotated]
+        heading:
+          type: string
+        intro:
+          type: string
+        frame:
+          type: string
+        parts:
+          type: array
+          items:
+            type: object
+            required: [id, value]
+            properties:
+              id:
+                type: string
+              label:
+                type: string
+              value:
+                type: string
+              mono:
+                type: boolean
+        callouts:
+          type: array
+          items:
+            type: object
+            required: [target, label, detail]
+            properties:
+              target:
+                type: string
+              label:
+                type: string
+              detail:
+                type: string
+
+    LessonCompareScreen:
+      type: object
+      required: [kind, heading, intro, rows]
+      properties:
+        kind:
+          type: string
+          enum: [compare]
+        heading:
+          type: string
+        intro:
+          type: string
+        rows:
+          type: array
+          items:
+            type: object
+            required: [label, genuine, fake, note]
+            properties:
+              label:
+                type: string
+              genuine:
+                type: string
+              fake:
+                type: string
+              note:
+                type: string
+
+    LessonStepsScreen:
+      type: object
+      required: [kind, heading, intro, steps]
+      properties:
+        kind:
+          type: string
+          enum: [steps]
+        heading:
+          type: string
+        intro:
+          type: string
+        steps:
+          type: array
+          items:
+            type: object
+            required: [action, lookFor, warningSign]
+            properties:
+              action:
+                type: string
+              lookFor:
+                type: string
+              warningSign:
+                type: string
+
+    LessonCheckpointScreen:
+      type: object
+      required: [kind, heading, prompt, options]
+      properties:
+        kind:
+          type: string
+          enum: [checkpoint]
+        heading:
+          type: string
+        prompt:
+          type: string
+        options:
+          type: array
+          items:
+            type: object
+            required: [label, correct, feedback]
+            properties:
+              label:
+                type: string
+              correct:
+                type: boolean
+              feedback:
+                type: string
+
     LessonSummary:
       type: object
-      required: [id, vector, title, summary]
+      required: [id, vector, title, summary, completed]
       properties:
         id:
           type: string
@@ -1206,6 +1883,12 @@ components:
           type: string
         summary:
           type: string
+        completed:
+          type: boolean
+          description: >
+            Whether this learner has finished it. Lessons used to be a library
+            that recorded nothing, so a campaign could assign reading that had
+            no way of being completed.
 
     Lesson:
       type: object
@@ -1294,6 +1977,13 @@ components:
           description: true if the user judged it phishing
         selectedCues:
           type: array
+          # Bounded at the contract. Without maxItems a crafted POST could send
+          # an array of millions of repeated cues: grading de-duplicates so the
+          # score stays correct, but the attempt document would still grow
+          # without limit. There are only 8 cue types, so no honest client can
+          # exceed that.
+          uniqueItems: true
+          maxItems: 8
           items:
             $ref: "#/components/schemas/CueId"
         confidence:
@@ -1320,8 +2010,14 @@ components:
       properties:
         correct:
           type: boolean
+          description: Whether this learner's verdict was right.
         correctVerdict:
           type: boolean
+          description: >
+            What the answer actually was -- true for phishing, false for
+            legitimate. Previously this was assigned the same value as
+            `correct`, so a field named "the correct verdict" in fact held
+            "was the verdict correct".
         caughtCues:
           type: array
           items:
@@ -1367,6 +2063,7 @@ components:
         - badges
         - totalAttempts
         - accuracyRate
+        - retention
       properties:
         name:
           type: string
@@ -1396,6 +2093,66 @@ components:
           type: integer
         accuracyRate:
           type: number
+        retention:
+          $ref: "#/components/schemas/RetentionSummary"
+
+    # What the learner's spaced-review schedule currently says. Lifetime accuracy
+    # stops moving after a few dozen attempts and so stops being feedback; this
+    # changes every session, which is what makes it worth coming back to.
+    RetentionSummary:
+      type: object
+      required: [mastered, due, tracked, masteryStreak, masteredTargets, dueTargets, targets]
+      properties:
+        mastered:
+          type: integer
+          description: Targets on a run of correct answers.
+        due:
+          type: integer
+          description: Targets owed practice right now.
+        tracked:
+          type: integer
+        masteryStreak:
+          type: integer
+          description: Consecutive successes mastery requires.
+        nextDueAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the next target comes back up, if nothing is due now.
+        masteredTargets:
+          type: array
+          items:
+            type: string
+        dueTargets:
+          type: array
+          items:
+            type: string
+        targets:
+          type: array
+          description: >
+            Every tracked target with its streak, strongest first. Counts alone
+            made the feature look inert: mastery takes three correct answers in
+            a row and reviews are scheduled a day out, so a learner who had just
+            practised saw "0 mastered, nothing due" and concluded nothing was
+            happening.
+          items:
+            $ref: "#/components/schemas/RetentionTarget"
+
+    RetentionTarget:
+      type: object
+      required: [label, targetType, streak, mastered, due]
+      properties:
+        label:
+          type: string
+        targetType:
+          type: string
+          enum: [cueType, emotionalLever, vector]
+        streak:
+          type: integer
+        mastered:
+          type: boolean
+        due:
+          type: boolean
 
     TaxonomyPerformanceArea:
       type: object
@@ -1471,6 +2228,10 @@ components:
         totalAttempts:
           type: integer
 
+    LeaderboardScope:
+      type: string
+      enum: [department, organization]
+
     LeaderboardEntry:
       type: object
       required: [rank, name, xp, level, isCurrentUser]
@@ -1494,9 +2255,63 @@ components:
       type: string
       enum: [low, medium, high]
 
+    SeatUsage:
+      type: object
+      required: [activeSeats, pendingInvitations, seatLimit]
+      properties:
+        activeSeats:
+          type: integer
+        pendingInvitations:
+          type: integer
+        seatLimit:
+          type: integer
+          description: 0 means unlimited
+
+    TrainingDetail:
+      type: object
+      required: [id, title, target, dueDate, requiredScenarios, members, focusLabel]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        target:
+          type: string
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        requiredScenarios:
+          type: integer
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrainingMemberProgress"
+        focusLabel:
+          type: string
+        focus:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/CampaignFocus"
+
+    TrainingMemberProgress:
+      type: object
+      required: [id, name, completedScenarios, status]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        department:
+          type: ["string", "null"]
+        completedScenarios:
+          type: integer
+        status:
+          type: string
+          enum: [assigned, in_progress, completed, overdue]
+
     Org:
       type: object
-      required: [id, name, ssoDomain, seatLimit, ssoEnabled, ssoProvider]
+      required: [id, name, ssoDomain, seatLimit, ssoEnabled, ssoProvider, seats]
       properties:
         id:
           type: string
@@ -1506,7 +2321,7 @@ components:
           type: string
           description: >
             The organization's primary email domain, for display. It does NOT
-            grant access on its own — membership is invite-only. Domains that
+            grant access on its own; membership is invite-only. Domains that
             actually gate SSO live on the SSO connection's allowedDomains.
         seatLimit:
           type: integer
@@ -1516,6 +2331,21 @@ components:
           description: Mirrored from the org's SSO connection so this needs no extra read
         ssoProvider:
           type: ["string", "null"]
+        seats:
+          allOf:
+            - $ref: "#/components/schemas/SeatUsage"
+          description: >
+            Current usage, so an admin sees how close they are to the limit
+            instead of discovering it when an invitation is refused. Counts
+            pending invitations, which hold a seat too.
+        workspace:
+          allOf:
+            - $ref: "#/components/schemas/OrgWorkspace"
+          nullable: true
+          description: >
+            The organisation's own customisation, so the admin form can seed
+            its fields from the same source employees read.
+
 
     CreateOrgInput:
       type: object
@@ -1533,10 +2363,37 @@ components:
           type: string
         ssoDomain:
           type: string
-          description: Display only — see Org.ssoDomain. Does not grant access.
+          description: Display only. See Org.ssoDomain; this does not grant access.
         seatLimit:
           type: integer
           description: 0 means unlimited
+        # Every field below is rendered to this organisation's employees, so the
+        # server validates each one and rejects rather than coerces. An empty
+        # string clears a field; omitting it leaves it alone.
+        branding:
+          type: object
+          properties:
+            accentColor:
+              type: string
+              description: Six-digit hex, or empty to clear.
+            logoUrl:
+              type: string
+              description: An https URL, or empty to clear.
+            welcomeMessage:
+              type: string
+        reporting:
+          type: object
+          properties:
+            channel:
+              type: string
+              description: An email address or an https link, or empty to clear.
+            instructions:
+              type: string
+        practiceVectors:
+          type: array
+          description: Channels to train on. Every channel selected is stored as no restriction.
+          items:
+            $ref: "#/components/schemas/Vector"
 
     OrgMember:
       type: object
@@ -1601,7 +2458,7 @@ components:
         role:
           $ref: "#/components/schemas/OrgRole"
         department:
-          $ref: "#/components/schemas/Department"
+          type: string
           description: >
             Optional. When set, the invited user is created with this
             department and the intro survey stops asking for it.
@@ -1616,7 +2473,7 @@ components:
           type: string
           description: >
             The accept link. Returned only here and from
-            /org/invitations/{id}/link — never in the members list.
+            /org/invitations/{id}/link, never in the members list.
 
     InvitationLink:
       type: object
@@ -1667,16 +2524,303 @@ components:
           type: string
           description: Omit entirely to adopt the currently signed-in account instead.
 
+    MemberResetCode:
+      type: object
+      required: [code, expiresAt]
+      properties:
+        code:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    OrgMemberDetail:
+      type: object
+      required:
+        [
+          id,
+          name,
+          email,
+          role,
+          status,
+          department,
+          accuracy,
+          risk,
+          calibrationScore,
+          totalAttempts,
+          cueAccuracy,
+          vectorAccuracy,
+          assignments,
+        ]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: ["string", "null"]
+        role:
+          $ref: "#/components/schemas/OrgRole"
+        status:
+          type: string
+        department:
+          type: ["string", "null"]
+        joinedAt:
+          type: ["string", "null"]
+          format: date-time
+        lastActiveAt:
+          type: ["string", "null"]
+          format: date-time
+        accuracy:
+          type: integer
+        risk:
+          type: string
+          enum: [low, medium, high]
+        calibrationScore:
+          type: integer
+          description: >
+            Confidence weighted by whether it was warranted. Somebody
+            confidently wrong is the most dangerous learner in the building, and
+            a bare accuracy figure hides them.
+        totalAttempts:
+          type: integer
+        cueAccuracy:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemberCueAccuracy"
+        vectorAccuracy:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemberVectorAccuracy"
+        assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemberAssignmentSummary"
+
+    MemberCueAccuracy:
+      type: object
+      required: [cueId, label, attempts, rate]
+      properties:
+        cueId:
+          type: string
+        label:
+          type: string
+        attempts:
+          type: integer
+        rate:
+          type: integer
+
+    MemberVectorAccuracy:
+      type: object
+      required: [vector, attempts, rate]
+      properties:
+        vector:
+          $ref: "#/components/schemas/Vector"
+        attempts:
+          type: integer
+        rate:
+          type: integer
+
+    MemberAssignmentSummary:
+      type: object
+      required: [id, title, requiredScenarios, completedScenarios, status]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        requiredScenarios:
+          type: integer
+        completedScenarios:
+          type: integer
+        status:
+          type: string
+          enum: [assigned, in_progress, completed, overdue]
+
+    MarkNotificationsReadInput:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+
+    NotificationsMarkedResult:
+      type: object
+      required: [updated]
+      properties:
+        updated:
+          type: integer
+
+    ConsentStatus:
+      type: object
+      required: [policyVersion, policies]
+      properties:
+        policyVersion:
+          type: string
+          description: >
+            Consent to one wording is not consent to a later one, so a decision
+            recorded against an older version does not count as a decision.
+        policies:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConsentPolicyState"
+
+    ConsentPolicyState:
+      type: object
+      required: [policy, title, body, optional, granted, needsDecision]
+      properties:
+        policy:
+          type: string
+          enum: [data_processing, emotional_profiling]
+        title:
+          type: string
+        body:
+          type: string
+        optional:
+          type: boolean
+          description: False means the product cannot function without it.
+        granted:
+          type: boolean
+        needsDecision:
+          type: boolean
+        decidedAt:
+          type: ["string", "null"]
+          format: date-time
+
+    ConsentDecisionInput:
+      type: object
+      required: [policy, granted]
+      properties:
+        policy:
+          type: string
+          enum: [data_processing, emotional_profiling]
+        granted:
+          type: boolean
+
+    Notification:
+      type: object
+      required: [id, type, title, body, read, at]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [assignment, reminder, result, system, survey]
+        title:
+          type: string
+        body:
+          type: string
+        read:
+          type: boolean
+        at:
+          type: string
+          format: date-time
+
+    AuditEntry:
+      type: object
+      required: [id, action, actor, targetType, at]
+      properties:
+        id:
+          type: string
+        action:
+          type: string
+        actor:
+          type: string
+          description: The admin who did it, or "Former member" if their account is gone.
+        targetType:
+          type: string
+        targetId:
+          type: ["string", "null"]
+        metadata:
+          type: object
+          additionalProperties: true
+        at:
+          type: string
+          format: date-time
+
+    OrgDepartment:
+      type: object
+      required: [id, name, memberCount]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        memberCount:
+          type: integer
+
+    OrgDepartmentSummary:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+
+    DepartmentInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+
     UpdateMemberRoleInput:
       type: object
-      required: [role]
+      description: >
+        Both fields are optional so an admin can change a role, a department, or
+        both. Omitting a field leaves it as it is; sending department: null
+        unassigns the member.
       properties:
         role:
           $ref: "#/components/schemas/OrgRole"
+        department:
+          type: ["string", "null"]
+          description: An organization-defined department name.
+
+    MyTrainingAssignment:
+      type: object
+      required:
+        [id, title, dueDate, requiredScenarios, completedScenarios, status, focusLabel]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        requiredScenarios:
+          type: integer
+        completedScenarios:
+          type: integer
+          description: >
+            Practice attempts recorded since this assignment was created, capped
+            at requiredScenarios.
+        status:
+          type: string
+          enum: [assigned, in_progress, completed, overdue]
+        focusLabel:
+          type: string
+          description: The requirement in words, shared with the admin view.
+        completedLessons:
+          type: integer
+          description: How many of the campaign's assigned lessons this member has read.
+        requiredLessons:
+          type: integer
+          description: >
+            How many lessons the campaign assigns. Campaigns could always name
+            lessonIds, but progress counted scenarios only, so a reading
+            assignment could never reach completion.
+
 
     TrainingAssignment:
       type: object
-      required: [id, title, target, dueDate, requiredScenarios, createdAt]
+      required: [id, title, target, dueDate, requiredScenarios, createdAt, focus]
       properties:
         id:
           type: string
@@ -1684,7 +2828,9 @@ components:
           type: string
         target:
           type: string
-          description: '"all" or a specific member''s user id'
+          description: >
+            "all", "department:<Name>" for one department (see the Department
+            enum), or a specific member's user id.
         dueDate:
           type: ["string", "null"]
           format: date
@@ -1693,6 +2839,34 @@ components:
         createdAt:
           type: string
           format: date-time
+        focus:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/CampaignFocus"
+
+    CampaignFocus:
+      type: object
+      required: [vectors, minDifficulty, cues]
+      description: >
+        What a campaign trains. Only qualifying practice counts toward the
+        requirement, and the practice engine steers assigned members toward the
+        same material -- so "five scenarios on lookalike domains at level 4" is a
+        campaign rather than a note in the title.
+      properties:
+        vectors:
+          type: array
+          description: Vectors that count. Empty means every vector.
+          items:
+            $ref: "#/components/schemas/Vector"
+        minDifficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+        cues:
+          type: array
+          description: A scenario counts if it carries at least one of these.
+          items:
+            type: string
 
     CreateTrainingInput:
       type: object
@@ -1702,12 +2876,18 @@ components:
           type: string
         target:
           type: string
-          description: '"all" or a specific member''s user id'
+          description: >
+            "all", "department:<Name>" for one department (see the Department
+            enum), or a specific member's user id.
         dueDate:
           type: string
           format: date
         requiredScenarios:
           type: integer
+        focus:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/CampaignFocus"
 
     OrgMemberAccuracy:
       type: object
@@ -1723,7 +2903,15 @@ components:
     OrgAnalytics:
       type: object
       required:
-        [avgAccuracy, activeCount, atRisk, riskBands, participationRate, perMember]
+        [
+          avgAccuracy,
+          activeCount,
+          atRisk,
+          riskBands,
+          participationRate,
+          perMember,
+          perDepartment,
+        ]
       properties:
         avgAccuracy:
           type: integer
@@ -1748,6 +2936,34 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OrgMemberAccuracy"
+        perDepartment:
+          type: array
+          description: >
+            Active members grouped by their assigned department, worst average
+            accuracy first. Members with no department are grouped under a null
+            department rather than dropped, so the counts still add up.
+          items:
+            $ref: "#/components/schemas/OrgDepartmentAccuracy"
+
+    OrgDepartmentAccuracy:
+      type: object
+      required: [department, memberCount, avgAccuracy, atRisk]
+      properties:
+        department:
+          type: ["string", "null"]
+          description: An organization-defined department name.
+        memberCount:
+          type: integer
+        avgAccuracy:
+          type: integer
+        atRisk:
+          type: integer
+        seats:
+          allOf:
+            - $ref: "#/components/schemas/SeatUsage"
+          description: >
+            Current usage, so an admin sees how close they are to the limit
+            instead of discovering it when an invitation is refused.
 
     SsoProviderKind:
       type: string
@@ -1772,7 +2988,7 @@ components:
           type: ["string", "null"]
         startUrl:
           type: ["string", "null"]
-          description: Navigate to this with window.location.href — do not fetch it.
+          description: Navigate to this with window.location.href; do not fetch it.
 
     OrgSsoConnection:
       type: object

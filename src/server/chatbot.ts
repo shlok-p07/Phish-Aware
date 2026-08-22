@@ -72,6 +72,10 @@ export async function getChatbotReply(messages: ChatMessage[]): Promise<string |
     system: buildSystemPrompt(),
     messages: trimmed,
     temperature: 0.6,
+    // Its own token bucket, so a burst of scenario generation cannot leave a
+    // trainee waiting on a reply -- and interactive, because one is.
+    lane: "chat",
+    priority: "interactive",
   });
   if (!reply) return null;
 

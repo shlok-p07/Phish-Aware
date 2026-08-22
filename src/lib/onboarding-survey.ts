@@ -100,11 +100,22 @@ export type SurveySection = {
   questions: SurveyQuestion[];
 };
 
+/**
+ * Identifies this questionnaire in stored responses.
+ *
+ * Bump ONBOARDING_SURVEY_VERSION whenever a question's wording, options or
+ * scoring change. Older responses keep the version they were collected under, so
+ * a score from a previous form stays interpretable instead of being silently
+ * compared against answers to a different question.
+ */
+export const ONBOARDING_SURVEY_KEY = "onboarding_baseline";
+export const ONBOARDING_SURVEY_VERSION = "2026-08-1";
+
 export const ONBOARDING_SURVEY_SECTIONS: SurveySection[] = [
   {
     id: "inbox",
     title: "Your inbox",
-    blurb: "Rough numbers are fine — we only need the order of magnitude.",
+    blurb: "Rough numbers are fine. We only need the order of magnitude.",
     questions: [
       {
         id: "emails_per_day",
@@ -128,7 +139,7 @@ export const ONBOARDING_SURVEY_SECTIONS: SurveySection[] = [
   {
     id: "credentials",
     title: "Passwords and sign-in",
-    blurb: "Nobody sees your answers here but you — they only set your starting difficulty.",
+    blurb: "Nobody sees your answers here but you. They only set your starting difficulty.",
     questions: [
       {
         id: "password_length",
@@ -153,7 +164,7 @@ export const ONBOARDING_SURVEY_SECTIONS: SurveySection[] = [
         id: "mfa_familiar",
         type: "boolean",
         prompt: "Are you familiar with Multi-Factor Authentication (MFA)?",
-        helper: "A second step after your password — a code, a push notification, a security key.",
+        helper: "A second step after your password: a code, a push notification, or a security key.",
       },
       {
         id: "mfa_enabled",

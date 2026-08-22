@@ -1,6 +1,6 @@
 "use client";
 import { useListLessons } from "@/api-client";
-import { BookOpen, ShieldAlert, Smartphone, Globe, Mail, MessageSquare } from "lucide-react";
+import { BookOpen, ShieldAlert, Smartphone, Globe, Mail, MessageSquare, CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -50,31 +50,43 @@ export default function LearnPage() {
       <PageHeader
         icon={BookOpen}
         title="Lesson library"
-        description="Bite-sized guides to spot the latest tricks scammers are using."
+        description={
+          lessons.some((l) => l.completed)
+            ? `${lessons.filter((l) => l.completed).length} of ${lessons.length} read. Bite-sized guides to spot the latest tricks scammers are using.`
+            : "Bite-sized guides to spot the latest tricks scammers are using."
+        }
       />
 
       <ul className="grid sm:grid-cols-2 gap-4 lg:gap-6">
         {lessons.map((lesson, idx) => {
-          const isWip = lesson.vector !== "email" && lesson.vector !== "sms" && lesson.vector !== "voice";
-
           const card = (
             <Card
               data-vector={lesson.vector}
-              className={`group border shadow-sm h-full overflow-hidden flex flex-col ${isWip ? "bg-muted/40" : "hover:shadow-md hover:border-primary transition-all"}`}
+              className="group border shadow-sm h-full overflow-hidden flex flex-col hover:shadow-md hover:border-primary transition-all"
               style={{ animationDelay: `${idx * 50}ms` }}
             >
               <div className="flex flex-row h-full">
-                <div className={`w-24 shrink-0 flex items-center justify-center border-r transition-colors ${VECTOR_SURFACE} ${isWip ? "opacity-70" : "group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary"}`}>
+                <div className={`w-24 shrink-0 flex items-center justify-center border-r transition-colors ${VECTOR_SURFACE} group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary`}>
                   {getIconForVector(lesson.vector)}
                 </div>
                 <div className="flex-1 p-5">
                   <div className="flex justify-between items-start gap-2 mb-2">
-                    <h3 className={`font-bold text-lg leading-tight ${isWip ? "" : "group-hover:text-primary transition-colors"}`}>
+                    <h3 className="font-bold text-lg leading-tight group-hover:text-primary transition-colors">
                       {lesson.title}
                     </h3>
-                    <Badge variant="outline" className={`capitalize text-xs font-bold shrink-0 shadow-none ${isWip ? "border-warning/40 text-warning" : "border-muted-foreground/30 text-muted-foreground"}`}>
-                      {isWip ? "Coming soon" : lesson.vector}
-                    </Badge>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {/* Reading a lesson used to record nothing at all, so the
+                          library looked identical however much you had done. */}
+                      {lesson.completed && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-bold text-success">
+                          <CircleCheck className="h-3 w-3" aria-hidden="true" />
+                          Done
+                        </span>
+                      )}
+                      <Badge variant="outline" className="capitalize text-xs font-bold shadow-none border-muted-foreground/30 text-muted-foreground">
+                        {lesson.vector}
+                      </Badge>
+                    </div>
                   </div>
                   <p className="text-muted-foreground text-sm font-medium line-clamp-2">
                     {lesson.summary}
@@ -83,20 +95,6 @@ export default function LearnPage() {
               </div>
             </Card>
           );
-
-          // Unreleased lessons: the old markup dimmed the whole card to 60%
-          // opacity, which dragged the summary text under AA, and hung
-          // aria-disabled on a plain <div> where it means nothing. Full-contrast
-          // text on a muted surface carries "inactive" just as well, and the
-          // state is announced rather than implied by colour alone.
-          if (isWip) {
-            return (
-              <li key={lesson.id}>
-                <span className="sr-only">{lesson.title} — coming soon, not yet available</span>
-                <div aria-hidden>{card}</div>
-              </li>
-            );
-          }
 
           return (
             <li key={lesson.id}>

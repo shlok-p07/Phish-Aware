@@ -9,12 +9,13 @@ import {
   type UserDoc,
 } from "@/db";
 import { computeMemberStats, riskLevelForAccuracy } from "@/server/orgAnalytics";
-import { json, error, requireOrgAdmin, withErrorHandling } from "@/server/http";
+import { json, error, requireOrgAdmin, withErrorHandling, readJsonBody } from "@/server/http";
+import { recordAudit } from "@/server/audit";
 import { normalizeEmail } from "@/server/sso/domain";
 import { generateInviteToken, invitationExpiry, invitationState } from "@/server/invitations";
 import { inviteUrl } from "@/server/siteUrl";
 import { seatUsage, hasSeatAvailable } from "@/server/org";
-import { isDepartment } from "@/lib/onboarding-survey";
+import { findOrgDepartment } from "@/server/departments";
 
 export const dynamic = "force-dynamic";
 
@@ -90,7 +91,7 @@ export const GET = withErrorHandling(async () => {
  */
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const admin = await requireOrgAdmin();
-  const body = (await req.json()) as {
+  const body = (await readJsonBody(req)) as {
     name?: string;
     email?: string;
     role?: OrgRole;
@@ -107,13 +108,19 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   }
   const name = body.name?.trim() || null;
   const role: OrgRole = body.role === "admin" ? "admin" : "employee";
-  // Optional. Anything outside the survey's enum is rejected rather than
-  // stored, since it would silently break the department -> attack-type
-  // mapping the generator relies on.
-  if (body.department !== undefined && body.department !== "" && !isDepartment(body.department)) {
-    return error(400, "That isn't a department we recognize");
+  // Optional, and checked against this organization's own departments rather
+  // than a fixed list -- the fixed list is what previously made a customer's own
+  // department names unusable. An unrecognised name is rejected rather than
+  // stored, since a department nobody has defined would put the member in a
+  // reporting group of one.
+  let department: string | null = null;
+  if (body.department !== undefined && body.department !== "" && body.department !== null) {
+    const match = await findOrgDepartment(admin.orgId, String(body.department));
+    if (!match) {
+      return error(400, "That isn't a department in your organization");
+    }
+    department = match.name;
   }
-  const department = isDepartment(body.department) ? body.department : null;
 
   const [users, invitations] = await Promise.all([
     usersCollection(),
@@ -166,6 +173,16 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   // The only place the link is handed out on creation. The members list
   // deliberately omits it rather than caching bearer tokens in the browser.
+  await recordAudit({
+    orgId: admin.orgId,
+    actorId: admin._id,
+    action: "member.invited",
+    targetType: "invitation",
+    targetId: id,
+    metadata: { role, department },
+    headers: req.headers,
+  });
+
   return json(
     { member: invitationRow(invitation), inviteUrl: inviteUrl(invitation.token) },
     { status: 201 },

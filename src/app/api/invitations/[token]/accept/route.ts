@@ -11,7 +11,7 @@ import { hashPassword } from "@/server/password";
 import { createSession, getUserIdFromRequest } from "@/server/session";
 import { toUserDto } from "@/server/dto";
 import { buildUserDoc } from "@/server/users";
-import { json, error, HttpError, withErrorHandling } from "@/server/http";
+import { json, error, HttpError, withErrorHandling, readJsonBody } from "@/server/http";
 import { invitationState } from "@/server/invitations";
 import { hasSeatAvailable } from "@/server/org";
 
@@ -33,7 +33,7 @@ const MIN_PASSWORD_LENGTH = 8;
 export const POST = withErrorHandling(
   async (req: NextRequest, ctx: { params: Promise<{ token: string }> }) => {
     const { token } = await ctx.params;
-    const body = (await req.json().catch(() => ({}))) as {
+    const body = (await readJsonBody(req).catch(() => ({}))) as {
       name?: string;
       password?: string;
     };

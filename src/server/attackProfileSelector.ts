@@ -41,7 +41,13 @@ export interface PerformanceStats {
 export interface AttackProfileDecision {
   persuasionTactic: PersuasionTacticId;
   attackType: AttackTypeId;
-  mode: "cold_start" | "exploration" | "weakness_targeting";
+  /**
+   * How the choice was made. "unprofiled" means the learner has not consented to
+   * personalised persuasion weighting, so this was a department-level pick --
+   * distinguishable from a cold start, which will become personalised once there
+   * is history.
+   */
+  mode: "cold_start" | "exploration" | "weakness_targeting" | "unprofiled";
   tacticWeight: number;
   attackTypeWeight: number;
 }
@@ -61,6 +67,17 @@ type SelectorOptions = {
   history: AttackProfileHistoryEntry[];
   random?: () => number;
   now?: Date;
+  /**
+   * Whether this learner's own history may be used to weight which persuasion
+   * tactics they meet.
+   *
+   * Inferring which manipulations work on a specific person is exactly what a
+   * consent record exists to cover, so it is refusable -- and refusing has to
+   * mean something. Without it the selector uses the department's eligible set
+   * and picks within it at random: the same material, chosen without a personal
+   * profile. Defaults to false, because an absent decision is not permission.
+   */
+  personalised?: boolean;
 };
 
 const EMPTY_STATS = (): PerformanceStats => ({
@@ -189,8 +206,25 @@ export function selectAttackProfile({
   history,
   random = Math.random,
   now = new Date(),
+  personalised = false,
 }: SelectorOptions): AttackProfileDecision {
   const attacks = eligibleAttackTypes(department);
+
+  // No permission to profile means no profile: department-eligible material,
+  // chosen without reference to what has worked on this person before. This is
+  // the same path a brand-new learner takes, so it is a well-trodden one rather
+  // than a degraded mode.
+  if (!personalised) {
+    const attackType = randomChoice(attacks, random);
+    return {
+      attackType,
+      persuasionTactic: randomChoice(ATTACK_TYPE_TACTICS[attackType], random),
+      mode: "unprofiled",
+      tacticWeight: 0,
+      attackTypeWeight: 0,
+    };
+  }
+
   const classifiedHistory = history.filter(
     (attempt) => attempt.attackType && (attempt.leversPresent?.length ?? 0) > 0,
   );

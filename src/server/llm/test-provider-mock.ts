@@ -11,8 +11,19 @@ import { installModuleMock } from "@/test/mock-module-registry";
  * llm/llmComplete.ts `complete()` (which is what all three of those files
  * do -- none of them mock llmComplete.ts itself) share one mocked provider
  * layer, configured per test via this mutable state.
+ *
+ * The Groq fakes return a `.withResponse()`-shaped result because that is what
+ * the real SDK gives and what llmComplete now uses: the rate-limit headers
+ * arrive on *success*, which is the only way to know the token budget before
+ * spending it rather than after being refused. A fake without headers would let
+ * the admission-control path go untested.
  */
-type FakeGroqClient = { chat: { completions: { create: (...args: unknown[]) => Promise<unknown> } } } | null;
+interface FakeGroqResponse {
+  data: { choices: { message: { content: string | null } }[] };
+  response: { headers: Headers };
+}
+type FakeGroqCreate = (...args: unknown[]) => { withResponse: () => Promise<FakeGroqResponse> };
+type FakeGroqClient = { chat: { completions: { create: FakeGroqCreate } } } | null;
 type FakeGeminiClient = { models: { generateContent: (...args: unknown[]) => Promise<unknown> } } | null;
 
 export const llmMockState = {
@@ -24,6 +35,13 @@ export function resetLlmMockState() {
   llmMockState.groqClient = null;
   llmMockState.geminiClient = null;
 }
+
+/** Lane models the mock reports. Distinct strings so per-lane bucketing is observable. */
+const MOCK_LANE_MODELS = {
+  draft: ["mock-draft-model", "mock-draft-alt"],
+  refine: ["mock-refine-model", "mock-refine-alt"],
+  chat: ["mock-chat-model", "mock-chat-alt"],
+} as const;
 
 /**
  * Idempotent -- safe to call from every test file that exercises llmComplete's real logic.
@@ -37,21 +55,42 @@ export function resetLlmMockState() {
 export function installLlmProviderMocks() {
   installModuleMock("@/server/llm/groqClient", "@/server/llm/test-provider-mock", () => ({
     getGroqClient: () => llmMockState.groqClient,
-    GROQ_MODEL: "llama-3.3-70b-versatile",
+    GROQ_LANE_MODELS: MOCK_LANE_MODELS,
+    // Small, so a test's prompt does not have to be long to exercise the budget.
+    GROQ_LANE_MAX_TOKENS: { draft: 100, refine: 100, chat: 100 },
+    GROQ_DEFAULT_LANE: "chat",
   }));
   installModuleMock("@/server/llm/geminiClient", "@/server/llm/test-provider-mock", () => ({
     getGeminiClient: () => llmMockState.geminiClient,
-    GEMINI_MODEL: "gemini-2.5-flash",
+    GEMINI_MODEL: "mock-gemini-model",
   }));
 }
 
-export function groqReturning(content: string | null, onCall?: (args: unknown) => void): NonNullable<FakeGroqClient> {
+/** Headers a real Groq response carries, so reconciliation can be asserted. */
+export function rateLimitHeaders(remainingTokens?: number, limitTokens = 8_000): Headers {
+  const headers = new Headers();
+  if (remainingTokens !== undefined) {
+    headers.set("x-ratelimit-remaining-tokens", String(remainingTokens));
+    headers.set("x-ratelimit-limit-tokens", String(limitTokens));
+  }
+  return headers;
+}
+
+function groqResult(content: string | null, headers: Headers): FakeGroqResponse {
+  return { data: { choices: [{ message: { content } }] }, response: { headers } };
+}
+
+export function groqReturning(
+  content: string | null,
+  onCall?: (args: unknown) => void,
+  headers: Headers = rateLimitHeaders(),
+): NonNullable<FakeGroqClient> {
   return {
     chat: {
       completions: {
-        create: async (args: unknown) => {
+        create: (args: unknown) => {
           onCall?.(args);
-          return { choices: [{ message: { content } }] };
+          return { withResponse: async () => groqResult(content, headers) };
         },
       },
     },
@@ -64,23 +103,30 @@ export function groqReturningInOrder(...contents: (string | null)[]): NonNullabl
   return {
     chat: {
       completions: {
-        create: async () => {
+        create: () => {
           const content = call < contents.length ? contents[call]! : null;
           call++;
-          return { choices: [{ message: { content } }] };
+          return { withResponse: async () => groqResult(content, rateLimitHeaders()) };
         },
       },
     },
   };
 }
 
-export function groqThrowing(message: string): NonNullable<FakeGroqClient> {
+/** Throws with an optional status/headers, so 429 and 404 handling can be tested. */
+export function groqThrowing(
+  message: string,
+  extra: { status?: number; headers?: Record<string, string> } = {},
+): NonNullable<FakeGroqClient> {
   return {
     chat: {
       completions: {
-        create: async () => {
-          throw new Error(message);
-        },
+        create: () => ({
+          withResponse: async () => {
+            const err = Object.assign(new Error(message), extra);
+            throw err;
+          },
+        }),
       },
     },
   };

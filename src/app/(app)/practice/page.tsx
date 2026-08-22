@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  useGetCurrentUser,
   useGetNextPracticeScenario,
   useSubmitAttempt,
   useListCueOptions,
@@ -12,11 +13,13 @@ import {
   type GetNextPracticeScenarioVector,
   type AttemptResult
 } from "@/api-client";
+import { ReportPhishNote } from "@/components/report-phish-note";
 import {
   ShieldAlert, ShieldCheck, ArrowRight, Target,
   CheckCircle2, XCircle, Info, Sparkles,
   Inbox, Star, Archive, Trash2, CornerUpLeft, MoreVertical, Paperclip, Search,
-  MessageSquare, Phone, Link as LinkIcon, Mail, Shuffle, PhoneCall, PhoneIncoming
+  MessageSquare, Phone, Link as LinkIcon, Mail, Shuffle, PhoneCall, PhoneIncoming, QrCode,
+  AtSign, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -26,6 +29,9 @@ import { useChatbot, ChatMessageList, ChatComposer } from "@/components/chatbot-
 import type { CueId } from "@/server/cues";
 import { CUE_REGION, findBodyMatch, highlightClass } from "@/components/practice/cue-highlight";
 import { VoiceCall } from "@/components/practice/voice-call";
+import { QrNotice } from "@/components/practice/qr-notice";
+import { SocialDm } from "@/components/practice/social-dm";
+import { WebPage } from "@/components/practice/web-page";
 import { useAttemptFlow } from "@/components/practice/use-attempt-flow";
 import { parseSender, isNumericSender } from "@/components/practice/sender";
 import {
@@ -35,6 +41,7 @@ import Link from "next/link";
 import { PageHeader, PageShell } from "@/components/page-shell";
 import { EmptyState, PageHeaderSkeleton } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CountUp } from "@/components/count-up";
 
 
 // What to practice: a specific vector, or "mixed" to keep randomizing every
@@ -45,7 +52,17 @@ const VECTOR_FILTER_OPTIONS: { value: GetNextPracticeScenarioVector; label: stri
   { value: "email", label: "Email", icon: Mail },
   { value: "sms", label: "SMS", icon: MessageSquare },
   { value: "voice", label: "Voice", icon: PhoneCall },
+  { value: "qr", label: "QR code", icon: QrCode },
+  { value: "social", label: "Social DM", icon: AtSign },
+  { value: "web", label: "Web page", icon: Globe },
 ];
+
+/** React's CSSProperties has no room for custom properties; this adds them
+ *  without an `any` at every call site. */
+type CssVars = React.CSSProperties & Record<`--${string}`, string | number>;
+
+/** The concrete channels, i.e. every filter value except "mixed". */
+type PracticeVectorValue = Exclude<GetNextPracticeScenarioVector, "mixed">;
 
 export default function PracticePage() {
   const queryClient = useQueryClient();
@@ -56,11 +73,38 @@ export default function PracticePage() {
   // toggle below for the rest of the session.
   const [vectorFilter, setVectorFilter] = useState<GetNextPracticeScenarioVector>(() => {
     const fromUrl = searchParams.get("vector");
-    return fromUrl === "email" || fromUrl === "sms" || fromUrl === "voice" ? fromUrl : "mixed";
+    // Checked against the option list rather than an || chain: the chain went
+    // stale when qr was added, so ?vector=qr silently landed in mixed.
+    return VECTOR_FILTER_OPTIONS.some((o) => o.value === fromUrl)
+      ? (fromUrl as GetNextPracticeScenarioVector)
+      : "mixed";
   });
 
-  // Data hooks
-  const { data: scenario, isLoading: isScenarioLoading, isError: isScenarioError } = useGetNextPracticeScenario({ vector: vectorFilter });
+  // Data hooks. The workspace comes first because the channel the scenario
+  // query asks for depends on it.
+  const { data: me } = useGetCurrentUser();
+  const workspace = me?.workspace ?? null;
+
+  // Only the channels this organisation trains on. The server already refuses
+  // anything else, so offering the full set meant a member of an email-only org
+  // could pick "Voice", be served an email, and see the toggle disagree with
+  // the screen -- which reads as the product being broken rather than as a
+  // policy their admin set. Empty means no restriction.
+  const allowedVectors = workspace?.practiceVectors ?? [];
+  const vectorOptions =
+    allowedVectors.length === 0
+      ? VECTOR_FILTER_OPTIONS
+      : VECTOR_FILTER_OPTIONS.filter(
+          (o) => o.value === "mixed" || allowedVectors.includes(o.value as PracticeVectorValue),
+        );
+  // Derived, not corrected in an effect: the workspace arrives after first
+  // paint, and a ?vector= link or an admin narrowing the policy mid-session
+  // would otherwise leave the toggle holding a value that cannot be served.
+  const effectiveVector = vectorOptions.some((o) => o.value === vectorFilter)
+    ? vectorFilter
+    : "mixed";
+
+  const { data: scenario, isLoading: isScenarioLoading, isError: isScenarioError } = useGetNextPracticeScenario({ vector: effectiveVector });
   const { data: availableCues, isLoading: isCuesLoading } = useListCueOptions();
   const submitAttempt = useSubmitAttempt();
   const chat = useChatbot();
@@ -79,6 +123,12 @@ export default function PracticePage() {
   // order changed between the loading render and the loaded render).
   const isSms = scenario?.vector === "sms";
   const isVoice = scenario?.vector === "voice";
+  const isQr = scenario?.vector === "qr";
+  const isSocial = scenario?.vector === "social";
+  const isWeb = scenario?.vector === "web";
+  // A QR notice, a DM and a landing page are all self-contained surfaces: none
+  // of them sits in an inbox or a thread, so none gets a decoy list beside it.
+  const isStandalone = isQr || isSocial || isWeb;
 
   if (isScenarioLoading || isCuesLoading) {
     return (
@@ -98,7 +148,7 @@ export default function PracticePage() {
         <EmptyState
           icon={ShieldAlert}
           title="No scenarios available"
-          description="You may have worked through everything on offer right now. New scenarios are generated as you go — check back shortly."
+          description="You may have worked through everything on offer right now. New scenarios are generated as you go, so check back shortly."
           action={
             <Button asChild variant="outline" className="font-semibold">
               <Link href="/learn">Browse lessons meanwhile</Link>
@@ -161,11 +211,19 @@ export default function PracticePage() {
     if (!result) return;
     const missed = result.missedCues.map(getCueLabel).join(", ") || "none";
     const caught = result.caughtCues.map(getCueLabel).join(", ") || "none";
+    // Named per vector so the assistant is told what it is actually looking at
+    // -- describing a landing page as "an email" made its advice wrong.
     const mediumDescription = isVoice
       ? `a phone call transcript from "${scenario.sender}"`
       : isSms
         ? `a text message from "${scenario.sender}"`
-        : `an email with the subject "${scenario.subject}"`;
+        : isQr
+          ? `a printed notice from "${scenario.sender}" asking me to scan a QR code`
+          : isSocial
+            ? `a social-media direct message from "${scenario.sender}"`
+            : isWeb
+              ? `a sign-in page at "${scenario.sender}"`
+              : `an email with the subject "${scenario.subject}"`;
     const idx = chat.sendSeeded(
       `I just practiced on ${mediumDescription}. I judged it ${verdict ? "phishing" : "legitimate"}, and I was ${result.correct ? "correct" : "incorrect"}. Cues I caught: ${caught}. Cues I missed: ${missed}. Can you explain why those missed cues mattered here and how to spot that pattern next time?`,
     );
@@ -230,7 +288,7 @@ export default function PracticePage() {
     return scenario.body;
   };
 
-  // The email reading pane — styled like a real mail client. Shown in all states.
+  // The email reading pane -- styled like a real mail client. Shown in all states.
   // Rendered as a function call ({mailClient()}), not <MailClient/>, so React
   // reconciles it in place instead of remounting the whole subtree every time
   // activeCue changes on hover (which caused the scroll jump / shake).
@@ -266,7 +324,7 @@ export default function PracticePage() {
       </div>
 
       {/* Body */}
-      <CardContent className="flex-1 min-h-0 px-5 md:px-6 py-5 text-sm leading-relaxed overflow-y-auto whitespace-pre-wrap bg-background text-foreground/90">
+      <CardContent className="pa-measure-wide flex-1 min-h-0 px-5 md:px-6 py-5 text-sm leading-relaxed overflow-y-auto whitespace-pre-wrap bg-background text-foreground/90">
         {renderBody()}
 
         {scenario.links.length > 0 && (
@@ -299,7 +357,7 @@ export default function PracticePage() {
     );
   };
 
-  // The sms reading pane — styled like a phone messaging thread, mirroring
+  // The sms reading pane -- styled like a phone messaging thread, mirroring
   // mailClient()'s layout/hover-highlight mechanics but as a single incoming
   // bubble instead of a subject/sender/attachments layout. Also called as a
   // function ({smsThread()}) for the same stable-reconcile reason.
@@ -352,7 +410,60 @@ export default function PracticePage() {
     />
   );
 
-  // A faux inbox list — the current scenario sits at the top as the selected, unread message.
+  // The QR vector's "message" is a printed notice; the thing to inspect is the
+  // destination behind the code, which QrNotice reveals on demand rather than
+  // rendering as a navigable link.
+  const qrNoticePane = () => (
+    <QrNotice
+      key={scenario.id}
+      organisation={senderName}
+      headline={scenario.subject || "Notice"}
+      body={scenario.body}
+      destination={scenario.links?.[0]?.text ?? null}
+    />
+  );
+
+  // A DM has no subject line and no attachment; what the trainee inspects is
+  // the handle, how thin the profile is, and where the single link goes.
+  const socialDmPane = () => (
+    <SocialDm
+      key={scenario.id}
+      sender={scenario.sender}
+      body={scenario.body}
+      link={scenario.links?.[0]?.text ?? null}
+    />
+  );
+
+  // On a landing page the address bar is the exercise, so the sender field --
+  // which for this vector is the URL -- becomes the browser chrome rather than
+  // a From line.
+  const webPagePane = () => (
+    <WebPage
+      key={scenario.id}
+      url={scenario.sender}
+      headline={scenario.subject || "Sign in"}
+      body={scenario.body}
+      secondaryLink={scenario.links?.[0]?.text ?? null}
+    />
+  );
+
+  // Which surface this round renders. Six vectors through chained ternaries at
+  // three separate call sites was already hard to read at four; this is the one
+  // place that decides, and adding a vector is one line here.
+  const scenarioPane = () =>
+    isQr
+      ? qrNoticePane()
+      : isSocial
+        ? socialDmPane()
+        : isWeb
+          ? webPagePane()
+          : isVoice
+            ? voiceCallPane()
+            : isSms
+              ? smsThread()
+              : mailClient();
+
+  // A faux inbox list -- the current scenario sits at the top as the selected, unread message.
   const inboxList = () => (
     <Card className="border shadow-sm p-0 overflow-hidden flex flex-col h-[62vh] max-h-160">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/60 shrink-0">
@@ -391,7 +502,7 @@ export default function PracticePage() {
     </Card>
   );
 
-  // The sms sidebar counterpart to inboxList() — a faux conversation list,
+  // The sms sidebar counterpart to inboxList() -- a faux conversation list,
   // current scenario pinned at the top as the active thread.
   const messagesList = () => (
     <Card className="border shadow-sm p-0 overflow-hidden flex flex-col h-[62vh] max-h-160">
@@ -491,7 +602,7 @@ export default function PracticePage() {
   // focusing) it highlights the matching part of the email. Mirrors the landing
   // page InboxPreview's chip handlers, including the functional-update guard so
   // leaving one chip doesn't clear a highlight another chip just set.
-  const cueTrigger = (id: string, tone: 'caught' | 'missed' | 'false') => {
+  const cueTrigger = (id: string, tone: 'caught' | 'missed' | 'false', index = 0) => {
     const toneClass =
       tone === 'caught'
         ? 'bg-success/10 text-success border-success/30'
@@ -506,7 +617,8 @@ export default function PracticePage() {
         onMouseLeave={() => setActiveCue((a) => (a === id ? null : a))}
         onFocus={() => setActiveCue(id)}
         onBlur={() => setActiveCue((a) => (a === id ? null : a))}
-        className="cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        style={{ '--i': index } as CssVars}
+        className="pa-rise cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
         <Badge variant="outline" className={`font-bold transition-colors ${toneClass} ${activeCue === id ? 'ring-2 ring-destructive/50' : ''}`}>
           {getCueLabel(id)}
@@ -535,13 +647,15 @@ export default function PracticePage() {
           {result.correct ? "Correct" : "Incorrect"}
         </h2>
         <p className="font-medium opacity-90">
-          {result.correctVerdict ? "You correctly identified the message." : "You missed the true intent of this message."}
+          {/* correct, not correctVerdict: the latter is what the answer was, not
+					    whether this learner got it. */}
+					{result.correct ? "You correctly identified the message." : "You missed the true intent of this message."}
         </p>
       </div>
 
       <div className="p-6 space-y-6 bg-background">
         {/* Explanation */}
-        <div className="bg-muted/60 p-4 rounded-lg border border-border text-sm font-medium leading-relaxed">
+        <div className="pa-measure bg-muted/60 p-4 rounded-lg border border-border text-sm font-medium leading-relaxed">
           <p>{result.explanation}</p>
         </div>
 
@@ -557,7 +671,7 @@ export default function PracticePage() {
               <div>
                 <p className="text-xs font-semibold text-success mb-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Caught</p>
                 <div className="flex flex-wrap gap-1">
-                  {result.caughtCues.map((id: string) => cueTrigger(id, "caught"))}
+                  {result.caughtCues.map((id: string, i: number) => cueTrigger(id, "caught", i))}
                 </div>
               </div>
             )}
@@ -566,7 +680,7 @@ export default function PracticePage() {
               <div>
                 <p className="text-xs font-semibold text-destructive mb-1 flex items-center gap-1"><XCircle className="w-3 h-3"/> Missed</p>
                 <div className="flex flex-wrap gap-1">
-                  {result.missedCues.map((id: string) => cueTrigger(id, "missed"))}
+                  {result.missedCues.map((id: string, i: number) => cueTrigger(id, "missed", i))}
                 </div>
               </div>
             )}
@@ -575,7 +689,7 @@ export default function PracticePage() {
               <div>
                 <p className="text-xs font-semibold text-warning mb-1 flex items-center gap-1"><Info className="w-3 h-3"/> Incorrectly Flagged</p>
                 <div className="flex flex-wrap gap-1">
-                  {result.falseCues.map((id: string) => cueTrigger(id, "false"))}
+                  {result.falseCues.map((id: string, i: number) => cueTrigger(id, "false", i))}
                 </div>
               </div>
             )}
@@ -588,11 +702,25 @@ export default function PracticePage() {
           <p>{result.calibrationNote}</p>
         </div>
 
+        {/* What to do about a real one -- their own organisation's channel, at
+            the moment they have just proved they can spot one. Only when the
+            scenario actually was phishing: prompting someone to report a
+            legitimate message teaches the opposite of the lesson. */}
+        {result.correctVerdict && (
+          <ReportPhishNote
+            channel={workspace?.reporting?.channel}
+            instructions={workspace?.reporting?.instructions}
+            orgName={workspace?.orgName}
+          />
+        )}
+
         {/* Rewards */}
         <div className="flex items-center justify-between border-t pt-4">
           <div className="space-y-0.5">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Points earned</p>
-            <p className="text-2xl font-display font-bold text-primary">+{result.xpAwarded}</p>
+            <p className="pa-rise text-2xl font-display font-bold text-primary">
+                <CountUp value={result.xpAwarded} prefix="+" />
+              </p>
           </div>
           {result.leveledUp && (
             <Badge className="bg-primary hover:bg-primary font-semibold px-3 py-1 text-sm shadow-sm">Level {result.level}</Badge>
@@ -672,14 +800,14 @@ export default function PracticePage() {
             aria-label="Which channel to practice"
             className="inline-flex items-center gap-1 p-1 rounded-lg border border-border bg-muted/60"
           >
-            {VECTOR_FILTER_OPTIONS.map(({ value, label, icon: Icon }) => (
+            {vectorOptions.map(({ value, label, icon: Icon }) => (
               <button
                 key={value}
                 type="button"
-                aria-pressed={vectorFilter === value}
+                aria-pressed={effectiveVector === value}
                 onClick={() => handleVectorFilterChange(value)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                  vectorFilter === value
+                  effectiveVector === value
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-background"
                 }`}
@@ -694,12 +822,19 @@ export default function PracticePage() {
 
       {step === 'inspect' ? (
         <>
-          <div className="grid gap-6 lg:grid-cols-[320px_1fr] items-start">
-            <div className="hidden lg:block">
-              {isVoice ? callLogList() : isSms ? messagesList() : inboxList()}
+          {/* A printed notice, a DM and a landing page have no inbox or thread
+              to sit beside, so they render on their own rather than next to a
+              decoy list. */}
+          {isStandalone ? (
+            <div className="max-w-3xl mx-auto w-full">{scenarioPane()}</div>
+          ) : (
+            <div className="grid gap-6 lg:grid-cols-[320px_1fr] items-start">
+              <div className="hidden lg:block">
+                {isVoice ? callLogList() : isSms ? messagesList() : inboxList()}
+              </div>
+              {scenarioPane()}
             </div>
-            {isVoice ? voiceCallPane() : isSms ? smsThread() : mailClient()}
-          </div>
+          )}
 
           {/* Verdict controls */}
           <div className="max-w-2xl mx-auto w-full mt-6 flex flex-col gap-4">
@@ -733,7 +868,7 @@ export default function PracticePage() {
           {/* Left column: the email, plus (on feedback) the assistant right below
               it so it's reachable without scrolling past the tall result card. */}
           <div className="space-y-6">
-            {isVoice ? voiceCallPane() : isSms ? smsThread() : mailClient()}
+            {scenarioPane()}
             {step === 'feedback' && result && assistantColumn()}
           </div>
 

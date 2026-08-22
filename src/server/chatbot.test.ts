@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from "bun:test";
 import type { ChatMessage } from "./chatbot";
 import { installLlmProviderMocks, llmMockState, resetLlmMockState, groqReturning, groqThrowing } from "./llm/test-provider-mock";
+import { resetRateLimiter } from "./llm/rateLimiter";
 
 installLlmProviderMocks();
 
@@ -11,6 +12,9 @@ const HISTORY: ChatMessage[] = [{ role: "user", content: "Why was that email sus
 describe("getChatbotReply", () => {
   beforeEach(() => {
     resetLlmMockState();
+    // Token budgets are process-global, so a drained bucket would leak
+    // into the next case and make acquire() wait out the test timeout.
+    resetRateLimiter();
   });
 
   it("returns null when no provider is configured", async () => {

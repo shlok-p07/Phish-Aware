@@ -1,8 +1,14 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useGetLesson } from "@/api-client";
+import {
+	useGetLesson,
+	useCompleteLesson,
+	getListLessonsQueryKey,
+	getListMyTrainingQueryKey,
+} from "@/api-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, CheckCircle, ShieldAlert, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -12,6 +18,7 @@ import { useChatbot } from "@/components/chatbot-widget";
 import { PageShell } from "@/components/page-shell";
 import { EmptyState } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LessonScreenView } from "@/components/learn/lesson-screen";
 
 export default function LessonPage() {
 	const params = useParams();
@@ -19,11 +26,38 @@ export default function LessonPage() {
 
 	const { data: lesson, isLoading, isError } = useGetLesson(id);
 	const [currentStep, setCurrentStep] = useState(0);
+	const queryClient = useQueryClient();
+	const completeLesson = useCompleteLesson();
+	// Once per visit. The endpoint is idempotent, but re-firing on every render
+	// of the final screen would be a request per navigation keystroke.
+	const recorded = useRef(false);
 	const chat = useChatbot();
+
+	// Computed here rather than beside the other step maths further down: hooks
+	// cannot sit after the loading and error early-returns.
+	const reachedSummary = lesson ? currentStep === lesson.screens.length : false;
+
+	// Reaching the summary screen is what "finished the lesson" means. Recorded
+	// here rather than behind a button, so a learner who reads it and navigates
+	// away still gets credit -- and so assigned reading can actually complete,
+	// which it never could when lessons recorded nothing at all.
+	useEffect(() => {
+		if (!reachedSummary || recorded.current) return;
+		recorded.current = true;
+		completeLesson.mutate(
+			{ id },
+			{
+				onSuccess: () => {
+					queryClient.invalidateQueries({ queryKey: getListLessonsQueryKey() });
+					queryClient.invalidateQueries({ queryKey: getListMyTrainingQueryKey() });
+				},
+			},
+		);
+	}, [reachedSummary, id, completeLesson, queryClient]);
 
 	if (isLoading) {
 		return (
-			<PageShell width="2xl">
+			<PageShell width="5xl">
 				<Skeleton className="h-10 w-2/3" />
 				<Skeleton className="h-96 w-full" />
 			</PageShell>
@@ -32,7 +66,7 @@ export default function LessonPage() {
 
 	if (isError || !lesson) {
 		return (
-			<PageShell width="2xl">
+			<PageShell width="5xl">
 				<EmptyState
 					icon={ShieldAlert}
 					title="Lesson not found"
@@ -49,7 +83,7 @@ export default function LessonPage() {
 
 	if (lesson.vector !== "email" && lesson.vector !== "sms" && lesson.vector !== "voice") {
 		return (
-			<PageShell width="2xl">
+			<PageShell width="5xl">
 				<EmptyState
 					icon={ShieldAlert}
 					title="Coming soon"
@@ -88,7 +122,7 @@ export default function LessonPage() {
 	const progress = ((currentStep + 1) / totalSteps) * 100;
 
 	return (
-		<PageShell width="2xl">
+		<PageShell width="5xl">
 			{/* Top Bar */}
 			<div className="flex items-center gap-4 mb-8">
 				<Button
@@ -121,17 +155,8 @@ export default function LessonPage() {
 
 			{/* Main Content Area */}
 			<Card className="border shadow-md overflow-hidden min-h-100 flex flex-col animate-in fade-in zoom-in-95 duration-300">
-				<CardContent className="flex-1 p-8 sm:p-12 flex flex-col justify-center">
-					{!isLastStep && (
-						<div className="space-y-6">
-							<h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground leading-tight">
-								{lesson.screens[currentStep].heading}
-							</h2>
-							<div className="prose prose-lg dark:prose-invert prose-p:text-muted-foreground prose-p:font-medium prose-p:leading-relaxed">
-								<p>{lesson.screens[currentStep].body}</p>
-							</div>
-						</div>
-					)}
+				<CardContent className="flex-1 p-6 sm:p-10 flex flex-col justify-start">
+					{!isLastStep && <LessonScreenView screen={lesson.screens[currentStep]} />}
 
 					{isLastStep && (
 						<div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
@@ -142,7 +167,7 @@ export default function LessonPage() {
 								<h2 className="text-3xl font-display font-bold">
 									Top Red Flags
 								</h2>
-								<p className="text-muted-foreground font-medium text-lg">
+								<p className="pa-measure text-muted-foreground font-medium text-lg">
 									Always watch out for these cues in {lesson.vector} scams.
 								</p>
 							</div>

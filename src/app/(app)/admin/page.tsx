@@ -2,6 +2,7 @@
 import { useState } from "react";
 import {
   UserPlus, Trash2, ShieldCheck, Clock, Search, X, Copy, Check, RefreshCw, Link2,
+  KeyRound,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,15 +33,20 @@ import {
   useListOrgMembers,
   useInviteOrgMember,
   useRemoveOrgMember,
-  useUpdateOrgMemberRole,
+  useUpdateOrgMember,
   useRevokeOrgInvitation,
   useGetOrgInvitationLink,
+  useIssueMemberResetCode,
+  useListOrgDepartments,
   useResendOrgInvitation,
   getListOrgMembersQueryKey,
   type OrgRole,
 } from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
-import { DEPARTMENTS, type Department } from "@/lib/onboarding-survey";
+import { MemberDetailSheet } from "./member-detail-sheet";
+// Departments come from the organization now, not a fixed list, so an admin sees
+// exactly what they have configured.
+
 
 // Radix Select can't hold an empty-string item value, so "no department
 // pinned" needs a sentinel that isn't a real department name.
@@ -77,7 +83,11 @@ function CopyableLink({ url }: { url: string }) {
     <div className="flex gap-2">
       <Input readOnly value={url} onFocus={(e) => e.currentTarget.select()} className="rounded-lg font-mono text-xs" />
       <Button type="button" variant="outline" size="icon" onClick={copy} aria-label="Copy invite link" className="shrink-0">
-        {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+        {copied ? (
+          <Check className="w-4 h-4 text-success" />
+        ) : (
+          <Copy className="w-4 h-4" />
+        )}
       </Button>
     </div>
   );
@@ -87,14 +97,18 @@ export default function AdminMembersPage() {
   const { data: org } = useGetOrg({ query: { retry: false } });
   const { data: currentUser } = useGetCurrentUser({ query: { retry: false } });
   const { data: members = [] } = useListOrgMembers();
-  const adminCount = members.filter((m) => m.kind !== "invitation" && m.role === "admin").length;
+  const adminCount = members.filter(
+    (m) => m.kind !== "invitation" && m.role === "admin",
+  ).length;
   const queryClient = useQueryClient();
   const invalidateMembers = () => queryClient.invalidateQueries({ queryKey: getListOrgMembersQueryKey() });
   const inviteMemberMutation = useInviteOrgMember();
   const removeMemberMutation = useRemoveOrgMember();
-  const setMemberRoleMutation = useUpdateOrgMemberRole();
+  const updateMemberMutation = useUpdateOrgMember();
   const revokeInvitationMutation = useRevokeOrgInvitation();
   const invitationLinkMutation = useGetOrgInvitationLink();
+  const resetCodeMutation = useIssueMemberResetCode();
+  const { data: departments = [] } = useListOrgDepartments();
   const resendInvitationMutation = useResendOrgInvitation();
   const { toast } = useToast();
 
@@ -102,16 +116,29 @@ export default function AdminMembersPage() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<OrgRole>("employee");
   // "" means leave it open -- the invitee is then asked on the intro survey.
-  const [department, setDepartment] = useState<Department | "">("");
+  const [department, setDepartment] = useState<string>("");
   const [query, setQuery] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   // Held open after a successful invite so the admin can copy the link. With
   // no mailer, this dialog is the only way the link ever reaches them.
-  const [issuedLink, setIssuedLink] = useState<{ email: string; url: string } | null>(null);
+  const [openMemberId, setOpenMemberId] = useState<string | null>(null);
+  const [issuedResetCode, setIssuedResetCode] = useState<{
+    email: string;
+    code: string;
+  } | null>(null);
+  const [issuedLink, setIssuedLink] = useState<{
+    email: string;
+    url: string;
+  } | null>(null);
 
   // Pending invitations occupy a seat too, otherwise an admin could invite
   // past the limit and only find out when people start accepting.
-  const usedSeats = members.filter((m) => m.status !== "disabled").length;
+
+  // Server-side, and it counts pending invitations -- which hold a seat too, so
+  // a count of active members alone read lower than the check that refuses the
+  // next invite.
+  const usedSeats = org?.seats.activeSeats ?? 0;
+  const pendingSeats = org?.seats.pendingInvitations ?? 0;
 
   const q = query.trim().toLowerCase();
   const visibleMembers = q
@@ -138,7 +165,11 @@ export default function AdminMembersPage() {
           setDepartment("");
         },
         onError: (err) =>
-          toast({ title: "Couldn't invite member", description: err.message, variant: "destructive" }),
+          toast({
+            title: "Couldn't invite member",
+            description: err.message,
+            variant: "destructive",
+          }),
       },
     );
   };
@@ -152,7 +183,11 @@ export default function AdminMembersPage() {
           toast({ title: `${name} removed` });
         },
         onError: (err) =>
-          toast({ title: "Couldn't remove member", description: err.message, variant: "destructive" }),
+          toast({
+            title: "Couldn't remove member",
+            description: err.message,
+            variant: "destructive",
+          }),
       },
     );
   const revokeInvitation = (id: string, name: string) =>
@@ -164,11 +199,45 @@ export default function AdminMembersPage() {
           toast({ title: `Invitation for ${name} revoked` });
         },
         onError: (err) =>
-          toast({ title: "Couldn't revoke invitation", description: err.message, variant: "destructive" }),
+          toast({
+            title: "Couldn't revoke invitation",
+            description: err.message,
+            variant: "destructive",
+          }),
       },
     );
   const setMemberRole = (id: string, newRole: OrgRole) =>
-    setMemberRoleMutation.mutate({ id, data: { role: newRole } }, { onSuccess: invalidateMembers });
+    updateMemberMutation.mutate(
+      { id, data: { role: newRole } },
+      { onSuccess: invalidateMembers },
+    );
+
+  // Department drives which attack types a member is drilled on and which
+  // colleagues they are benchmarked against, so it is the org's call, not the
+  // employee's -- onboarding will not overwrite an assignment made here.
+  const setMemberDepartment = (id: string, next: string | null) =>
+    updateMemberMutation.mutate(
+      { id, data: { department: next } },
+      { onSuccess: invalidateMembers },
+    );
+
+  // The production path for a forgotten password: there is no mail delivery, so
+  // the self-service route returns nothing there and an admin issues the code
+  // and passes it on out of band.
+  const issueResetCode = (id: string, memberEmail: string | null) =>
+    resetCodeMutation.mutate(
+      { id },
+      {
+        onSuccess: (result) =>
+          setIssuedResetCode({ email: memberEmail ?? "", code: result.code }),
+        onError: (err) =>
+          toast({
+            title: "Couldn't issue a reset code",
+            description: err.message,
+            variant: "destructive",
+          }),
+      },
+    );
 
   const copyExistingLink = (id: string, memberEmail: string | null) =>
     invitationLinkMutation.mutate(
@@ -176,7 +245,11 @@ export default function AdminMembersPage() {
       {
         onSuccess: (result) => setIssuedLink({ email: memberEmail ?? "", url: result.url }),
         onError: (err) =>
-          toast({ title: "Couldn't get the link", description: err.message, variant: "destructive" }),
+          toast({
+            title: "Couldn't get the link",
+            description: err.message,
+            variant: "destructive",
+          }),
       },
     );
 
@@ -193,7 +266,11 @@ export default function AdminMembersPage() {
           });
         },
         onError: (err) =>
-          toast({ title: "Couldn't regenerate the link", description: err.message, variant: "destructive" }),
+          toast({
+            title: "Couldn't regenerate the link",
+            description: err.message,
+            variant: "destructive",
+          }),
       },
     );
 
@@ -203,7 +280,12 @@ export default function AdminMembersPage() {
         <div>
           <h2 className="text-lg font-display font-bold">Members</h2>
           <p className="text-sm text-muted-foreground font-medium">
-            {org?.seatLimit ? `${usedSeats} of ${org.seatLimit} seats used` : `${usedSeats} members`}
+            {org?.seatLimit
+              ? `${usedSeats} of ${org.seatLimit} seats used`
+              : `${usedSeats} members`}
+            {pendingSeats > 0
+              ? ` · ${pendingSeats} pending ${pendingSeats === 1 ? "invitation" : "invitations"}`
+              : ""}
           </p>
         </div>
         <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
@@ -217,8 +299,9 @@ export default function AdminMembersPage() {
             <DialogHeader>
               <DialogTitle>Invite a member</DialogTitle>
               <DialogDescription>
-                You&apos;ll get a link to send them. They can join with a password, or with
-                your organization&apos;s single sign-on if it&apos;s enabled.
+                You&apos;ll get a link to send them. They can join with a
+                password, or with your organization&apos;s single sign-on if
+                it&apos;s enabled.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
@@ -235,7 +318,9 @@ export default function AdminMembersPage() {
               <div className="space-y-2">
                 <Label className="font-semibold">Role</Label>
                 <Select value={role} onValueChange={(v) => setRole(v as OrgRole)}>
-                  <SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="rounded-lg">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="employee">Member</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
@@ -247,14 +332,18 @@ export default function AdminMembersPage() {
                 <Select
                   value={department === "" ? UNSET_DEPARTMENT : department}
                   onValueChange={(v) =>
-                    setDepartment(v === UNSET_DEPARTMENT ? "" : (v as Department))
+                    setDepartment(
+                      v === UNSET_DEPARTMENT ? "" : v,
+                    )
                   }
                 >
-                  <SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="rounded-lg">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={UNSET_DEPARTMENT}>Let them choose</SelectItem>
-                    {DEPARTMENTS.map((d) => (
-                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -277,14 +366,46 @@ export default function AdminMembersPage() {
         </Dialog>
       </div>
 
+      <MemberDetailSheet
+        memberId={openMemberId}
+        onOpenChange={(open) => !open && setOpenMemberId(null)}
+      />
+
+      <Dialog
+        open={issuedResetCode !== null}
+        onOpenChange={(open) => !open && setIssuedResetCode(null)}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Reset code for {issuedResetCode?.email}</DialogTitle>
+            <DialogDescription>
+              Give this to them over a channel you trust -- in person, or a call
+              you placed. It works once, expires in 15 minutes, and anyone
+              holding it can set a new password on that account. Do not send it
+              by email or chat.
+            </DialogDescription>
+          </DialogHeader>
+          {issuedResetCode && (
+            <p className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-4 text-center text-2xl font-bold tracking-widest">
+              {issuedResetCode.code}
+            </p>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button className="rounded-lg font-semibold">Done</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={issuedLink !== null} onOpenChange={(open) => !open && setIssuedLink(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Send this link to {issuedLink?.email}</DialogTitle>
             <DialogDescription>
-              Anyone with this link can join your organization as the invited person, so
-              share it directly with them. It expires in 14 days, and you can revoke or
-              regenerate it any time from the members list.
+              Anyone with this link can join your organization as the invited
+              person, so share it directly with them. It expires in 14 days, and
+              you can revoke or regenerate it any time from the members list.
             </DialogDescription>
           </DialogHeader>
           {issuedLink && <CopyableLink url={issuedLink.url} />}
@@ -340,7 +461,11 @@ export default function AdminMembersPage() {
               {visibleMembers.length === 0 && (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground font-medium">
-                    {query ? <>No members match &ldquo;{query}&rdquo;.</> : "No members yet. Invite someone to get started."}
+                    {query ? (
+                      <>No members match &ldquo;{query}&rdquo;.</>
+                    ) : (
+                      "No members yet. Invite someone to get started."
+                    )}
                   </TableCell>
                 </TableRow>
               )}
@@ -356,7 +481,20 @@ export default function AdminMembersPage() {
                           {m.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-semibold text-foreground truncate">{m.name}</p>
+                          {/* The name is the way in: a row action would compete with the
+                              controls already in the row, and the name is what an admin
+                              reaches for. An invitation has no history to show. */}
+                          {isInvitation ? (
+                            <p className="font-semibold text-foreground truncate">{m.name}</p>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setOpenMemberId(m.id)}
+                              className="block max-w-full truncate rounded text-left font-semibold text-foreground hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              {m.name}
+                            </button>
+                          )}
                           <p className="text-xs text-muted-foreground truncate">{m.email}</p>
                           {/* Stand-in for the columns hidden at this width. */}
                           <p className="lg:hidden text-xs text-muted-foreground truncate mt-0.5">
@@ -408,9 +546,38 @@ export default function AdminMembersPage() {
                       )}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      <span className="text-xs font-semibold text-muted-foreground">
-                        {m.department ?? (isInvitation ? "Their choice" : "Not set")}
-                      </span>
+                      {/* A pending invitation has no user row to update yet -- the invite
+                          already carries the department, so it is read-only until accepted. */}
+                      {isInvitation ? (
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {m.department ?? "Their choice"}
+                        </span>
+                      ) : (
+                        <Select
+                          value={m.department ?? UNSET_DEPARTMENT}
+                          onValueChange={(v) =>
+                            setMemberDepartment(
+                              m.id,
+                              v === UNSET_DEPARTMENT ? null : v,
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            className="h-8 w-36 rounded-lg text-xs"
+                            aria-label={`Department for ${m.name}`}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={UNSET_DEPARTMENT}>
+                              Not set
+                            </SelectItem>
+                            {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       {m.status === "active" ? (
@@ -428,7 +595,7 @@ export default function AdminMembersPage() {
                       )}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-right font-semibold tabular-nums">
-                      {m.status === "active" ? `${m.accuracy}%` : "—"}
+                      {m.status === "active" ? `${m.accuracy}%` : "n/a"}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`capitalize font-semibold ${riskStyles[m.riskLevel]}`}>
@@ -437,12 +604,31 @@ export default function AdminMembersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-0.5">
+                        {!isInvitation && (
+                          <TooltipProvider delayDuration={200}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-muted-foreground hover:text-foreground h-8 w-8"
+                                  aria-label={`Issue a password reset code for ${m.name}`}
+                                  onClick={() => issueResetCode(m.id, m.email)}
+                                >
+                                  <KeyRound className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Issue a password reset code</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                         {isInvitation && (
                           <TooltipProvider delayDuration={200}>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
-                                  variant="ghost" size="icon"
+                                  variant="ghost"
+                                  size="icon"
                                   className="text-muted-foreground hover:text-foreground h-8 w-8"
                                   aria-label={`Copy invite link for ${m.name}`}
                                   onClick={() => copyExistingLink(m.id, m.email)}
@@ -455,7 +641,8 @@ export default function AdminMembersPage() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
-                                  variant="ghost" size="icon"
+                                  variant="ghost"
+                                  size="icon"
                                   className="text-muted-foreground hover:text-foreground h-8 w-8"
                                   aria-label={`Generate a new invite link for ${m.name}`}
                                   onClick={() => resendInvitation(m.id, m.email)}
@@ -470,7 +657,8 @@ export default function AdminMembersPage() {
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
-                              variant="ghost" size="icon"
+                              variant="ghost"
+                              size="icon"
                               className="text-muted-foreground hover:text-destructive h-8 w-8"
                               aria-label={isInvitation ? `Revoke invitation for ${m.name}` : `Remove ${m.name}`}
                             >

@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server";
 import { SendChatbotMessageBody, SendChatbotMessageResponse } from "@/api-zod";
 import { getChatbotReply, type ChatMessage } from "@/server/chatbot";
-import { json, error, requireUserId, withErrorHandling } from "@/server/http";
+import { json, error, requireUserId, withErrorHandling, readJsonBody } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
   await requireUserId();
-  const body = SendChatbotMessageBody.parse(await req.json());
+  const body = SendChatbotMessageBody.parse(await readJsonBody(req));
 
   const reply = await getChatbotReply(body.messages as ChatMessage[]);
   if (reply === null) {

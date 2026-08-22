@@ -52,7 +52,7 @@ beforeEach(() => {
   resetFakeSessionState();
 });
 
-describe("POST /api/auth/login — lockout", () => {
+describe("POST /api/auth/login: lockout", () => {
   it("lets the right password through and leaves no failure state behind", async () => {
     const user = seedUser();
     const res = await postLogin(PASSWORD);

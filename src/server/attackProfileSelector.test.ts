@@ -40,6 +40,7 @@ function seededRandom(seed = 42): () => number {
 describe("selectAttackProfile", () => {
   it("uses cold start before enough classified history exists", () => {
     const decision = selectAttackProfile({
+      personalised: true,
       department: "Finance",
       history: Array.from({ length: MIN_WEIGHTED_HISTORY - 1 }, () => attempt()),
       random: sequence(0, 0),
@@ -54,7 +55,8 @@ describe("selectAttackProfile", () => {
     const history = Array.from({ length: 20 }, () =>
       attempt({ attackType: undefined, leversPresent: undefined }),
     );
-    expect(selectAttackProfile({ department: "IT", history, random: () => 0 }).mode).toBe(
+    expect(selectAttackProfile({
+      personalised: true, department: "IT", history, random: () => 0 }).mode).toBe(
       "cold_start",
     );
   });
@@ -62,6 +64,7 @@ describe("selectAttackProfile", () => {
   it("takes the exploration branch 30% of the time while respecting eligibility", () => {
     const history = Array.from({ length: MIN_WEIGHTED_HISTORY }, () => attempt());
     const decision = selectAttackProfile({
+      personalised: true,
       department: "Finance",
       history,
       random: sequence(0.1, 0.99, 0.99),
@@ -79,7 +82,8 @@ describe("selectAttackProfile", () => {
     const random = seededRandom();
     const counts = new Map<string, number>();
     for (let index = 0; index < 1000; index++) {
-      const decision = selectAttackProfile({ department: null, history, random, now: NOW });
+      const decision = selectAttackProfile({
+      personalised: true, department: null, history, random, now: NOW });
       counts.set(decision.attackType, (counts.get(decision.attackType) ?? 0) + 1);
       expect(ATTACK_TYPE_TACTICS[decision.attackType]).toContain(decision.persuasionTactic);
     }
@@ -96,7 +100,8 @@ describe("selectAttackProfile", () => {
     const random = seededRandom(7);
     for (const department of Object.keys(DEPARTMENT_ATTACK_TYPES)) {
       for (let index = 0; index < 100; index++) {
-        const decision = selectAttackProfile({ department, history, random, now: NOW });
+        const decision = selectAttackProfile({
+      personalised: true, department, history, random, now: NOW });
         expect(DEPARTMENT_ATTACK_TYPES[department as keyof typeof DEPARTMENT_ATTACK_TYPES]).toContain(
           decision.attackType,
         );
@@ -163,5 +168,54 @@ describe("taxonomyPerformanceAreas", () => {
       history: [attempt({ attackType: undefined, leversPresent: undefined })],
     });
     expect(areas).toEqual([]);
+  });
+});
+
+describe("consent to persuasion profiling", () => {
+  const history = Array.from({ length: 20 }, () => ({
+    attackType: "bec" as const,
+    leversPresent: ["authority" as const],
+    correct: false,
+    confidence: 90,
+    createdAt: new Date(),
+  }));
+
+  it("does not profile without consent, even with a long history", () => {
+    // Inferring which manipulations work on a specific person is exactly what a
+    // consent record covers, so refusing has to actually stop it.
+    const decision = selectAttackProfile({ department: "Finance", history });
+
+    expect(decision.mode).toBe("unprofiled");
+    expect(decision.tacticWeight).toBe(0);
+    expect(decision.attackTypeWeight).toBe(0);
+  });
+
+  it("defaults to not profiling, because an absent decision is not permission", () => {
+    const decision = selectAttackProfile({ department: "Finance", history: [] });
+    expect(decision.mode).toBe("unprofiled");
+  });
+
+  it("still serves department-appropriate material without consent", () => {
+    // Refusing narrows how the choice is made, not what the learner is allowed
+    // to practise -- otherwise declining would quietly downgrade the product.
+    const decisions = Array.from({ length: 40 }, () =>
+      selectAttackProfile({ department: "Finance", history }),
+    );
+
+    for (const d of decisions) {
+      expect(DEPARTMENT_ATTACK_TYPES.Finance).toContain(d.attackType);
+      expect(ATTACK_TYPE_TACTICS[d.attackType]).toContain(d.persuasionTactic);
+    }
+  });
+
+  it("weights by history once consent is given", () => {
+    const decision = selectAttackProfile({
+      department: "Finance",
+      history,
+      personalised: true,
+      random: () => 0.99,
+    });
+
+    expect(decision.mode).not.toBe("unprofiled");
   });
 });

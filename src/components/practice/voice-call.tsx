@@ -247,7 +247,7 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
           </p>
         ) : (
           <>
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">
               <FileText className="w-3 h-3" />
               Live transcript
             </div>
@@ -287,11 +287,11 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
               })}
             </div>
             {visibleLines === 0 && (
-              <p className="text-sm text-slate-500 italic py-4">Listening…</p>
+              <p className="text-sm text-slate-400 italic py-4">Listening…</p>
             )}
             {phase === "ended" && !showTranscript && visibleLines < lines.length && (
-              <p className="text-xs text-slate-500 pt-2">
-                You hung up early — {lines.length - visibleLines} more line
+              <p className="text-xs text-slate-400 pt-2">
+                You hung up early. {lines.length - visibleLines} more line
                 {lines.length - visibleLines === 1 ? "" : "s"} went unheard.
               </p>
             )}
@@ -358,7 +358,7 @@ export function VoiceCall({ scenario, senderName, reviewing, senderHighlighted }
         {!hasSpeech && (
           <div className="flex justify-center">
             <Badge variant="outline" className="text-[10px] uppercase text-slate-300 border-slate-700">
-              Audio unavailable — transcript shown
+              Audio unavailable: transcript shown
             </Badge>
           </div>
         )}

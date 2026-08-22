@@ -64,6 +64,25 @@ export function ForgotPasswordDialog({
       { data: { email } },
       {
         onSuccess: (data) => {
+          // In production the server never returns a code -- handing one to an
+          // unauthenticated caller would be an account takeover for anyone who
+          // knows the address -- so the honest instruction is where to get one.
+          // The code step still opens, because a member who has been given a
+          // code by their admin redeems it here.
+          if (data.delivery === "out_of_band") {
+            setRevealedCode(null);
+            setStep("code");
+            toast({
+              title: "Code sent",
+              description: "Check the channel your organization uses, then enter it below.",
+            });
+            return;
+          }
+          if (data.delivery === "administrator") {
+            setRevealedCode(null);
+            setStep("code");
+            return;
+          }
           if (!data.code) {
             toast({
               title: "No account found",
@@ -140,13 +159,18 @@ export function ForgotPasswordDialog({
               <DialogDescription>It&apos;s good for 15 minutes.</DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
-              {revealedCode && (
+              {revealedCode ? (
                 <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-center">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
                     Your reset code
                   </p>
                   <p className="text-2xl font-bold tracking-widest">{revealedCode}</p>
                 </div>
+              ) : (
+                <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                  Ask an administrator at your organization to issue you a reset
+                  code, then enter it below. Codes are good for 15 minutes.
+                </p>
               )}
               <div className="space-y-2">
                 <Label htmlFor="reset-code">Reset code</Label>

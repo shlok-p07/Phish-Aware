@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { extractIdentity, displayName } from "./idToken";
 
-describe("extractIdentity — email", () => {
+describe("extractIdentity: email", () => {
   it("prefers the email claim and normalizes it", () => {
     expect(extractIdentity({ email: "  Alice@ACME.com " }).email).toBe("alice@acme.com");
   });
@@ -31,7 +31,7 @@ describe("extractIdentity — email", () => {
   });
 });
 
-describe("extractIdentity — email_verified", () => {
+describe("extractIdentity: email_verified", () => {
   it("reads a boolean claim", () => {
     expect(extractIdentity({ email_verified: true }).emailVerified).toBe(true);
     expect(extractIdentity({ email_verified: false }).emailVerified).toBe(false);
@@ -48,7 +48,7 @@ describe("extractIdentity — email_verified", () => {
   });
 });
 
-describe("extractIdentity — name", () => {
+describe("extractIdentity: name", () => {
   it("uses the name claim", () => {
     expect(extractIdentity({ name: "Alice Adams" }).name).toBe("Alice Adams");
   });
@@ -72,7 +72,7 @@ describe("extractIdentity — name", () => {
   });
 });
 
-describe("extractIdentity — subject and hosted domain", () => {
+describe("extractIdentity: subject and hosted domain", () => {
   it("reads sub", () => {
     expect(extractIdentity({ sub: "auth0|abc123" }).subject).toBe("auth0|abc123");
     expect(extractIdentity({}).subject).toBeNull();

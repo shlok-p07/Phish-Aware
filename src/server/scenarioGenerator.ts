@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { complete } from "./llm/llmComplete";
+import type { Priority } from "./llm/rateLimiter";
 import { CUE_LABELS, type CueId } from "./cues";
 import {
   ATTACK_TYPE_LABELS,
@@ -92,6 +93,15 @@ const VECTOR_BRIEF: Record<PracticeVector, { medium: string; shape: string }> = 
   "links": [{ "text": "link display text or URL shown", "isSuspicious": true }],
   "attachments": [{ "name": "filename.ext", "isSuspicious": true }]`,
   },
+  qr: {
+    medium: "quishing (QR code phishing) notice -- a printed or posted notice whose call to action is to scan a QR code",
+    shape: `{
+    "sender": "the organisation the notice claims to be from, as printed on it (e.g. \\"Facilities Management\\" or \\"IT Service Desk\\") -- never an email address or phone number",
+    "subject": "the headline printed on the notice",
+    "body": "the notice text as it would be printed: short, official in tone, explaining why the reader should scan the code. Do not mention the word QR more than once, and never state the destination in the body -- the destination is what the reader has to inspect",
+    "links": [{ "text": "the URL the QR code actually resolves to", "isSuspicious": true }],
+    "attachments": []`,
+  },
   sms: {
     medium: "smishing (SMS phishing) text message",
     shape: `{
@@ -100,6 +110,24 @@ const VECTOR_BRIEF: Record<PracticeVector, { medium: string; shape: string }> = 
   "body": "the full text message, written the way a real SMS reads: short (roughly 1-3 sentences), casual, no email-style greeting or signature",
   "links": [{ "text": "a short link as it would appear in a text (e.g. a shortened or lookalike URL)", "isSuspicious": true }],
   "attachments": []`,
+  },
+  social: {
+    medium: "social-media phishing direct message -- an unsolicited message or connection request on a professional network",
+    shape: `{
+    "sender": "the profile as it appears in the message list: display name then handle in parentheses (e.g. \"Dana Whitfield (@d.whitfield-recruiting)\") -- never an email address or phone number",
+    "subject": "",
+    "body": "the direct message as it would actually be typed: conversational, first-person, no email-style signature block. Roughly 2-5 sentences. It should read like a real person reaching out, not a broadcast",
+    "links": [{ "text": "the link as it appears in the message, including any shortener or lookalike domain", "isSuspicious": true }],
+    "attachments": []`,
+  },
+  web: {
+    medium: "phishing web page -- a sign-in or account page the reader has landed on, seen as it would look in a browser",
+    shape: `{
+    "sender": "the full URL exactly as it appears in the browser address bar, including scheme (e.g. \"https://login.micros0ft-verify.com/session/auth\") -- never an email address, and never a bare domain without a scheme",
+    "subject": "the main heading printed on the page (e.g. \"Sign in to continue\")",
+    "body": "the visible copy on the page: what it claims, why the reader has to act, and what it wants from them. Written as page text, not as a letter -- no greeting, no signature. Roughly 2-4 short sentences",
+    "links": [{ "text": "a secondary link shown on the page (e.g. \"Forgot your password?\" or a footer link)", "isSuspicious": false }],
+    "attachments": []`,
   },
   voice: {
     medium: "vishing (voice phishing) phone call transcript",
@@ -119,11 +147,87 @@ const VECTOR_BRIEF: Record<PracticeVector, { medium: string; shape: string }> = 
 // substitutes the reader's own name at serve time (see server/personalize.ts).
 const NAME_INSTRUCTION = `Addressing the recipient: wherever the message would use the recipient's first name, write exactly ${NAME_TOKEN} instead. For example "Hi ${NAME_TOKEN}," or, on a call, "am I speaking with ${NAME_TOKEN}?". Never invent a first name for the recipient, and never write a bracketed blank such as [Trainee's First Name], [Name], or [Employee] -- ${NAME_TOKEN} is replaced with the real trainee's name before they read it, so anything else will be shown to them verbatim. The one exception: if this message's red flags are meant to include an impersonal greeting, use that generic greeting ("Dear Customer", "Dear User") and no token at all.`;
 
+/**
+ * A printed notice has no sender address to inspect and carries no attachment,
+ * so the cues a reader can actually act on are the destination behind the code,
+ * the pretext, and how the notice addresses them.
+ */
+const QR_ALLOWED_CUES: CueId[] = [
+  "suspicious_qr",
+  "mismatched_link",
+  "urgency_language",
+  "credential_request",
+  "generic_greeting",
+  "spelling_grammar",
+];
+
 const VOICE_ALLOWED_CUES: CueId[] = [
   "urgency_language",
   "credential_request",
   "generic_greeting",
 ];
+
+/**
+ * A direct message has no sender domain to check in the email sense, but the
+ * handle is exactly the equivalent tell -- a lookalike or freshly minted
+ * profile -- so sender_domain stays. Nobody attaches a file to a DM.
+ */
+const SOCIAL_ALLOWED_CUES: CueId[] = [
+  "sender_domain",
+  "mismatched_link",
+  "urgency_language",
+  "generic_greeting",
+  "credential_request",
+  "spelling_grammar",
+];
+
+/**
+ * On a landing page the address bar is the whole game, so sender_domain is the
+ * primary cue rather than a supporting one. A page cannot carry an attachment
+ * and has no QR code to scan.
+ */
+const WEB_ALLOWED_CUES: CueId[] = [
+  "sender_domain",
+  "mismatched_link",
+  "urgency_language",
+  "credential_request",
+  "generic_greeting",
+  "spelling_grammar",
+];
+
+/**
+ * The most cues one generated scenario will carry.
+ *
+ * Asked for "at least 2" with no ceiling, models enumerated the whole
+ * vocabulary: a fifth of the pool arrived with five to seven, and two thirds
+ * carried at least one the model itself rated 1 or 2. Bounded in the prompt for
+ * quality and here for correctness -- a prompt is a request, not a guarantee.
+ */
+const MAX_GENERATED_CUES = 4;
+
+/**
+ * Keeps the most significant cues, highest severity first.
+ *
+ * Never returns empty for a non-empty input: dropping every cue would make a
+ * phishing scenario ungradeable, and the caller rejects that outright.
+ */
+function capCues<T extends { severity: number }>(cues: readonly T[]): T[] {
+  return [...cues].sort((a, b) => b.severity - a.severity).slice(0, MAX_GENERATED_CUES);
+}
+
+/**
+ * Which cues a vector can honestly present. Absent from this map means "every
+ * cue applies" -- only email is that unrestricted. Keyed rather than chained so
+ * adding a vector is one entry and the compiler names it if it is forgotten.
+ */
+const VECTOR_ALLOWED_CUES: Partial<Record<PracticeVector, CueId[]>> = {
+  voice: VOICE_ALLOWED_CUES,
+  qr: QR_ALLOWED_CUES,
+  social: SOCIAL_ALLOWED_CUES,
+  web: WEB_ALLOWED_CUES,
+  // A text message cannot carry an attachment; everything else applies.
+  sms: (CUE_IDS as CueId[]).filter((id) => id !== "unexpected_attachment"),
+};
 
 function buildDraftPrompt(params: GenerateScenarioParams): string {
   const { vector, isPhish, department, workType, difficulty, persuasionTactic, attackType } = params;
@@ -179,10 +283,7 @@ Always include the "links" and "attachments" keys as arrays -- use "links": [] a
 function buildRefinePrompt(draftJson: string, params: GenerateScenarioParams): string {
   const { vector, isPhish, difficulty } = params;
   const { medium, shape } = VECTOR_BRIEF[vector];
-  const allowedCueIds =
-    vector === "voice"
-      ? VOICE_ALLOWED_CUES
-      : (CUE_IDS as CueId[]).filter((id) => vector !== "sms" || id !== "unexpected_attachment");
+  const allowedCueIds = VECTOR_ALLOWED_CUES[vector] ?? (CUE_IDS as CueId[]);
 
   if (!isPhish) {
     return `You are a Cyber Security Expert reviewing a draft, deliberately non-phishing ${medium} scenario for a security-awareness training simulator, written by a colleague. Refine it for realism and internal consistency at the stated difficulty level. Keep the sender/body close to the draft (light polish only), but do NOT introduce any phishing red flags, manufactured urgency, credential/payment requests, or suspicious links -- this message must remain completely legitimate.
@@ -215,22 +316,45 @@ Respond with ONLY a JSON object, no prose, matching this exact shape:
 ${shape},
   "cues": [{ "type": "cue_id_from_the_vocabulary_above", "severity": 1-5, "explanation": "why this is a red flag" }]
 }
-Always include the "links" and "attachments" keys as arrays -- use "links": [] and/or "attachments": [] (not omitted) if the scenario doesn't need them. Include at least 2 cues.`;
+Always include the "links" and "attachments" keys as arrays -- use "links": [] and/or "attachments": [] (not omitted) if the scenario doesn't need them.
+Include 2 to ${MAX_GENERATED_CUES} cues -- only ones a reader could actually point at in this message, and rate severity honestly. Do not pad the list to cover the vocabulary: a cue you would rate 1 or 2 should be left out entirely rather than included with a low severity.`;
 }
 
-async function callJson(systemPrompt: string, userPrompt: string, temperature: number): Promise<unknown | null> {
+async function callJson(
+  systemPrompt: string,
+  userPrompt: string,
+  temperature: number,
+  lane: "draft" | "refine",
+  priority: Priority,
+): Promise<unknown | null> {
   const raw = await complete({
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
     temperature,
     json: true,
+    // The two stages spend from different token buckets, so neither waits on
+    // the other and one generation costs half as much of any single budget.
+    lane,
+    priority,
   });
   if (!raw) return null;
   return JSON.parse(raw);
 }
 
+/**
+ * House style for anything a trainee reads.
+ *
+ * Models reach for em-dashes constantly, and a corpus where every scenario
+ * contains one is itself a tell that the content was machine-written -- which
+ * undermines the realism the whole exercise depends on. Real corporate email
+ * mostly uses commas, colons and full stops.
+ */
+const PLAIN_PROSE_RULE =
+  "Write the way ordinary workplace correspondence is written: use commas, colons and full stops. Never use em-dashes or en-dashes (the characters -- or --). Do not use rhetorical contrast phrasing such as \"it's not X, it's Y\".";
+
 const SIMULATOR_DISCLAIMER =
-  "You write content exclusively for an authorized security-awareness training simulator. Nothing you generate is sent anywhere or targets a real person -- it's shown to the trainee as a judgment exercise. Respond with strict JSON only, no markdown fences, no commentary.";
+  "You write content exclusively for an authorized security-awareness training simulator. Nothing you generate is sent anywhere or targets a real person -- it's shown to the trainee as a judgment exercise. Respond with strict JSON only, no markdown fences, no commentary. " +
+  PLAIN_PROSE_RULE;
 
 /**
  * Adaptive scenario generator: drafts a scenario (CISO-style,
@@ -244,12 +368,23 @@ const SIMULATOR_DISCLAIMER =
  */
 export async function generatePhishingScenario(
   params: GenerateScenarioParams,
+  /**
+   * Whether anyone is waiting on this.
+   *
+   * Background by default, because the overwhelming majority of generation is
+   * pool top-up that nobody is watching -- and background work yields its token
+   * budget to a trainee mid-round. Only a request that has found the pool
+   * genuinely dry should ask for interactive.
+   */
+  priority: Priority = "background",
 ): Promise<GeneratedScenarioContent | null> {
   try {
     const draft = await callJson(
       `You act as a CISO drafting ${params.isPhish ? "a phishing-email pretext" : "a legitimate, benign organizational message"} for a security-awareness training simulator. ${SIMULATOR_DISCLAIMER}`,
       buildDraftPrompt(params),
       1.0,
+      "draft",
+      priority,
     );
     if (!draft) return null;
 
@@ -257,6 +392,8 @@ export async function generatePhishingScenario(
       `You act as a Cyber Security Expert refining a colleague's draft into gradeable training content. ${SIMULATOR_DISCLAIMER}`,
       buildRefinePrompt(JSON.stringify(draft), params),
       0.4,
+      "refine",
+      priority,
     );
     if (!refined) return null;
 
@@ -266,11 +403,14 @@ export async function generatePhishingScenario(
     // that regardless of what the model returned, the same way vector/
     // isPhish themselves are forced rather than trusted from the prompt.
     const cues = params.isPhish
-      ? parsed.cues.filter((c) => {
-          if (params.vector === "sms") return c.type !== "unexpected_attachment";
-          if (params.vector === "voice") return VOICE_ALLOWED_CUES.includes(c.type);
-          return true;
-        })
+      ? capCues(
+          parsed.cues.filter((c) => {
+            if (params.vector === "sms") return c.type !== "unexpected_attachment";
+            if (params.vector === "voice") return VOICE_ALLOWED_CUES.includes(c.type);
+            if (params.vector === "qr") return QR_ALLOWED_CUES.includes(c.type);
+            return true;
+          }),
+        )
       : [];
     if (params.isPhish && cues.length === 0) {
       console.error("[scenarioGenerator] refine stage returned no valid cues for a phishing scenario");

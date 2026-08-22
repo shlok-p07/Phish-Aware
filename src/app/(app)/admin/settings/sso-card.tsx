@@ -28,6 +28,7 @@ import {
   type SsoProviderKind,
   type SsoTestCheck,
   type OrgSsoConnection,
+  type Org,
 } from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -75,22 +76,28 @@ function RedirectUri({ value }: { value: string }) {
 
 export function SsoCard() {
   const { data: sso } = useGetOrgSsoConnection({ query: { retry: false } });
+  // Fetched here rather than inside the form because the form seeds a field
+  // from it, and a value that arrives after mount would never reach the input.
+  const { data: org } = useGetOrg({ query: { retry: false } });
 
   /*
    * The form seeds its fields from the stored connection. Keying on those
    * fields remounts it when the connection changes underneath -- after a save,
    * or a refetch -- so the inputs re-initialise. Replaces copying the query
    * data into state from an effect, which cost an extra render per load.
+   *
+   * The org domain is part of the key for the same reason: a new connection
+   * prefills its domain list from it, so the field has to re-seed once it
+   * arrives.
    */
   const seedKey = sso
     ? `${sso.providerKind} ${sso.issuer} ${sso.clientId} ${sso.allowedDomains.join(",")} ${sso.requireVerifiedEmail} ${sso.enabled} ${sso.hasClientSecret}`
-    : "unconfigured";
+    : `unconfigured ${org?.ssoDomain ?? ""}`;
 
-  return <SsoCardForm key={seedKey} sso={sso} />;
+  return <SsoCardForm key={seedKey} sso={sso} org={org} />;
 }
 
-function SsoCardForm({ sso }: { sso: OrgSsoConnection | undefined }) {
-  const { data: org } = useGetOrg({ query: { retry: false } });
+function SsoCardForm({ sso, org }: { sso: OrgSsoConnection | undefined; org: Org | undefined }) {
   const queryClient = useQueryClient();
   const upsertMutation = useUpsertOrgSsoConnection();
   const testMutation = useTestOrgSsoConnection();
@@ -102,10 +109,26 @@ function SsoCardForm({ sso }: { sso: OrgSsoConnection | undefined }) {
   const [clientId, setClientId] = useState(sso?.clientId ?? "");
   const [clientSecret, setClientSecret] = useState("");
   const [replacingSecret, setReplacingSecret] = useState(sso ? !sso.hasClientSecret : false);
-  const [domains, setDomains] = useState(sso?.allowedDomains.join(", ") ?? "");
+  // A brand-new connection starts from the organisation's own domain. Leaving it
+  // blank is what made SSO look unimplemented: the list is the entire basis on
+  // which sign-in decides whether to offer SSO, an admin who left it empty (or
+  // typed their whole email address into it) got a connection that matched
+  // nothing, and the sign-in page simply never mentioned SSO again.
+  const [domains, setDomains] = useState(
+    sso?.allowedDomains.join(", ") ?? org?.ssoDomain ?? "",
+  );
   const [requireVerifiedEmail, setRequireVerifiedEmail] = useState(sso?.requireVerifiedEmail ?? true);
   const [enabled, setEnabled] = useState(sso?.enabled ?? false);
   const [checks, setChecks] = useState<SsoTestCheck[] | null>(null);
+
+  // Entries the server will refuse, worked out as they are typed rather than
+  // after a save. Mirrors parseDomainInput on the server; kept as a small local
+  // check rather than an import so a server module does not reach the bundle.
+  const unusableDomains = domains
+    .split(",")
+    .map((d) => d.trim())
+    .filter((d) => d.length > 0)
+    .filter((d) => !/^(?!-)[a-z0-9-]+(?<!-)(\.(?!-)[a-z0-9-]+(?<!-))*\.[a-z]{2,}$/i.test(d));
 
   // The callback bounces the admin back here after a "Test sign-in" round trip.
   useEffect(() => {
@@ -196,7 +219,7 @@ function SsoCardForm({ sso }: { sso: OrgSsoConnection | undefined }) {
         </CardTitle>
         <CardDescription className="text-sm font-medium">
           Let your team sign in with your existing identity provider. People still need an
-          invitation — SSO controls how they authenticate, not whether they have access.
+          invitation. SSO controls how they authenticate, not whether they have access.
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6 space-y-5">
@@ -225,6 +248,21 @@ function SsoCardForm({ sso }: { sso: OrgSsoConnection | undefined }) {
             <Label htmlFor="sso-domains" className="font-semibold">Allowed email domains</Label>
             <Input id="sso-domains" placeholder="acme.com, acme.co.uk" value={domains}
               onChange={(e) => setDomains(e.target.value)} className="rounded-lg" />
+            {/* This list is the whole of what sign-in matches on. An entry that
+                is not a bare domain matches nothing, the sign-in page never
+                offers SSO, and there is no error anywhere to explain it -- so
+                say so here, while it can still be corrected. */}
+            {unusableDomains.length > 0 ? (
+              <p className="text-xs font-semibold text-destructive">
+                Not usable as {unusableDomains.length === 1 ? "a domain" : "domains"}:{" "}
+                {unusableDomains.join(", ")}. Enter the domain on its own, like acme.com.
+              </p>
+            ) : (
+              <p className="text-xs font-medium text-muted-foreground">
+                Whoever signs in with an address at one of these is sent to your provider.
+                The domain on its own, not a full address.
+              </p>
+            )}
           </div>
         </div>
 
@@ -234,7 +272,7 @@ function SsoCardForm({ sso }: { sso: OrgSsoConnection | undefined }) {
             onChange={(e) => setIssuer(e.target.value)} className="rounded-lg font-mono text-sm" />
           <p className="text-xs text-muted-foreground font-medium">
             Must match the <code className="font-mono">issuer</code> your provider publishes,
-            character for character — including any trailing slash.
+            character for character, including any trailing slash.
           </p>
         </div>
 
@@ -301,7 +339,7 @@ function SsoCardForm({ sso }: { sso: OrgSsoConnection | undefined }) {
 
         {sso?.lastTestAt && !checks && (
           <p className="text-xs text-muted-foreground font-medium">
-            Last tested {new Date(sso.lastTestAt).toLocaleString()} —{" "}
+            Last tested {new Date(sso.lastTestAt).toLocaleString()}:{" "}
             {sso.lastTestOk ? "passed" : `failed: ${sso.lastTestError}`}
           </p>
         )}
@@ -318,7 +356,7 @@ function SsoCardForm({ sso }: { sso: OrgSsoConnection | undefined }) {
           </Button>
           {sso?.configured && org && (
             <Button variant="outline" asChild className="rounded-lg font-semibold">
-              {/* A full navigation, not a fetch — the next hop is the IdP. */}
+              {/* A full navigation, not a fetch -- the next hop is the IdP. */}
               <a href={`/api/auth/sso/start?orgId=${org.id}&test=1`}>
                 <ExternalLink className="w-4 h-4 mr-2" />
                 Test sign-in

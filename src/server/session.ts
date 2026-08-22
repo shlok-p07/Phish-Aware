@@ -1,7 +1,14 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
-import { sessionsCollection, usersCollection, attemptsCollection } from "@/db";
+import {
+  sessionsCollection,
+  usersCollection,
+  attemptsCollection,
+  assignmentsCollection,
+  getDb,
+} from "@/db";
+import { USER_OWNED_COLLECTIONS } from "./ownedData";
 
 export const SESSION_COOKIE = "phishaware_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -82,7 +89,7 @@ export async function getUserIdFromRequest(): Promise<ObjectId | null> {
   }
   if (session.expiresAt.getTime() < Date.now()) {
     await sessions.deleteOne({ token });
-    // A guest's window has closed — purge their account and all their data.
+    // A guest's window has closed -- purge their account and all their data.
     await purgeGuestUser(session.userId);
     return null;
   }
@@ -101,20 +108,31 @@ export async function purgeGuestUser(userId: ObjectId): Promise<void> {
   }
   const attempts = await attemptsCollection();
   const sessions = await sessionsCollection();
+  const assignments = await assignmentsCollection();
   await attempts.deleteMany({ userId });
   await sessions.deleteMany({ userId });
+  await assignments.deleteMany({ userId });
   await users.deleteOne({ _id: userId });
 }
 
 /**
- * Permanently delete a user account and everything attached to it — all
- * attempts, every session, and the user row — then clear the session cookie.
+ * Permanently delete a user account and everything attached to it -- all
+ * attempts, every session, and the user row -- then clear the session cookie.
  */
 export async function deleteAccount(userId: ObjectId): Promise<void> {
   const users = await usersCollection();
-  const attempts = await attemptsCollection();
   const sessions = await sessionsCollection();
-  await attempts.deleteMany({ userId });
+
+  // Driven from USER_OWNED_COLLECTIONS rather than a hand-written list here.
+  // Assignments were once left behind and had to be added after the fact, and by
+  // the time reviews, lessonCompletions, surveyResponses and consents existed,
+  // none of them were being removed either -- while this function's own
+  // docstring, and the button the user clicks, both promise all of their data.
+  const db = await getDb();
+  for (const collection of USER_OWNED_COLLECTIONS) {
+    await db.collection(collection).deleteMany({ userId });
+  }
+
   await sessions.deleteMany({ userId });
   await users.deleteOne({ _id: userId });
   const cookieStore = await cookies();
@@ -138,7 +156,9 @@ export async function purgeExpiredGuests(): Promise<void> {
   const ids = stale.map((u) => u._id);
   const attempts = await attemptsCollection();
   const sessions = await sessionsCollection();
+  const assignments = await assignmentsCollection();
   await attempts.deleteMany({ userId: { $in: ids } });
   await sessions.deleteMany({ userId: { $in: ids } });
+  await assignments.deleteMany({ userId: { $in: ids } });
   await users.deleteMany({ _id: { $in: ids } });
 }

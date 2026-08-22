@@ -30,7 +30,7 @@ const pendingInvite = {
   expiresAt: new Date("2026-08-14T12:00:00Z"),
 };
 
-describe("decideSsoProvisioning — domain gating", () => {
+describe("decideSsoProvisioning: domain gating", () => {
   it("rejects an email outside the allowed domains", () => {
     expect(decideSsoProvisioning(input({ email: "carol@other.com" }))).toEqual({
       kind: "reject",
@@ -57,7 +57,7 @@ describe("decideSsoProvisioning — domain gating", () => {
   });
 });
 
-describe("decideSsoProvisioning — email verification", () => {
+describe("decideSsoProvisioning: email verification", () => {
   it("rejects an explicitly unverified email", () => {
     expect(decideSsoProvisioning(input({ emailVerified: false }))).toEqual({
       kind: "reject",
@@ -95,7 +95,7 @@ describe("decideSsoProvisioning — email verification", () => {
   });
 });
 
-describe("decideSsoProvisioning — existing members", () => {
+describe("decideSsoProvisioning: existing members", () => {
   it("logs in an active member", () => {
     expect(decideSsoProvisioning(input({ member: { id: "u1", status: "active" } }))).toEqual({
       kind: "login",
@@ -132,7 +132,7 @@ describe("decideSsoProvisioning — existing members", () => {
   });
 });
 
-describe("decideSsoProvisioning — invitations", () => {
+describe("decideSsoProvisioning: invitations", () => {
   it("creates a user from a pending invitation", () => {
     expect(decideSsoProvisioning(input({ invitation: pendingInvite }))).toEqual({
       kind: "create",
@@ -203,7 +203,7 @@ describe("decideSsoProvisioning — invitations", () => {
   });
 });
 
-describe("decideSsoProvisioning — seats", () => {
+describe("decideSsoProvisioning: seats", () => {
   it("rejects when the org is full", () => {
     const decision = decideSsoProvisioning(
       input({ invitation: pendingInvite, activeSeats: 50, seatLimit: 50 }),
@@ -238,7 +238,7 @@ describe("decideSsoProvisioning — seats", () => {
   });
 });
 
-describe("decideSsoProvisioning — strangers", () => {
+describe("decideSsoProvisioning: strangers", () => {
   it("rejects someone with no member row and no invitation", () => {
     expect(decideSsoProvisioning(input())).toEqual({ kind: "reject", code: "not_a_member" });
   });

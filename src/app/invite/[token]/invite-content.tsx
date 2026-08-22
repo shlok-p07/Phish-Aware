@@ -43,7 +43,7 @@ const acceptSchema = z.object({
 		.string()
 		.min(8, "Password must be at least 8 characters")
 		.refine((pw) => zxcvbn(pw).score >= MIN_PASSWORD_SCORE, {
-			message: "Password is too weak — try adding more words or symbols",
+			message: "Password is too weak. Try adding more words or symbols",
 		}),
 });
 
@@ -102,7 +102,7 @@ export function InviteContent({ token }: { token: string }) {
 				},
 				onError: (err) => {
 					// The server refuses to set a password on an address that already
-					// has an account — that person has to sign in and adopt it.
+					// has an account -- that person has to sign in and adopt it.
 					//
 					// NOTE: the status===409 arm is broader than the code check. This
 					// route returns 409 for several distinct conflicts (already a

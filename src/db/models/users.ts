@@ -14,6 +14,12 @@ export interface UserDoc extends SpecConventions {
   email: string | null;
   passwordHash: string | null;
   isGuest: boolean;
+  /**
+   * A seeded fixture that exists only so a solo learner's leaderboard is not
+   * empty. Never a real person, never authenticable, and never counted in an
+   * organisation -- see src/server/seed.ts and the leaderboard route.
+   */
+  isDemo?: boolean;
   level: string;
   xp: number;
   streak: number;

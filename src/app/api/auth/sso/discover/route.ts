@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { ssoConnectionsCollection, organizationsCollection } from "@/db";
-import { json, error, withErrorHandling } from "@/server/http";
+import { json, error, withErrorHandling, readJsonBody } from "@/server/http";
 import { emailDomain } from "@/server/sso/domain";
 import { isEncryptionConfigured } from "@/server/secretBox";
 import { rateLimit, clientIp } from "@/server/rateLimit";
@@ -25,7 +25,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     return error(429, "Too many requests. Try again shortly.");
   }
 
-  const body = (await req.json().catch(() => ({}))) as { email?: string };
+  const body = (await readJsonBody(req).catch(() => ({}))) as { email?: string };
   const domain = emailDomain(body.email ?? "");
   if (!domain || !isEncryptionConfigured()) {
     return json(NO_SSO);

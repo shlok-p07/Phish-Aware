@@ -193,7 +193,11 @@
   --popover-foreground: 210 40% 98%;
   --popover-border: 215 18% 19%;
 
-  --primary: 213 85% 62%;
+  /* 49% not 62%: white text on the lighter blue measured 3.03:1, below the
+     4.5:1 AA floor, and the in-app high-contrast mode could not lift it
+     because it overrides borders and rings rather than this pair. Hue and
+     saturation are unchanged; only lightness moves. Now 4.56:1. */
+  --primary: 213 85% 49%;
   --primary-foreground: 0 0% 100%;
 
   --secondary: 215 20% 18%;
@@ -205,7 +209,9 @@
   --accent: 216 45% 22%;
   --accent-foreground: 213 85% 78%;
 
-  --destructive: 0 72% 55%;
+  /* 53% not 55%: white on the lighter red measured 4.38:1, just under AA.
+     Now 4.60:1. */
+  --destructive: 0 72% 53%;
   --destructive-foreground: 0 0% 100%;
 
   --success: 142 60% 45%;
@@ -306,6 +312,24 @@ html.high-contrast.dark {
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-display tracking-tight;
+    /*
+     * Headings are balanced rather than merely wrapped, so a three-word title
+     * never breaks with one word alone on the second line. `balance` evens the
+     * lines out; it is capped by the browser at a handful of lines, which is
+     * every heading here.
+     */
+    text-wrap: balance;
+  }
+
+  /*
+   * Body copy avoids orphans -- the single short word, or single letter, left
+   * stranded on a line of its own. `pretty` asks the browser to look ahead and
+   * pull a word down rather than leave a runt, which is the whole complaint
+   * this addresses. It costs nothing where it is unsupported: the text simply
+   * wraps as before.
+   */
+  p, li, dd, dt, figcaption, blockquote {
+    text-wrap: pretty;
   }
 }
 
@@ -348,7 +372,64 @@ html.reduce-motion *::after {
   }
 }
 
-/* Accessibility: high contrast — stronger borders, higher-contrast text/rings */
+/* ---------------------------------------------------------------------------
+   Interaction feedback
+   Small, purposeful motion on the moments that carry meaning: committing a
+   verdict, toggling a cue, and reading a graded result. Every rule here is
+   neutralised by both the app's reduce-motion toggle above and the OS-level
+   preference below, so none of it is load-bearing for comprehension.
+   --------------------------------------------------------------------------- */
+
+@keyframes pa-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes pa-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pa-tint {
+  0%   { box-shadow: 0 0 0 0 var(--pa-tint); }
+  60%  { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes pa-nudge {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-3px); }
+  75%      { transform: translateX(3px); }
+}
+
+/* Cue chip acknowledging a tap. */
+.pa-pop { animation: pa-pop 220ms ease-out; }
+
+/* Staggered entrance for a graded result list. Set --i on each child. */
+.pa-rise {
+  opacity: 0;
+  animation: pa-rise 320ms ease-out forwards;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+/* One-shot halo when a result lands. Pass the colour in via --pa-tint. */
+.pa-tint { animation: pa-tint 700ms ease-out; }
+
+/* A wrong verdict gets a short nudge, not a punishment. */
+.pa-nudge { animation: pa-nudge 260ms ease-in-out; }
+
+/* The OS-level preference deserves the same treatment as the in-app toggle.
+   Without this, someone who set reduced motion in their system settings and
+   never opened our settings page would still see all of the above. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .pa-rise { opacity: 1; }
+}
+
+/* Accessibility: high contrast, stronger borders, higher-contrast text/rings */
 html.high-contrast {
   --border: 222 47% 20%;
   --input: 222 47% 20%;
@@ -394,6 +475,107 @@ html.large-targets [role="button"] {
 }
 
 @layer utilities {
+  /*
+   * The spotlight surface. Two layers: a soft radial wash that follows the
+   * pointer, and a border that brightens on the side you approach from.
+   *
+   * Both are driven by --spot-x / --spot-y, written by SpotlightCard, and gated
+   * behind --spot-opacity so the card is completely inert until a pointer is
+   * actually over it. Opacity is deliberately low: this should read as the
+   * surface catching light, not as an effect.
+   */
+  .pa-spotlight {
+    --spot-x: 50%;
+    --spot-y: 50%;
+    --spot-opacity: 0;
+    transition:
+      transform 300ms ease,
+      box-shadow 300ms ease,
+      border-color 300ms ease;
+  }
+
+  .pa-spotlight-wash {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: var(--spot-opacity);
+    transition: opacity 260ms ease;
+    background: radial-gradient(
+      420px circle at var(--spot-x) var(--spot-y),
+      hsl(var(--primary) / 0.1),
+      transparent 65%
+    );
+  }
+
+  /* Only where a pointer can actually hover, so a phone pays nothing. */
+  @media (hover: hover) and (pointer: fine) {
+    .pa-spotlight:hover {
+      transform: translateY(-2px);
+      border-color: hsl(var(--primary) / 0.35);
+      box-shadow: 0 8px 30px -12px hsl(var(--primary) / 0.25);
+    }
+  }
+
+  /*
+   * Keyboard parity. A pointer-only affordance is not an affordance for
+   * everyone, so focus inside the card lifts it the same way.
+   */
+  .pa-spotlight:focus-within {
+    border-color: hsl(var(--primary) / 0.35);
+    box-shadow: 0 8px 30px -12px hsl(var(--primary) / 0.25);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pa-spotlight,
+    .pa-spotlight-wash {
+      transition: none;
+    }
+    /*
+     * No wash and no lift. The border and shadow still respond, so the card
+     * remains obviously interactive without anything moving.
+     */
+    .pa-spotlight-wash {
+      display: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .pa-spotlight:hover {
+        transform: none;
+      }
+    }
+  }
+
+  /*
+   * A comfortable measure for reading. Long lines are the other half of the
+   * orphan problem: the wider the column, the likelier a paragraph ends with a
+   * stranded word, and past roughly 75 characters the eye loses the line on the
+   * return sweep. Applied to lesson and practice copy, which is the only text in
+   * the product anybody reads at length.
+   */
+  .pa-measure {
+    max-width: 68ch;
+  }
+  .pa-measure-wide {
+    max-width: 78ch;
+  }
+
+  /*
+   * For values a reader inspects character by character -- addresses, handles,
+   * URLs. These must never overflow their container, and breaking mid-token is
+   * correct here: a domain split across two lines is still readable, whereas one
+   * running under the edge of the card is not. `anywhere` also lets the browser
+   * count the broken token when sizing the box, which `break-all` does not.
+   */
+  .pa-inspectable {
+    overflow-wrap: anywhere;
+    /*
+     * `normal` rather than break-all: the browser breaks at a sensible point
+     * when it has one and only mid-token when it must, so a domain splits at a
+     * dot before it splits mid-word.
+     */
+    word-break: normal;
+  }
+
   input[type='search']::-webkit-search-cancel-button {
     @apply hidden;
   }

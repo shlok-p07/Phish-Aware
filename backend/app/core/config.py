@@ -17,9 +17,15 @@ class Settings(BaseSettings):
 
     # Where trained model artifacts live once real training happens.
     model_store_dir: Path = BACKEND_ROOT / "models_store"
-    awareness_model_filename: str = "phishing_awareness_v1.joblib"
-    awareness_metadata_filename: str = "phishing_awareness_v1.metadata.json"
-    awareness_model_version: str = "awareness-v1.0.0"
+    # Bumped from v1 with the filenames, because v1 named a different model: the
+    # original artifact was trained in a Colab notebook that is not in this
+    # repository, and the current one comes from scripts/train_awareness.py. Two
+    # distinct models sharing a version means the version tells you nothing about
+    # which one is loaded, and renaming the file as well means a stale v1
+    # artifact left in models_store cannot be picked up by accident.
+    awareness_model_filename: str = "phishing_awareness_v2.joblib"
+    awareness_metadata_filename: str = "phishing_awareness_v2.metadata.json"
+    awareness_model_version: str = "awareness-v2.0.0"
     # Where raw/processed datasets live once real data arrives.
     data_dir: Path = BACKEND_ROOT / "data"
 

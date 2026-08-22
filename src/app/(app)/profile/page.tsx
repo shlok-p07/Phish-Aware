@@ -106,8 +106,8 @@ export default function ProfilePage() {
 								accuracy. A higher score means better-calibrated judgment.
 							</p>
 						</div>
-						{/* Fill dial. The label is rendered twice — once in primary over the
-						    empty part, once in primary-foreground clipped to the fill — so the
+						{/* Fill dial. The label is rendered twice -- once in primary over the
+						    empty part, once in primary-foreground clipped to the fill -- so the
 						    number keeps contrast wherever the water line lands. The clipped
 						    copy is h-20 (the 96px circle minus its 8px border on each side)
 						    so both copies sit at the same optical centre. */}

@@ -75,7 +75,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe("AuthPage — identifier-first sign in", () => {
+describe("AuthPage: identifier-first sign in", () => {
   it("asks for an email first, with no password field visible", () => {
     renderPage();
     expect(loginForm().getByPlaceholderText("you@example.com")).toBeDefined();

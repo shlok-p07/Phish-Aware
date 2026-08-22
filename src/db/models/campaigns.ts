@@ -23,6 +23,29 @@ export interface CampaignDoc extends SpecConventions {
   // `audience` object above is populated too, but not consumed by this app).
   target: string;
   requiredScenarios: number;
+  /**
+   * What this campaign actually trains, or null for "any practice counts".
+   *
+   * Without it a campaign could only say "do five scenarios", so an admin
+   * responding to a phishing incident on the finance team's invoices had no way
+   * to ask for practice on that -- five rounds of anything discharged the
+   * obligation. With it, only qualifying practice counts toward the requirement,
+   * and the practice engine steers assigned members toward the same material.
+   */
+  focus: CampaignFocus | null;
+}
+
+export interface CampaignFocus {
+  /** Practice vectors that count. Empty means every vector. */
+  vectors: string[];
+  /** The floor for a scenario to count, 1-5. */
+  minDifficulty: number;
+  /**
+   * Cues the campaign is about. A scenario counts if it carries at least one of
+   * them, which is what lets "train them on lookalike domains" be a campaign
+   * rather than a note in the title.
+   */
+  cues: string[];
 }
 
 export type InsertCampaign = Omit<CampaignDoc, "_id">;

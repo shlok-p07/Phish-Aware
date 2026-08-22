@@ -11,12 +11,12 @@ import {
 } from "@/server/session";
 import { toUserDto } from "@/server/dto";
 import { normalizeEmail } from "@/server/sso/domain";
-import { json, error, withErrorHandling } from "@/server/http";
+import { json, error, withErrorHandling, readJsonBody } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
-  const body = SignupBody.parse(await req.json());
+  const body = SignupBody.parse(await readJsonBody(req));
   // Lowercased so "Alice@acme.com" and "alice@acme.com" can't become two
   // accounts -- and so these rows match what an IdP returns on the SSO path.
   const email = normalizeEmail(body.email);

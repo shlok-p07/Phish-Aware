@@ -55,11 +55,18 @@ class RecordingAwarenessPredictor:
 
 
 class RawScoreModel:
+    """Records the frame it was handed; the test does the asserting.
+
+    It used to assert inside predict(), which meant any mismatch surfaced as
+    "model loaded but could not predict" from the load-time smoke call rather
+    than as the field that was actually wrong.
+    """
+
+    def __init__(self):
+        self.last_frame = None
+
     def predict(self, frame):
-        assert frame.iloc[0]["security_quiz_score"] == 80.0
-        assert frame.iloc[0]["daily_email_count"] == 50
-        assert frame.iloc[0]["password_reuse"] == "No"
-        assert frame.iloc[0]["password_manager_usage"] == "Yes"
+        self.last_frame = frame.copy()
         return [73.0]
 
 
@@ -71,44 +78,17 @@ class ConfigurableRawScoreModel:
         return self.prediction
 
 
+#: Where ExactMappingModel leaves the frame it was handed. Module level because
+#: the stub is pickled and unpickled by the loader, so the predictor holds a copy
+#: -- anything recorded on the instance the test kept is never written to.
+SEEN_FRAMES: list = []
+
+
 class ExactMappingModel:
+    """Records the frame; the test asserts. See RawScoreModel for why."""
+
     def predict(self, frame):
-        assert frame.columns.tolist() == [
-            "department",
-            "work_mode",
-            "daily_email_count",
-            "suspicious_email_frequency",
-            "password_length",
-            "password_reuse",
-            "password_manager_usage",
-            "mfa_enabled",
-            "cybersecurity_training",
-            "security_quiz_score",
-            "link_click_tendency",
-            "attachment_open_rate",
-            "verification_before_click",
-            "reporting_suspicious_email",
-            "antivirus_installed",
-            "vpn_usage",
-        ]
-        assert frame.iloc[0].to_dict() == {
-            "department": "Engineering",
-            "work_mode": "Hybrid",
-            "daily_email_count": 50,
-            "suspicious_email_frequency": 2,
-            "password_length": 16,
-            "password_reuse": "No",
-            "password_manager_usage": "Yes",
-            "mfa_enabled": "Yes",
-            "cybersecurity_training": "Yes",
-            "security_quiz_score": 80.0,
-            "link_click_tendency": 30,
-            "attachment_open_rate": 20,
-            "verification_before_click": 80,
-            "reporting_suspicious_email": 70,
-            "antivirus_installed": "Yes",
-            "vpn_usage": "Yes",
-        }
+        SEEN_FRAMES.append(frame.copy())
         return [73.0]
 
 
@@ -324,9 +304,16 @@ def test_joblib_predictor_normalizes_raw_0_to_100_score(tmp_path, monkeypatch):
     import json
 
     metadata = tmp_path / "test-model.metadata.json"
+    from app.models.awareness_predictor import SERVICE_FEATURES
+    import sklearn
+
     metadata.write_text(json.dumps({
         "artifact_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
         "model_version": "test-v1",
+        "input_features": list(SERVICE_FEATURES),
+        "raw_output_min": 0,
+        "raw_output_max": 100,
+        "sklearn_version": sklearn.__version__,
     }))
     settings = get_settings()
     monkeypatch.setattr(settings, "model_store_dir", tmp_path)
@@ -344,9 +331,34 @@ def test_joblib_predictor_normalizes_raw_0_to_100_score(tmp_path, monkeypatch):
 def test_joblib_predictor_maps_every_request_field_to_exact_model_contract(
     tmp_path, monkeypatch
 ):
+    from app.models.awareness_predictor import SERVICE_FEATURES
+
+    SEEN_FRAMES.clear()
     predictor = make_joblib_predictor(tmp_path, monkeypatch, ExactMappingModel())
-    result = predictor.predict(valid_awareness_request())
-    assert result.awareness_score == 0.73
+    predictor.predict(valid_awareness_request())
+
+    # The last frame, not the first: loading runs a smoke prediction of its own.
+    frame = SEEN_FRAMES[-1]
+    # Order matters as much as content: the pipeline was fitted on this order.
+    assert frame.columns.tolist() == list(SERVICE_FEATURES)
+    assert frame.iloc[0].to_dict() == {
+            "department": "Engineering",
+            "work_mode": "Hybrid",
+            "daily_email_count": 50,
+            "suspicious_email_frequency": 2,
+            "password_length": 16,
+            "password_reuse": "No",
+            "password_manager_usage": "Yes",
+            "mfa_enabled": "Yes",
+            "cybersecurity_training": "Yes",
+            "security_quiz_score": 80.0,
+            "link_click_tendency": 30,
+            "attachment_open_rate": 20,
+            "verification_before_click": 80,
+            "reporting_suspicious_email": 70,
+            "antivirus_installed": "Yes",
+            "vpn_usage": "Yes",
+        }
 
 
 @pytest.mark.parametrize(
@@ -365,16 +377,33 @@ def test_joblib_predictor_accepts_score_boundaries(
 
 @pytest.mark.parametrize(
     "prediction",
-    [[], [float("nan")], [float("inf")], [-0.01], [100.01], ["not-a-number"]],
+    [[float("nan")], [float("inf")], [-0.01], [100.01]],
 )
 def test_joblib_predictor_rejects_invalid_model_output(
     tmp_path, monkeypatch, prediction
 ):
+    # These load fine -- a number is a number -- and are refused per prediction,
+    # which is where a model that drifts out of range has to be caught.
     predictor = make_joblib_predictor(
         tmp_path, monkeypatch, ConfigurableRawScoreModel(prediction)
     )
     with pytest.raises(ValueError):
         predictor.predict(valid_awareness_request())
+
+
+@pytest.mark.parametrize("prediction", [[], ["not-a-number"]])
+def test_joblib_predictor_refuses_to_load_a_model_that_cannot_produce_a_number(
+    tmp_path, monkeypatch, prediction
+):
+    from app.models.awareness_predictor import AwarenessModelUnavailable
+
+    # A model that returns nothing, or something that is not a number, is broken
+    # rather than wrong -- the load-time smoke prediction catches it so the first
+    # user of the day is not the one to discover it.
+    with pytest.raises(AwarenessModelUnavailable, match="could not predict"):
+        make_joblib_predictor(
+            tmp_path, monkeypatch, ConfigurableRawScoreModel(prediction)
+        )
 
 
 def test_awareness_is_unavailable_without_artifact(tmp_path, monkeypatch):
@@ -408,9 +437,18 @@ def make_joblib_predictor(tmp_path, monkeypatch, model, *, metadata_overrides=No
 
     artifact = tmp_path / "test-model.joblib"
     joblib.dump(model, artifact)
+    from app.models.awareness_predictor import SERVICE_FEATURES
+    import sklearn
+
+    # The full contract by default, so a test only has to say what it is
+    # breaking. The loader verifies all of this before it will serve anything.
     metadata_values = {
         "artifact_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
         "model_version": "test-v1",
+        "input_features": list(SERVICE_FEATURES),
+        "raw_output_min": 0,
+        "raw_output_max": 100,
+        "sklearn_version": sklearn.__version__,
         **(metadata_overrides or {}),
     }
     metadata = tmp_path / "test-model.metadata.json"
@@ -486,8 +524,17 @@ def test_joblib_predictor_rejects_corrupt_artifact(tmp_path, monkeypatch):
     artifact = tmp_path / "corrupt.joblib"
     artifact.write_bytes(b"this is not a joblib artifact")
     metadata = tmp_path / "test-model.metadata.json"
+    from app.models.awareness_predictor import SERVICE_FEATURES
+    import sklearn
+
+    # A complete, honest contract: this test is about the artifact being
+    # unreadable, so everything before that step has to pass.
     metadata.write_text(json.dumps({
         "artifact_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+        "input_features": list(SERVICE_FEATURES),
+        "raw_output_min": 0,
+        "raw_output_max": 100,
+        "sklearn_version": sklearn.__version__,
         "model_version": "test-v1",
     }))
     settings = get_settings()

@@ -6,13 +6,14 @@ import { type CueId } from "@/server/cues";
 import { gradeAttempt } from "@/server/grading";
 import { levelForXp } from "@/server/leveling";
 import { computeStreak } from "@/server/streak";
-import { json, error, requireUserId, withErrorHandling } from "@/server/http";
+import { applyReviewOutcomes, outcomesForAttempt } from "@/server/reviewSchedule";
+import { json, error, requireUserId, withErrorHandling, readJsonBody } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const userId = await requireUserId();
-  const body = SubmitAttemptBody.parse(await req.json());
+  const body = SubmitAttemptBody.parse(await readJsonBody(req));
 
   const scenarioId = toObjectId(body.scenarioId);
   if (!scenarioId) {
@@ -61,6 +62,21 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     ...(scenario.attackType ? { attackType: scenario.attackType } : {}),
     ...specDefaults(),
   });
+
+  // Advance the spaced-review schedule for every red flag, lever and channel
+  // this attempt exercised, so the ones they keep missing keep coming back.
+  // Never throws -- a schedule write must not cost them the attempt.
+  await applyReviewOutcomes(
+    user._id,
+    user.orgId ?? null,
+    outcomesForAttempt({
+      correct: graded.correct,
+      caughtCues: graded.caughtCues,
+      missedCues: graded.missedCues,
+      leversPresent: scenario.emotionalLevers ?? [],
+      vector: scenario.vector ?? null,
+    }),
+  );
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const newStreak = computeStreak(user.lastActiveDate, todayIso, user.streak);

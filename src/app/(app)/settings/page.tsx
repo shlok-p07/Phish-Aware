@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useDeleteMyAccount } from "@/api-client";
+import { PrivacyCard } from "./privacy-card";
 import { useTheme } from "next-themes";
 import { Sun, Moon, Monitor, Type, Zap, Contrast, BookOpenText, MousePointerClick, Trash2, AlertTriangle, Settings } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,24 +92,32 @@ export default function SettingsPage() {
   });
   const [deleting, setDeleting] = useState(false);
 
-  const handleDeleteAccount = async () => {
+  // Through the generated client like every other call. This was the one JSON
+  // endpoint reached by a hand-rolled fetch and absent from the OpenAPI
+  // contract -- on the most destructive operation in the app, which is the last
+  // place to keep a bespoke request path and no schema.
+  const deleteAccountMutation = useDeleteMyAccount();
+
+  const handleDeleteAccount = () => {
     setDeleting(true);
-    try {
-      const res = await fetch("/api/auth/account", { method: "DELETE" });
-      if (!res.ok && res.status !== 204) {
-        throw new Error(`Request failed (${res.status})`);
-      }
-      queryClient.clear();
-      toast({ title: "Account deleted", description: "Your account and all data have been removed." });
-      router.push("/auth");
-    } catch (err) {
-      setDeleting(false);
-      toast({
-        title: "Couldn't delete account",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
-    }
+    deleteAccountMutation.mutate(undefined, {
+      onSuccess: () => {
+        queryClient.clear();
+        toast({
+          title: "Account deleted",
+          description: "Your account and all data have been removed.",
+        });
+        router.push("/auth");
+      },
+      onError: (err) => {
+        setDeleting(false);
+        toast({
+          title: "Couldn't delete account",
+          description: err instanceof Error ? err.message : "Please try again.",
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   return (
@@ -119,7 +129,9 @@ export default function SettingsPage() {
 			/>
 
 			{/* Appearance / Theme */}
-			<Card className="border shadow-sm">
+			<PrivacyCard />
+
+      <Card className="border shadow-sm">
 				<CardHeader variant="band">
 					<CardTitle className="text-lg flex items-center gap-2">
 						<Sun className="w-5 h-5 text-primary" />
@@ -280,7 +292,7 @@ export default function SettingsPage() {
 				</CardContent>
 			</Card>
 
-			{/* Danger zone — delete account */}
+			{/* Danger zone -- delete account */}
 			<Card className="border border-destructive/40 shadow-sm">
 				<CardHeader className="bg-destructive/5 border-b border-destructive/20 pb-4">
 					<CardTitle className="text-lg flex items-center gap-2 text-destructive">
@@ -317,7 +329,7 @@ export default function SettingsPage() {
 									<AlertDialogDescription>
 										This permanently deletes{" "}
 										{user?.isGuest ? "your guest account" : "your account"} and
-										all of your data — progress, points, streak, milestones, and
+										all of your data: progress, points, streak, milestones, and
 										practice history. This action cannot be undone.
 									</AlertDialogDescription>
 								</AlertDialogHeader>

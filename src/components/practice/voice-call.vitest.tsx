@@ -278,6 +278,6 @@ describe("VoiceCall", () => {
     expect(screen.getByText(/Confirm your PIN/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Hide full transcript/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /Show full transcript/i })).toBeNull();
-    expect(screen.getByText("Audio unavailable — transcript shown")).toBeTruthy();
+    expect(screen.getByText("Audio unavailable: transcript shown")).toBeTruthy();
   });
 });

@@ -1,5 +1,5 @@
 "use client";
-import { TrendingUp, Users, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { TrendingUp, Users, ShieldAlert, CheckCircle2, Building2 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from "recharts";
@@ -21,6 +21,9 @@ export default function AdminAnalyticsPage() {
     { label: "Participation rate", value: `${a?.participationRate ?? 0}%`, icon: CheckCircle2, tint: "text-success" },
     { label: "At-risk members", value: a?.atRisk ?? 0, icon: ShieldAlert, tint: "text-destructive" },
   ];
+
+  // Already sorted worst-first by the API -- the order is the point.
+  const perDepartment = a?.perDepartment ?? [];
 
   const perMember = (a?.perMember ?? []).map((m) => ({
     name: m.name.split(" ")[0],
@@ -111,6 +114,48 @@ export default function AdminAnalyticsPage() {
               </div>
             );
           })}
+        </CardContent>
+      </Card>
+
+      <Card className="border shadow-sm">
+        <CardHeader variant="band">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary" />
+            Accuracy by department
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          {perDepartment.length > 0 ? (
+            <div className="space-y-4">
+              {perDepartment.map((d) => (
+                <div key={d.department ?? "unassigned"} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm gap-4">
+                    <span className="font-semibold truncate">
+                      {d.department ?? "No department assigned"}
+                    </span>
+                    <span className="text-muted-foreground font-medium tabular-nums shrink-0">
+                      {d.avgAccuracy}% · {d.memberCount}{" "}
+                      {d.memberCount === 1 ? "member" : "members"}
+                      {d.atRisk > 0 ? ` · ${d.atRisk} at risk` : ""}
+                    </span>
+                  </div>
+                  <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${d.avgAccuracy}%`,
+                        background: riskColor[d.atRisk > 0 ? "high" : d.avgAccuracy >= 70 ? "low" : "medium"],
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No active members yet. Department averages appear once people start practising.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

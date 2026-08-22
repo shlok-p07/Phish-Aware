@@ -29,6 +29,9 @@ describe("secretBox", () => {
   });
 
   it("round-trips unicode and empty strings", () => {
+    // The em-dash and emoji are the point: this asserts multi-byte UTF-8
+    // survives the round trip. Not prose, so it is exempt from the
+    // no-em-dashes rule applied to copy elsewhere.
     expect(decryptSecret(encryptSecret("clé—🔐"))).toBe("clé—🔐");
     expect(decryptSecret(encryptSecret(""))).toBe("");
   });

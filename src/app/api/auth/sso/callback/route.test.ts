@@ -9,6 +9,17 @@ await installMongoMock();
 await installOpenidClientMock();
 await installSsoOidcMock();
 
+/*
+ * siteUrl() reads APP_BASE_URL / NEXT_PUBLIC_SITE_URL, and these tests assert on
+ * the exact redirect it builds. Pinned here rather than inherited from whatever
+ * .env happens to hold: the repo's own .env points at the deployed origin, so
+ * these two cases passed in CI, where there is no .env, and failed for anybody
+ * running them locally. A test that asserts a URL has to own the URL.
+ */
+const env = process.env as Record<string, string | undefined>;
+env.APP_BASE_URL = "http://localhost:3000";
+env.NEXT_PUBLIC_SITE_URL = "http://localhost:3000";
+
 const { GET } = await import("./route");
 const { SSO_STATE_COOKIE } = await import("@/server/sso/cookies");
 const { SESSION_COOKIE } = await import("@/server/session");

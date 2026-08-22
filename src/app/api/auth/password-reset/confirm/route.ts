@@ -5,12 +5,12 @@ import { hashPassword, verifyPassword } from "@/server/password";
 import { normalizeEmail } from "@/server/sso/domain";
 import { rateLimit, clientIp } from "@/server/rateLimit";
 import { clearedLockoutFields } from "@/server/loginLockout";
-import { json, error, withErrorHandling } from "@/server/http";
+import { json, error, withErrorHandling, readJsonBody } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
-  const body = ConfirmPasswordResetBody.parse(await req.json());
+  const body = ConfirmPasswordResetBody.parse(await readJsonBody(req));
   const email = normalizeEmail(body.email);
 
   const limit = rateLimit(`password-reset-confirm:${clientIp(req.headers)}:${email}`, 10, 60_000);

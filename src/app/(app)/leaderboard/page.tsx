@@ -1,15 +1,20 @@
 "use client";
+import { useState } from "react";
 import { useGetLeaderboard } from "@/api-client";
 import { Users, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { initials } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import { PageHeader, PageShell } from "@/components/page-shell";
 import { EmptyState, ErrorState, ListSkeleton, PageHeaderSkeleton } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function LeaderboardPage() {
-  const { data: leaderboard, isLoading, isError, refetch } = useGetLeaderboard();
+  // Department is the API's default. Ranking against the people doing your job
+  // is the comparison that means something in an organisation of any size, and
+  // a department is small enough that a position is informative.
+  const [scope, setScope] = useState<"department" | "organization">("department");
+  const { data: leaderboard, isLoading, isError, refetch } = useGetLeaderboard({ scope });
 
   if (isLoading) {
     return (
@@ -49,7 +54,36 @@ export default function LeaderboardPage() {
       <PageHeader
         icon={TrendingUp}
         title="Team benchmark"
-        description="How your detection performance compares across your organization."
+        description={
+          scope === "department"
+            ? "How your detection performance compares with your department."
+            : "How your detection performance compares across your organization."
+        }
+        actions={
+          <div role="group" aria-label="Compare against" className="inline-flex rounded-lg border p-0.5">
+            {(
+              [
+                ["department", "My department"],
+                ["organization", "Whole organization"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setScope(value)}
+                aria-pressed={scope === value}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  scope === value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        }
       />
 
       {/* Standing summary */}

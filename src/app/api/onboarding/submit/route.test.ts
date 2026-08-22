@@ -1,9 +1,21 @@
 import { afterAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { ObjectId } from "mongodb";
 import { NextRequest } from "next/server";
-import { fakeDbState, installMongoMock, resetFakeDbState } from "@/test/mock-mongo";
-import { installSessionMock, fakeSessionState, resetFakeSessionState } from "@/test/mock-session";
-import type { SurveyFeatures } from "@/lib/onboarding-survey";
+import {
+  fakeDbState,
+  installMongoMock,
+  resetFakeDbState,
+} from "@/test/mock-mongo";
+import {
+  installSessionMock,
+  fakeSessionState,
+  resetFakeSessionState,
+} from "@/test/mock-session";
+import {
+  ONBOARDING_SURVEY_KEY,
+  ONBOARDING_SURVEY_VERSION,
+  type SurveyFeatures,
+} from "@/lib/onboarding-survey";
 
 await installMongoMock();
 await installSessionMock();
@@ -32,11 +44,16 @@ const FEATURES: SurveyFeatures = {
   work_mode: "Hybrid",
 };
 
-function seedUser() {
+function seedUser(
+  overrides: { orgId?: ObjectId | null; department?: string | null } = {},
+) {
   const id = new ObjectId();
   const user = {
     _id: id,
-    department: "Finance",
+    // No org by default, so nobody has assigned this user a department and
+    // their own survey answer stands. The org cases below pass an orgId.
+    orgId: null as ObjectId | null,
+    department: "Finance" as string | null,
     workType: "Office",
     surveyFeatures: null,
     phishingAwarenessScore: 0,
@@ -46,6 +63,7 @@ function seedUser() {
     level: "beginner",
     xp: 0,
   };
+  Object.assign(user, overrides);
   fakeDbState.users.push(user);
   fakeSessionState.userId = id;
   return user;
@@ -86,7 +104,10 @@ describe("POST /api/onboarding/submit", () => {
     const phishingId = seedScenario(true);
     const legitimateId = seedScenario(false);
     let mlRequest: Record<string, unknown> | undefined;
-    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = (async (
+      _input: RequestInfo | URL,
+      init?: RequestInit,
+    ) => {
       mlRequest = JSON.parse(String(init?.body));
       return Response.json({
         awareness_score: 0.73,
@@ -120,6 +141,61 @@ describe("POST /api/onboarding/submit", () => {
       workType: "Hybrid",
     });
     expect(user.phishingAwarenessComputedAt).toBeInstanceOf(Date);
+  });
+
+  it("keeps the survey submission, not just the vector it reduced to", async () => {
+    // The answers behind a starting level used to be unrecoverable: only the
+    // reduced feature vector was stored, on the user document, overwritten in
+    // place.
+    seedUser();
+    const phishingId = seedScenario(true);
+    globalThis.fetch = (async () =>
+      Response.json({
+        awareness_score: 0.42,
+        model_version: "awareness-integration-v1",
+      })) as unknown as typeof fetch;
+
+    await postOnboarding({
+      answers: [{ scenarioId: phishingId, verdict: true }],
+      features: FEATURES,
+    });
+
+    expect(fakeDbState.surveyResponses).toHaveLength(1);
+    const [recorded] = fakeDbState.surveyResponses;
+    expect(recorded.surveyKey).toBe(ONBOARDING_SURVEY_KEY);
+    expect(recorded.surveyVersion).toBe(ONBOARDING_SURVEY_VERSION);
+    expect(recorded.purpose).toBe("onboarding_baseline");
+    expect(recorded.derivedSignals).toEqual(FEATURES);
+    // Stored 0-100 to match the validator's range, from an 0-1 score.
+    expect(recorded.baselineRiskContribution).toBe(42);
+    expect(recorded.answers).toContainEqual({ questionKey: "mfa_enabled", value: 1 });
+  });
+
+  it("records nothing when the diagnostic is submitted without the survey", async () => {
+    seedUser();
+    const phishingId = seedScenario(true);
+    await postOnboarding({ answers: [{ scenarioId: phishingId, verdict: true }] });
+    expect(fakeDbState.surveyResponses).toHaveLength(0);
+  });
+
+  it("keeps a retake instead of overwriting the first submission", async () => {
+    // Append-only is the point: a later score must not erase the answers the
+    // learner was originally placed on.
+    seedUser();
+    const phishingId = seedScenario(true);
+    globalThis.fetch = (async () =>
+      Response.json({ awareness_score: 0.5, model_version: "v" })) as unknown as typeof fetch;
+
+    await postOnboarding({
+      answers: [{ scenarioId: phishingId, verdict: true }],
+      features: FEATURES,
+    });
+    await postOnboarding({
+      answers: [{ scenarioId: phishingId, verdict: false }],
+      features: FEATURES,
+    });
+
+    expect(fakeDbState.surveyResponses).toHaveLength(2);
   });
 
   it("falls back to diagnostic accuracy when the ML service is unavailable", async () => {
@@ -165,7 +241,10 @@ describe("POST /api/onboarding/submit", () => {
     let mlCalls = 0;
     globalThis.fetch = (async () => {
       mlCalls += 1;
-      return Response.json({ awareness_score: 0.99, model_version: "unexpected" });
+      return Response.json({
+        awareness_score: 0.99,
+        model_version: "unexpected",
+      });
     }) as unknown as typeof fetch;
 
     const response = await postOnboarding({
@@ -186,7 +265,10 @@ describe("POST /api/onboarding/submit", () => {
   it("counts an unknown scenario as incorrect instead of trusting the client verdict", async () => {
     seedUser();
     globalThis.fetch = (async () =>
-      Response.json({ awareness_score: 0.2, model_version: "awareness-test-v1" })) as unknown as typeof fetch;
+      Response.json({
+        awareness_score: 0.2,
+        model_version: "awareness-test-v1",
+      })) as unknown as typeof fetch;
 
     const response = await postOnboarding({
       answers: [{ scenarioId: new ObjectId().toString(), verdict: true }],
@@ -194,7 +276,10 @@ describe("POST /api/onboarding/submit", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ correctCount: 0, totalCount: 1 });
+    expect(await response.json()).toMatchObject({
+      correctCount: 0,
+      totalCount: 1,
+    });
   });
 
   it("rejects an invalid feature payload before calling ML or updating the user", async () => {
@@ -203,7 +288,10 @@ describe("POST /api/onboarding/submit", () => {
     let mlCalls = 0;
     globalThis.fetch = (async () => {
       mlCalls += 1;
-      return Response.json({ awareness_score: 0.8, model_version: "unexpected" });
+      return Response.json({
+        awareness_score: 0.8,
+        model_version: "unexpected",
+      });
     }) as unknown as typeof fetch;
 
     const response = await postOnboarding({
@@ -221,7 +309,10 @@ describe("POST /api/onboarding/submit", () => {
     let mlCalls = 0;
     globalThis.fetch = (async () => {
       mlCalls += 1;
-      return Response.json({ awareness_score: 0.8, model_version: "unexpected" });
+      return Response.json({
+        awareness_score: 0.8,
+        model_version: "unexpected",
+      });
     }) as unknown as typeof fetch;
 
     const response = await postOnboarding({
@@ -232,5 +323,48 @@ describe("POST /api/onboarding/submit", () => {
     expect(response.status).toBe(401);
     expect(mlCalls).toBe(0);
     expect(fakeDbState.users).toHaveLength(0);
+  });
+
+  describe("department assignment", () => {
+    it("keeps the department the org assigned, ignoring a self-reported override", async () => {
+      seedUser({ orgId: new ObjectId(), department: "Finance" });
+      const phish = seedScenario(true);
+
+      const response = await postOnboarding({
+        answers: [{ scenarioId: phish, verdict: true }],
+        features: { ...FEATURES, department: "Executive" },
+      });
+
+      expect(response.status).toBe(200);
+      expect(fakeDbState.users[0].department).toBe("Finance");
+      // The rest of the survey is still the employee's to answer.
+      expect(fakeDbState.users[0].workType).toBe("Hybrid");
+    });
+
+    it("accepts the survey answer for an org member the org never assigned", async () => {
+      seedUser({ orgId: new ObjectId(), department: null });
+      const phish = seedScenario(true);
+
+      const response = await postOnboarding({
+        answers: [{ scenarioId: phish, verdict: true }],
+        features: FEATURES,
+      });
+
+      expect(response.status).toBe(200);
+      expect(fakeDbState.users[0].department).toBe("Engineering");
+    });
+
+    it("lets a self-signup user answer for themselves", async () => {
+      seedUser();
+      const phish = seedScenario(true);
+
+      const response = await postOnboarding({
+        answers: [{ scenarioId: phish, verdict: true }],
+        features: FEATURES,
+      });
+
+      expect(response.status).toBe(200);
+      expect(fakeDbState.users[0].department).toBe("Engineering");
+    });
   });
 });

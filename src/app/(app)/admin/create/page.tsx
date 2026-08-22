@@ -92,7 +92,7 @@ export default function CreateOrgPage() {
               />
               <p className="text-xs text-muted-foreground font-medium">
                 Your organization&apos;s primary email domain, used for display. Everyone
-                still joins by invitation — you can set up single sign-on afterwards.
+                still joins by invitation. You can set up single sign-on afterwards.
               </p>
             </div>
             <Button type="submit" className="w-full py-6 rounded-lg font-semibold text-base group">

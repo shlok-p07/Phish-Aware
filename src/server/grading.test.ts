@@ -2,7 +2,12 @@ import { describe, it, expect } from "bun:test";
 import { ObjectId } from "mongodb";
 import type { ScenarioDoc, ScenarioCue } from "@/db";
 import type { CueId } from "./cues";
-import { gradeAttempt } from "./grading";
+import {
+  gradeAttempt,
+  gradedCues,
+  GRADED_CUE_SEVERITY_FLOOR,
+  MAX_GRADED_CUES,
+} from "./grading";
 
 function makeScenario(overrides: Partial<ScenarioDoc> = {}): ScenarioDoc {
   const now = new Date();
@@ -29,13 +34,15 @@ function makeScenario(overrides: Partial<ScenarioDoc> = {}): ScenarioDoc {
   };
 }
 
-const cue = (type: CueId): ScenarioCue => ({
+// Defaults to the grading floor, so a cue is significant unless a test says
+// otherwise.
+const cue = (type: CueId, severity: number = GRADED_CUE_SEVERITY_FLOOR): ScenarioCue => ({
   type,
-  severity: 3,
+  severity,
   explanation: `${type} explanation`,
 });
 
-describe("gradeAttempt — verdict + cue accounting", () => {
+describe("gradeAttempt: verdict + cue accounting", () => {
   it("splits selections into caught, missed, and false cues", () => {
     const scenario = makeScenario({
       cues: [cue("urgency_language"), cue("sender_domain")],
@@ -52,7 +59,10 @@ describe("gradeAttempt — verdict + cue accounting", () => {
     const scenario = makeScenario({ isPhish: true });
     const result = gradeAttempt(scenario, false, [], 50);
     expect(result.correct).toBe(false);
-    expect(result.correctVerdict).toBe(false);
+    // correctVerdict is what the answer was, not whether the learner got it.
+    // It used to be assigned the same value as `correct`, which this assertion
+    // had encoded as the expectation.
+    expect(result.correctVerdict).toBe(true);
   });
 
   // The practice UI only ever toggles a cue, so it can't produce duplicates --
@@ -75,7 +85,7 @@ describe("gradeAttempt — verdict + cue accounting", () => {
   });
 });
 
-describe("gradeAttempt — XP", () => {
+describe("gradeAttempt: XP", () => {
   it("awards base + per-caught XP for a correct verdict", () => {
     const scenario = makeScenario({ cues: [cue("urgency_language"), cue("sender_domain")] });
     // 15 base + 2 caught * 5 = 25
@@ -126,7 +136,7 @@ describe("gradeAttempt — XP", () => {
   });
 });
 
-describe("gradeAttempt — calibration note", () => {
+describe("gradeAttempt: calibration note", () => {
   it("praises confident-and-correct answers", () => {
     const scenario = makeScenario({ cues: [] });
     const result = gradeAttempt(scenario, true, [], 80);
@@ -184,5 +194,184 @@ describe("gradeAttempt — calibration note", () => {
     const wrongScenario = makeScenario({ isPhish: true, cues: [] });
     expect(gradeAttempt(correctScenario, true, [], 50).calibrationNote).toMatch(/keep practicing/i);
     expect(gradeAttempt(wrongScenario, false, [], 50).calibrationNote).toMatch(/keep practicing/i);
+  });
+});
+
+describe("gradeAttempt: what is persisted", () => {
+  // Reuses the file-level `cue` helper; this only groups cues into a scenario.
+  const withCues = (...types: CueId[]) => makeScenario({ cues: types.map(cue) });
+
+  /**
+   * The stored attempt must equal what was scored. Grading already de-duplicated
+   * internally, but the route used to persist the raw request array, so a
+   * crafted POST left a record that disagreed with its own score.
+   */
+  it("returns the de-duplicated selection, not the caller's array", () => {
+    const scenario = withCues("sender_domain", "urgency_language");
+    const graded = gradeAttempt(
+      scenario,
+      true,
+      ["sender_domain", "sender_domain", "sender_domain"] as CueId[],
+      80,
+    );
+    expect(graded.selectedCues).toEqual(["sender_domain"]);
+  });
+
+  it("preserves first-seen order so the record reads as the learner answered", () => {
+    const scenario = withCues("sender_domain", "urgency_language");
+    const graded = gradeAttempt(
+      scenario,
+      true,
+      ["urgency_language", "sender_domain", "urgency_language"] as CueId[],
+      80,
+    );
+    expect(graded.selectedCues).toEqual(["urgency_language", "sender_domain"]);
+  });
+
+  it("agrees with its own breakdown", () => {
+    const scenario = withCues("sender_domain");
+    const graded = gradeAttempt(
+      scenario,
+      true,
+      ["sender_domain", "sender_domain", "generic_greeting"] as CueId[],
+      80,
+    );
+    const accounted = [...graded.caughtCues, ...graded.falseCues].sort();
+    expect(graded.selectedCues.slice().sort()).toEqual(accounted);
+  });
+});
+
+describe("gradedCues", () => {
+  it("ignores red flags too minor to hold a learner to", () => {
+    // Two thirds of the generated pool carried a cue the model itself rated 1
+    // or 2 -- including a spelling cue whose explanation said the spelling was
+    // fine. Grading against those reported misses that were not real.
+    const scenario = makeScenario({
+      cues: [cue("sender_domain", 5), cue("spelling_grammar", 1)],
+    });
+    expect(gradedCues(scenario)).toEqual(["sender_domain"]);
+  });
+
+  it("keeps everything at or above the floor", () => {
+    const scenario = makeScenario({
+      cues: [cue("sender_domain", GRADED_CUE_SEVERITY_FLOOR), cue("urgency_language", 5)],
+    });
+    expect(gradedCues(scenario).sort()).toEqual(["sender_domain", "urgency_language"]);
+  });
+
+  it("caps the list so feedback stays actionable", () => {
+    const scenario = makeScenario({
+      cues: [
+        cue("sender_domain", 5),
+        cue("mismatched_link", 5),
+        cue("urgency_language", 4),
+        cue("credential_request", 4),
+        cue("generic_greeting", 3),
+        cue("unexpected_attachment", 3),
+        cue("spelling_grammar", 3),
+      ],
+    });
+    expect(gradedCues(scenario)).toHaveLength(MAX_GRADED_CUES);
+  });
+
+  it("keeps the most severe when it has to choose", () => {
+    const scenario = makeScenario({
+      cues: [
+        cue("spelling_grammar", 3),
+        cue("generic_greeting", 3),
+        cue("sender_domain", 5),
+        cue("mismatched_link", 5),
+        cue("urgency_language", 4),
+      ],
+    });
+    const graded = gradedCues(scenario);
+    expect(graded).toContain("sender_domain");
+    expect(graded).toContain("mismatched_link");
+    expect(graded).toContain("urgency_language");
+  });
+
+  it("still grades something when nothing meets the floor", () => {
+    // Sixteen scenarios in the pool have no cue at or above the floor. Telling
+    // a learner they missed nothing on a message that was phishing would be
+    // worse than grading a weak cue.
+    const scenario = makeScenario({
+      cues: [cue("spelling_grammar", 1), cue("generic_greeting", 2)],
+    });
+    expect(gradedCues(scenario)).toEqual(["generic_greeting"]);
+  });
+
+  it("returns nothing for a scenario with no cues at all", () => {
+    expect(gradedCues(makeScenario({ cues: [] }))).toEqual([]);
+  });
+});
+
+describe("grading against the significant cues only", () => {
+  it("does not report a minor cue as missed", () => {
+    const scenario = makeScenario({
+      cues: [cue("sender_domain", 5), cue("spelling_grammar", 1)],
+    });
+    const result = gradeAttempt(scenario, true, ["sender_domain"], 80);
+    expect(result.missedCues).toEqual([]);
+    expect(result.caughtCues).toEqual(["sender_domain"]);
+  });
+
+  it("does not punish a learner for spotting a real but minor cue", () => {
+    // It is a fair read of the message. Counting it as a false positive would
+    // teach people to under-report, which is the opposite of the goal.
+    const scenario = makeScenario({
+      cues: [cue("sender_domain", 5), cue("spelling_grammar", 1)],
+    });
+    const result = gradeAttempt(scenario, true, ["sender_domain", "spelling_grammar"], 80);
+    expect(result.falseCues).toEqual([]);
+  });
+
+  it("still counts a cue the scenario does not carry at all as a false positive", () => {
+    const scenario = makeScenario({ cues: [cue("sender_domain", 5)] });
+    const result = gradeAttempt(scenario, true, ["sender_domain", "suspicious_qr"], 80);
+    expect(result.falseCues).toEqual(["suspicious_qr"]);
+  });
+
+  it("keeps caught and missed a partition of the graded set", () => {
+    // Anything else means the totals a learner is shown do not add up.
+    const scenario = makeScenario({
+      cues: [
+        cue("sender_domain", 5),
+        cue("mismatched_link", 4),
+        cue("urgency_language", 3),
+        cue("spelling_grammar", 1),
+      ],
+    });
+    const result = gradeAttempt(scenario, true, ["sender_domain", "suspicious_qr"], 80);
+    expect([...result.caughtCues, ...result.missedCues].sort()).toEqual(
+      gradedCues(scenario).sort(),
+    );
+  });
+
+  it("bounds how much xp one scenario can yield from cues", () => {
+    // With seven cues listed, selecting every one of them farmed xp. The cap
+    // is now what limits the reward.
+    const scenario = makeScenario({
+      cues: [
+        cue("sender_domain", 5),
+        cue("mismatched_link", 5),
+        cue("urgency_language", 5),
+        cue("credential_request", 5),
+        cue("generic_greeting", 5),
+        cue("unexpected_attachment", 5),
+        cue("spelling_grammar", 5),
+      ],
+    });
+    const all: CueId[] = [
+      "sender_domain",
+      "mismatched_link",
+      "urgency_language",
+      "credential_request",
+      "generic_greeting",
+      "unexpected_attachment",
+      "spelling_grammar",
+    ];
+    const result = gradeAttempt(scenario, true, all, 80);
+    expect(result.caughtCues).toHaveLength(MAX_GRADED_CUES);
+    expect(result.xpAwarded).toBe(15 + MAX_GRADED_CUES * 5);
   });
 });

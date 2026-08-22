@@ -7,9 +7,10 @@ import {
   type SsoConnectionDoc,
   type SsoProviderKind,
 } from "@/db";
-import { json, error, requireOrgAdmin, withErrorHandling } from "@/server/http";
+import { json, error, requireOrgAdmin, withErrorHandling, readJsonBody } from "@/server/http";
 import { encryptSecret, decryptSecret, isEncryptionConfigured } from "@/server/secretBox";
 import { ssoRedirectUri } from "@/server/siteUrl";
+import { parseDomainInput } from "@/server/sso/domain";
 import { discoverMetadata, validateIssuer, SsoConfigError, invalidateConfigCache } from "@/server/sso/oidc";
 
 export const dynamic = "force-dynamic";
@@ -37,15 +38,27 @@ function toDto(connection: SsoConnectionDoc | null) {
   };
 }
 
-function parseDomains(input: unknown): string[] {
+/**
+ * The allowed-domain list, with anything unusable reported rather than dropped.
+ *
+ * This used only to strip a leading "@", so "someone@example.com" was stored
+ * verbatim -- and since discovery matches a domain list exactly against an
+ * email's domain, that entry could never match. SSO simply never appeared, with
+ * nothing anywhere to say why. Three organisations have a full address in their
+ * domain field, so this is what people type.
+ */
+function parseDomains(input: unknown): { domains: string[]; rejected: string[] } {
   const list = Array.isArray(input) ? input : String(input ?? "").split(",");
-  return Array.from(
-    new Set(
-      list
-        .map((d) => String(d).trim().toLowerCase().replace(/^@/, ""))
-        .filter((d) => d.length > 0),
-    ),
-  );
+  const domains = new Set<string>();
+  const rejected: string[] = [];
+  for (const entry of list) {
+    const raw = String(entry).trim();
+    if (!raw) continue;
+    const parsed = parseDomainInput(raw);
+    if (parsed) domains.add(parsed);
+    else rejected.push(raw);
+  }
+  return { domains: [...domains], rejected };
 }
 
 /** Mirror the provider onto the org so GET /api/org can report ssoEnabled with no extra read. */
@@ -73,7 +86,7 @@ export const PUT = withErrorHandling(async (req: NextRequest) => {
     );
   }
 
-  const body = (await req.json()) as {
+  const body = (await readJsonBody(req)) as {
     issuer?: string;
     clientId?: string;
     clientSecret?: string;
@@ -105,7 +118,15 @@ export const PUT = withErrorHandling(async (req: NextRequest) => {
     return error(400, "Client secret is required");
   }
 
-  const allowedDomains = parseDomains(body.allowedDomains);
+  const { domains: allowedDomains, rejected } = parseDomains(body.allowedDomains);
+  if (rejected.length > 0) {
+    // Named, because a silently-dropped entry is how a connection ends up
+    // enabled but matching nothing.
+    return error(
+      400,
+      `Not usable as an email domain: ${rejected.join(", ")}. Use the domain on its own, like example.com.`,
+    );
+  }
   const enabled = body.enabled ?? false;
   if (enabled && allowedDomains.length === 0) {
     return error(
@@ -121,7 +142,7 @@ export const PUT = withErrorHandling(async (req: NextRequest) => {
   } catch {
     return error(
       503,
-      "The stored client secret can't be decrypted — APP_ENCRYPTION_KEY may have changed. Re-enter the secret to fix this.",
+      "The stored client secret can't be decrypted. APP_ENCRYPTION_KEY may have changed. Re-enter the secret to fix this.",
     );
   }
 
