@@ -255,7 +255,7 @@ export default function ProfilePage() {
 									className="h-62.5 w-full border-0"
 									icon={AlertTriangle}
 									title="No channel data yet"
-									description="Once you've tried email, text and voice scenarios, your per-channel accuracy shows here."
+									description="Once you've tried scenarios from a few channels, your per-channel accuracy shows here."
 								/>
 							)}
 						</div>

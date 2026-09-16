@@ -1,17 +1,23 @@
 "use client";
 import { useListLessons } from "@/api-client";
-import { BookOpen, ShieldAlert, Smartphone, Globe, Mail, MessageSquare, CircleCheck } from "lucide-react";
+import { AtSign, BookOpen, ShieldAlert, Smartphone, Globe, Mail, MessageSquare, QrCode, CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader, PageShell } from "@/components/page-shell";
 import { CardGridSkeleton, ErrorState, PageHeaderSkeleton } from "@/components/states";
+import { VECTOR_LABELS } from "@/server/attackProfiles";
 
 const getIconForVector = (vector: string) => {
   switch (vector) {
     case 'email': return <Mail className="w-8 h-8" />;
     case 'sms': return <Smartphone className="w-8 h-8" />;
     case 'voice': return <MessageSquare className="w-8 h-8" />;
+    // qr and social had no case and fell through to the generic shield, so half
+    // the library was indistinguishable at a glance. Same icons as the practice
+    // vector picker, so a vector looks the same wherever it is named.
+    case 'qr': return <QrCode className="w-8 h-8" />;
+    case 'social': return <AtSign className="w-8 h-8" />;
     case 'web': return <Globe className="w-8 h-8" />;
     default: return <ShieldAlert className="w-8 h-8" />;
   }
@@ -83,8 +89,10 @@ export default function LearnPage() {
                           Done
                         </span>
                       )}
-                      <Badge variant="outline" className="capitalize text-xs font-bold shadow-none border-muted-foreground/30 text-muted-foreground">
-                        {lesson.vector}
+                      {/* Not `capitalize` on the raw value: that renders "qr"
+                          as "Qr" and "sms" as "Sms". */}
+                      <Badge variant="outline" className="text-xs font-bold shadow-none border-muted-foreground/30 text-muted-foreground">
+                        {VECTOR_LABELS[lesson.vector]}
                       </Badge>
                     </div>
                   </div>

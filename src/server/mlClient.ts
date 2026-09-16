@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import type { SurveyFeatures } from "@/lib/onboarding-survey";
 
 const AwarenessPredictionResponse = z.object({
