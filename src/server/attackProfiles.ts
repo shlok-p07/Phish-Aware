@@ -102,36 +102,6 @@ function pickRandom<T>(items: readonly T[]): T {
 export const PRACTICE_VECTORS = ["email", "sms", "voice", "qr", "social", "web"] as const;
 export type PracticeVector = (typeof PRACTICE_VECTORS)[number];
 
-/**
- * How a vector is named on screen. Kept beside PRACTICE_VECTORS rather than
- * re-typed per feature: three copies had already grown -- the admin channel
- * list, the review schedule and the lesson library -- and the library's was a
- * bare `capitalize`, which renders "qr" as "Qr" and "sms" as "Sms".
- */
-export const VECTOR_LABELS: Record<PracticeVector, string> = {
-  email: "Email",
-  sms: "SMS",
-  voice: "Voice call",
-  qr: "QR code",
-  social: "Social DM",
-  web: "Web page",
-};
-
-/**
- * The same six vectors as they read mid-sentence, e.g. "cues in QR code
- * scams". VECTOR_LABELS is a chip: title-cased, short enough for a badge, and
- * wrong inside a sentence -- the lesson summary previously interpolated the
- * raw id and told learners to watch for "qr scams".
- */
-export const VECTOR_PHRASES: Record<PracticeVector, string> = {
-  email: "email",
-  sms: "text message",
-  voice: "voice call",
-  qr: "QR code",
-  social: "social media",
-  web: "website",
-};
-
 /** What the learner asked to practice: a specific vector, or "mixed" for the previous random-every-round behavior. */
 export type VectorPreference = PracticeVector | "mixed";
 

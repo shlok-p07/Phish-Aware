@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { organizationsCollection } from "@/db";
-import { json, error, requireOrgAdmin, withErrorHandling, readJsonBody, optionalText } from "@/server/http";
+import { json, error, requireOrgAdmin, withErrorHandling, readJsonBody } from "@/server/http";
 import { recordAudit } from "@/server/audit";
 import { parseDomainInput } from "@/server/sso/domain";
 import { toOrgDtoWithSeats } from "@/server/org";
@@ -30,9 +30,9 @@ const MAX_NAME_LENGTH = 120;
 export const PATCH = withErrorHandling(async (req: NextRequest) => {
   const admin = await requireOrgAdmin();
   const body = (await readJsonBody(req)) as {
-    name?: unknown;
-    ssoDomain?: unknown;
-    seatLimit?: unknown;
+    name?: string;
+    ssoDomain?: string;
+    seatLimit?: number;
     branding?: { accentColor?: unknown; logoUrl?: unknown; welcomeMessage?: unknown };
     reporting?: { channel?: unknown; instructions?: unknown };
     practiceVectors?: unknown;
@@ -47,10 +47,7 @@ export const PATCH = withErrorHandling(async (req: NextRequest) => {
   // null into a seat limit of zero, which blocks every future invitation with
   // nothing to indicate why. Rejected now rather than coerced.
   if (body.name !== undefined) {
-    // optionalText rather than a bare .trim(): the `!== undefined` guard let a
-    // number or an object through to a string method, which answered 500 where
-    // 400 belongs. Blank still reaches the message below.
-    const name = optionalText(body.name, "Organization name");
+    const name = body.name.trim();
     if (!name) {
       return error(400, "Organization name can't be empty");
     }
@@ -66,7 +63,7 @@ export const PATCH = withErrorHandling(async (req: NextRequest) => {
     // this field -- it is display only -- but it is the same box an admin then
     // types into the allowed-domain list that SSO actually matches on, so
     // accepting nonsense here teaches the wrong thing.
-    const raw = optionalText(body.ssoDomain, "SSO domain");
+    const raw = body.ssoDomain.trim();
     if (!raw) {
       update.domain = null;
     } else {

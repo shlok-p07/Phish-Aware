@@ -18,24 +18,8 @@ export const STANDARD_DEPARTMENT_NAMES: readonly string[] = DEPARTMENTS;
 
 export const MAX_DEPARTMENT_NAME_LENGTH = 60;
 
-/**
- * Trimmed, collapsed whitespace. Comparison is case-insensitive.
- *
- * Takes `unknown` rather than `string` because both callers hand it a field
- * straight off a JSON body, where the declared type is a claim and not a
- * guarantee. Typed as `string` it invited `raw.trim()` on whatever arrived: a
- * request with `{"name": {"$ne": null}}` or `{"name": 42}` threw a TypeError
- * inside the route and surfaced as a 500, which reads as a server fault rather
- * than the bad request it is. Anything that is not a string normalises to the
- * empty string, which every caller already treats as "name is required" -- so
- * the answer becomes a 400 without either call site growing a guard.
- *
- * This is the validation boundary every department name passes through --
- * findOrgDepartment and isOrgDepartment below both go via it -- so it is the
- * right place for the check rather than each route repeating it.
- */
-export function normalizeDepartmentName(raw: unknown): string {
-  if (typeof raw !== "string") return "";
+/** Trimmed, collapsed whitespace. Comparison is case-insensitive. */
+export function normalizeDepartmentName(raw: string): string {
   return raw.trim().replace(/\s+/g, " ");
 }
 

@@ -33,13 +33,8 @@ export class SsoConfigError extends Error {}
  * placeholder as its issuer, so the `iss` claim can never equal what's
  * configured. Better to refuse at save time than to fail every sign-in.
  */
-export function validateIssuer(raw: unknown): string {
-  // `unknown` for the same reason toStringArray below takes it: the only caller
-  // is the SSO settings route, which hands this a field straight off a JSON
-  // body where the declared type is a claim rather than a guarantee. A
-  // non-string is reported as a missing issuer, which is already what the
-  // caller turns into a 400.
-  const issuer = typeof raw === "string" ? raw.trim() : "";
+export function validateIssuer(raw: string): string {
+  const issuer = raw.trim();
   if (!issuer) {
     throw new SsoConfigError("Issuer URL is required");
   }

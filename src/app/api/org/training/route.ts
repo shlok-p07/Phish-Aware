@@ -7,7 +7,7 @@ import {
   toObjectId,
   specDefaults,
 } from "@/db";
-import { json, error, requireOrgAdmin, withErrorHandling, readJsonBody, optionalText } from "@/server/http";
+import { json, error, requireOrgAdmin, withErrorHandling, readJsonBody } from "@/server/http";
 import { recordAudit } from "@/server/audit";
 import { assignmentNotification, notifyOnce } from "@/server/notifications";
 import { parseTrainingTarget } from "@/lib/trainingTarget";
@@ -40,43 +40,26 @@ export const GET = withErrorHandling(async () => {
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const admin = await requireOrgAdmin();
   const body = (await readJsonBody(req)) as {
-    title?: unknown;
-    target?: unknown; // "all", "department:<Name>", or a member's user id
-    dueDate?: unknown;
-    requiredScenarios?: unknown;
+    title: string;
+    target: string; // "all", "department:<Name>", or a member's user id
+    dueDate: string;
+    requiredScenarios?: number;
     focus?: { vectors?: unknown; minDifficulty?: unknown; cues?: unknown } | null;
   };
-  // optionalText rather than `?.trim()` / `?.startsWith()`: the optional chains
-  // guarded null and undefined but not a number or an object, so the wrong type
-  // threw a TypeError in this handler and answered 500 instead of 400.
-  const title = optionalText(body.title, "Title");
-  // Defaulted to "" rather than left nullable: the campaign document types
-  // `target` as a string, and an absent target already fell through to the
-  // "Invalid target member id" 400 below, which "" reproduces exactly.
-  const target = optionalText(body.target, "Target") ?? "";
-  const rawDueDate = optionalText(body.dueDate, "Due date");
-  if (!title || !rawDueDate) {
+  const title = body.title?.trim();
+  if (!title || !body.dueDate) {
     return error(400, "Title and due date are required");
-  }
-  // Checked for validity, not just presence. `new Date("not a date")` is an
-  // Invalid Date rather than a throw, and the only guard here was a truthiness
-  // test -- so any non-date string got as far as the insert below and wrote a
-  // campaign whose due date is NaN, which then never comes due and cannot be
-  // rendered.
-  const dueDate = new Date(rawDueDate);
-  if (Number.isNaN(dueDate.getTime())) {
-    return error(400, "Due date isn't a valid date");
   }
 
   const users = await usersCollection();
   let targetUserIds: ObjectId[];
-  if (target === "all") {
+  if (body.target === "all") {
     const members = await users.find({ orgId: admin.orgId }, { projection: { _id: 1 } }).toArray();
     targetUserIds = members.map((m) => m._id);
-  } else if (target.startsWith("department:")) {
+  } else if (body.target?.startsWith("department:")) {
     // Assigning a department is the normal enterprise case: the finance team
     // gets invoice-fraud training, not the whole company one member at a time.
-    const parsed = parseTrainingTarget(target);
+    const parsed = parseTrainingTarget(body.target);
     if (parsed?.kind !== "department") {
       return error(400, "That isn't a department we recognize");
     }
@@ -97,7 +80,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     }
     targetUserIds = members.map((m) => m._id);
   } else {
-    const memberId = toObjectId(target);
+    const memberId = toObjectId(body.target);
     if (!memberId) {
       return error(400, "Invalid target member id");
     }
@@ -151,10 +134,10 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     scenarioIds: [],
     lessonIds: [],
     audience: {},
-    dueDate,
+    dueDate: new Date(body.dueDate),
     status: "active" as const,
     createdBy: admin._id,
-    target,
+    target: body.target,
     requiredScenarios: Number(body.requiredScenarios) || 0,
     focus,
     ...specDefaults(),
@@ -202,7 +185,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     action: "training.created",
     targetType: "campaign",
     targetId: campaignId,
-    metadata: { title, target, assigned: targetUserIds.length },
+    metadata: { title, target: body.target, assigned: targetUserIds.length },
     headers: req.headers,
   });
 

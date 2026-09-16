@@ -9,7 +9,7 @@ import {
   type UserDoc,
 } from "@/db";
 import { computeMemberStats, riskLevelForAccuracy } from "@/server/orgAnalytics";
-import { json, error, requireOrgAdmin, withErrorHandling, readJsonBody, optionalText } from "@/server/http";
+import { json, error, requireOrgAdmin, withErrorHandling, readJsonBody } from "@/server/http";
 import { recordAudit } from "@/server/audit";
 import { normalizeEmail } from "@/server/sso/domain";
 import { generateInviteToken, invitationExpiry, invitationState } from "@/server/invitations";
@@ -92,16 +92,13 @@ export const GET = withErrorHandling(async () => {
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const admin = await requireOrgAdmin();
   const body = (await readJsonBody(req)) as {
-    name?: unknown;
-    email?: unknown;
-    role?: unknown;
-    department?: unknown;
+    name?: string;
+    email?: string;
+    role?: OrgRole;
+    department?: string;
   };
 
-  // optionalText rather than `?.trim()`: the optional chain guarded null and
-  // undefined but not a number or an object, so the wrong type threw here and
-  // answered 500 instead of 400. Absent and blank still get the messages below.
-  const rawEmail = optionalText(body.email, "Email");
+  const rawEmail = body.email?.trim();
   if (!rawEmail) {
     return error(400, "Email is required");
   }
@@ -109,7 +106,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   if (!email.includes("@")) {
     return error(400, "Enter a valid email address");
   }
-  const name = optionalText(body.name, "Name");
+  const name = body.name?.trim() || null;
   const role: OrgRole = body.role === "admin" ? "admin" : "employee";
   // Optional, and checked against this organization's own departments rather
   // than a fixed list -- the fixed list is what previously made a customer's own

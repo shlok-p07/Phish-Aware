@@ -1,4 +1,4 @@
-import * as z from "zod";
+import { z } from "zod";
 import { complete } from "./llm/llmComplete";
 import type { Priority } from "./llm/rateLimiter";
 import { CUE_LABELS, type CueId } from "./cues";
