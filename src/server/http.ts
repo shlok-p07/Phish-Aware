@@ -98,31 +98,6 @@ export async function readJsonBody<T>(req: { json: () => Promise<unknown> }): Pr
   }
 }
 
-/**
- * A free-text field off a JSON body: trimmed, blank folded to null, and
- * anything that is not a string rejected as a bad request.
- *
- * readJsonBody's type parameter is a cast, not a check -- the routes that don't
- * have a generated zod schema declare `as { name?: string }` and then trusted
- * it. `body.name?.trim()` guards null and undefined but not a number or an
- * object, so `{"name": 42}` threw a TypeError inside the handler and came back
- * 500. A malformed request getting a 500 is wrong twice over: it tells the
- * caller the server broke, and it buries a real fault in noise from clients
- * sending the wrong shape.
- *
- * Returns null for absent and blank alike, so a caller keeps its own
- * "<field> is required" message and only the non-string case changes.
- */
-export function optionalText(value: unknown, field: string): string | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  if (typeof value !== "string") {
-    throw new HttpError(400, `${field} must be text`);
-  }
-  return value.trim() || null;
-}
-
 export function withErrorHandling<Args extends unknown[]>(
   handler: (...args: Args) => Promise<Response>,
 ) {

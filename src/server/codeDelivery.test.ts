@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { deliverResetCode, resetCodeWebhookConfigured } from "./codeDelivery";
-import { captureEnv, restoreEnv } from "@/test/env";
 
 const env = process.env as Record<string, string | undefined>;
 const ORIGINAL_FETCH = globalThis.fetch;
-const ORIGINAL_URL = captureEnv("PASSWORD_RESET_WEBHOOK_URL");
-const ORIGINAL_SECRET = captureEnv("PASSWORD_RESET_WEBHOOK_SECRET");
+const ORIGINAL_URL = process.env.PASSWORD_RESET_WEBHOOK_URL;
+const ORIGINAL_SECRET = process.env.PASSWORD_RESET_WEBHOOK_SECRET;
 
 const delivery = {
   email: "alice@acme.test",
@@ -15,12 +14,8 @@ const delivery = {
 
 afterEach(() => {
   globalThis.fetch = ORIGINAL_FETCH;
-  // restoreEnv, not a bare assignment: these two are normally unset, and
-  // `process.env.X = undefined` stores the string "undefined" rather than
-  // unsetting X. That left resetCodeWebhookConfigured() reading a configured
-  // webhook in every test file that ran after this one.
-  restoreEnv("PASSWORD_RESET_WEBHOOK_URL", ORIGINAL_URL);
-  restoreEnv("PASSWORD_RESET_WEBHOOK_SECRET", ORIGINAL_SECRET);
+  env.PASSWORD_RESET_WEBHOOK_URL = ORIGINAL_URL;
+  env.PASSWORD_RESET_WEBHOOK_SECRET = ORIGINAL_SECRET;
 });
 
 describe("resetCodeWebhookConfigured", () => {

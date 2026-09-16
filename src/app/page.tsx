@@ -32,12 +32,12 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: { absolute: "PhishAware" },
   description:
-    "PhishAware trains employees to catch the phishing that gets past filters, across email, text message, voice call, QR code, social message, and spoofed website. Fully simulated scenarios, generated in real time, graded cue by cue, with analytics that prove detection skills are improving.",
+    "PhishAware trains employees to catch the phishing that gets past filters, across email, text message, and voice call. Fully simulated scenarios, generated in real time, graded cue by cue, with analytics that prove detection skills are improving.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "PhishAware: Phishing training across all six attack channels",
+    title: "PhishAware: Phishing training for email, text, and voice",
     description:
-      "Realistic, fully simulated phishing scenarios across all six channels attackers actually use, with instant cue-by-cue feedback. No real emails, links, or credentials involved.",
+      "Realistic, fully simulated phishing scenarios across all three channels attackers actually use, with instant cue-by-cue feedback. No real emails, links, or credentials involved.",
     url: "/",
     type: "website",
   },
@@ -46,9 +46,9 @@ export const metadata: Metadata = {
 const WHY_VECTORS = [
   {
     icon: Shuffle,
-    stat: "6",
+    stat: "3",
     label: "attack channels",
-    body: "Email, text message, voice call, QR code, social message and spoofed website -- including a simulated phone call your team has to listen to, not read. Most training still stops at the inbox.",
+    body: "Email, text message, and voice call, including a simulated phone call your team has to listen to, not read. Most training still stops at the inbox.",
   },
   {
     icon: Sparkles,
@@ -247,7 +247,7 @@ export default async function LandingPage() {
               </div>
               <div className="space-y-3">
                 {[
-                  "The full practice loop -- email, text, voice, QR, social and web scenarios, judged instantly",
+                  "The full practice loop -- email, text, and voice scenarios, judged instantly",
                   "Real-time AI generation, not a fixed demo script",
                   "Your own dashboard: accuracy, streaks, focus areas",
                   "The complete lesson library",
@@ -267,7 +267,7 @@ export default async function LandingPage() {
           <div className="max-w-6xl 2xl:max-w-[1680px] mx-auto px-4 md:px-8 py-16 md:py-20">
             <Reveal className="grid lg:grid-cols-[1fr_1.3fr] gap-10 lg:gap-16 items-center">
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Why six channels</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Why three channels</p>
                 <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
                   Attackers stopped limiting themselves to the inbox
                 </h2>

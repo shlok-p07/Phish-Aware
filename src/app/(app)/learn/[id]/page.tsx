@@ -19,19 +19,6 @@ import { PageShell } from "@/components/page-shell";
 import { EmptyState } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LessonScreenView } from "@/components/learn/lesson-screen";
-import { VECTOR_PHRASES } from "@/server/attackProfiles";
-import { CUE_LABELS, type CueId } from "@/server/cues";
-
-/**
- * A red flag's display name. titleCase on the raw id rendered "suspicious_qr"
- * as "Suspicious Qr" -- visible on the quishing lesson's summary screen, which
- * is the one lesson where that cue is the whole point. CUE_LABELS is the same
- * wording the practice grader uses, so a learner meets one name for a cue
- * rather than two. The fallback keeps a retired id readable instead of raw.
- */
-function redFlagLabel(flag: string): string {
-	return CUE_LABELS[flag as CueId] ?? titleCase(flag.replaceAll("_", " ")).trim();
-}
 
 export default function LessonPage() {
 	const params = useParams();
@@ -94,6 +81,23 @@ export default function LessonPage() {
 		);
 	}
 
+	if (lesson.vector !== "email" && lesson.vector !== "sms" && lesson.vector !== "voice") {
+		return (
+			<PageShell width="5xl">
+				<EmptyState
+					icon={ShieldAlert}
+					title="Coming soon"
+					description="This lesson is still a work in progress. Check back soon."
+					action={
+						<Button asChild variant="outline" className="font-semibold">
+							<Link href="/learn">Back to library</Link>
+						</Button>
+					}
+				/>
+			</PageShell>
+		);
+	}
+
 	// Screens + final Red Flags summary screen
 	const totalSteps = lesson.screens.length + 1;
 	const isLastStep = currentStep === totalSteps - 1;
@@ -108,7 +112,7 @@ export default function LessonPage() {
 	// the library the learner already came from.
 	const askForMore = () => {
 		const flags = lesson.redFlags.length > 0
-			? lesson.redFlags.map(redFlagLabel).join(", ")
+			? lesson.redFlags.map((f) => titleCase(f.replaceAll("_", " "))).join(", ")
 			: "the tactics described in this lesson";
 		chat.askAbout(
 			`I just finished the "${lesson.title}" lesson (a ${lesson.vector} phishing vector). It covered these red flags: ${flags}. Can you share more facts, real-world examples, or advanced detection tips about this type of attack beyond what the lesson covered?`,
@@ -164,9 +168,7 @@ export default function LessonPage() {
 									Top Red Flags
 								</h2>
 								<p className="pa-measure text-muted-foreground font-medium text-lg">
-									Always watch out for these cues in{" "}
-									{VECTOR_PHRASES[lesson.vector]}{" "}
-									scams.
+									Always watch out for these cues in {lesson.vector} scams.
 								</p>
 							</div>
 
@@ -178,7 +180,7 @@ export default function LessonPage() {
 									>
 										<CheckCircle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
 										<span className="font-semibold text-foreground text-lg leading-snug">
-											{redFlagLabel(flag)}
+											{titleCase(flag.replaceAll("_", " "))}
 										</span>
 									</li>
 								))}

@@ -7,7 +7,7 @@ import {
   type OrganizationDoc,
   getDb,
 } from "@/db";
-import { json, error, requireUserId, requireOrgAdmin, withErrorHandling, readJsonBody, optionalText } from "@/server/http";
+import { json, error, requireUserId, requireOrgAdmin, withErrorHandling, readJsonBody } from "@/server/http";
 import { ensureOrgDepartments } from "@/server/departments";
 import { toOrgDtoWithSeats } from "@/server/org";
 import { ORG_OWNED_COLLECTIONS } from "@/server/ownedData";
@@ -33,16 +33,12 @@ export const GET = withErrorHandling(async () => {
 /** Create an organization and make the current user its admin. */
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const userId = await requireUserId();
-  const body = (await readJsonBody(req)) as { name?: unknown; ssoDomain?: unknown };
-  // optionalText rather than `body.name?.trim()`: the `?.` covered null and
-  // undefined but not a number or an object, which threw a TypeError here and
-  // answered 500 instead of 400. Absent and blank still fall through to the
-  // message below, so only the wrong-type case changes.
-  const name = optionalText(body.name, "Organization name");
+  const body = (await readJsonBody(req)) as { name: string; ssoDomain?: string };
+  const name = body.name?.trim();
   if (!name) {
     return error(400, "Organization name is required");
   }
-  const domain = optionalText(body.ssoDomain, "SSO domain");
+  const domain = body.ssoDomain?.trim() || null;
 
   const users = await usersCollection();
   const user = await users.findOne({ _id: userId });
