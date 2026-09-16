@@ -101,15 +101,16 @@ export const PUT = withErrorHandling(async (req: NextRequest) => {
 
   let issuer: string;
   try {
-    issuer = validateIssuer(body.issuer ?? "");
+    issuer = validateIssuer(body.issuer);
   } catch (err) {
     return error(400, err instanceof SsoConfigError ? err.message : "Invalid issuer");
   }
 
   // optionalText rather than `?.trim()`: the optional chain guarded null and
   // undefined but not a number or an object, which threw a TypeError here and
-  // answered 500 rather than 400. (validateIssuer above is already inside a
-  // try/catch that reports 400, so the issuer field was never exposed to this.)
+  // answered 500 rather than 400. The issuer above is handled differently only
+  // because validateIssuer owns its own messages -- it takes `unknown` and
+  // reports a non-string as a missing issuer through the catch.
   const clientId = optionalText(body.clientId, "Client ID");
   if (!clientId) {
     return error(400, "Client ID is required");

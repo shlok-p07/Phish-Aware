@@ -202,7 +202,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     action: "training.created",
     targetType: "campaign",
     targetId: campaignId,
-    metadata: { title, target: body.target, assigned: targetUserIds.length },
+    metadata: { title, target, assigned: targetUserIds.length },
     headers: req.headers,
   });
 
