@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 import { reviewsCollection, specDefaults, type ReviewDoc, type ReviewTargetType } from "@/db";
 import { nextSchedule, isDue, isMastered, MASTERY_STREAK } from "./spacedReview";
 import { CUE_LABELS, type CueId } from "./cues";
-import { PERSUASION_TACTIC_LABELS } from "./attackProfiles";
+import { PERSUASION_TACTIC_LABELS, VECTOR_LABELS } from "./attackProfiles";
 
 /**
  * The persistence half of spaced review: turning one graded attempt into an
@@ -154,15 +154,6 @@ export async function dueCues(userId: ObjectId, now = new Date(), limit = 3): Pr
     .map((r) => r.targetValue as CueId);
 }
 
-const VECTOR_LABELS: Record<string, string> = {
-  email: "Email",
-  sms: "SMS",
-  voice: "Voice call",
-  qr: "QR code",
-  social: "Social DM",
-  web: "Web page",
-};
-
 /**
  * A target's display name.
  *
@@ -177,7 +168,7 @@ export function reviewTargetLabel(targetType: ReviewTargetType, targetValue: str
       ? CUE_LABELS[targetValue as CueId]
       : targetType === "emotionalLever"
         ? PERSUASION_TACTIC_LABELS[targetValue as keyof typeof PERSUASION_TACTIC_LABELS]
-        : VECTOR_LABELS[targetValue];
+        : VECTOR_LABELS[targetValue as keyof typeof VECTOR_LABELS];
   if (known) return known;
   const humanised = targetValue.replace(/[_-]+/g, " ").trim();
   return humanised ? humanised[0]!.toUpperCase() + humanised.slice(1) : targetValue;

@@ -15,7 +15,7 @@ import {
 } from "@/api-client";
 import { useToast } from "@/hooks/use-toast";
 import { OrgLogo } from "@/components/org-brand";
-import { PRACTICE_VECTORS, type PracticeVector } from "@/server/attackProfiles";
+import { PRACTICE_VECTORS, VECTOR_LABELS, type PracticeVector } from "@/server/attackProfiles";
 
 /**
  * Where an administrator makes the product look and behave like their own.
@@ -26,18 +26,10 @@ import { PRACTICE_VECTORS, type PracticeVector } from "@/server/attackProfiles";
  * surfaces the server's message verbatim, because a client that quietly
  * "corrects" input teaches an admin that a value was accepted when it was not.
  *
- * The channel list is driven off PRACTICE_VECTORS rather than a hand-written
- * one: a hand-maintained copy is how the marketing page ended up advertising
- * three of six vectors.
+ * The channel list is driven off PRACTICE_VECTORS, and its labels off
+ * VECTOR_LABELS beside it, rather than a hand-written copy: a hand-maintained
+ * copy is how the marketing page ended up advertising three of six vectors.
  */
-const VECTOR_LABELS: Record<PracticeVector, string> = {
-  email: "Email",
-  sms: "SMS",
-  voice: "Voice call",
-  qr: "QR code",
-  social: "Social DM",
-  web: "Web page",
-};
 
 /** A short list of defensible starting points, so nobody has to invent a hex. */
 const SUGGESTED_COLORS = ["#2563eb", "#0f766e", "#7c3aed", "#b91c1c", "#c2410c", "#1e293b"];

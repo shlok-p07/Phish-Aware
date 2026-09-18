@@ -57,7 +57,7 @@ export const PATCH = withErrorHandling(
       // rejected rather than stored, because an unrecognized department silently
       // breaks the department -> attack-type mapping and would leave the member
       // in a leaderboard population of one.
-if (body.department === null) {
+      if (body.department === null) {
         update.department = null;
         update.departmentId = null;
       } else {

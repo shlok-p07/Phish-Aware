@@ -7,12 +7,22 @@
  * produce two accounts that differ only in case.
  */
 
-export function normalizeEmail(email: string): string {
+/**
+ * Takes `unknown` for the same reason parseDomainInput below does: the callers
+ * on the login and signup paths hand it a zod-validated string, but
+ * /api/auth/sso/discover hands it a field straight off a JSON body, where the
+ * declared type is a claim. Typed as `string` this ran `.trim()` on whatever
+ * arrived, so `{"email": 42}` threw a TypeError two frames down and surfaced as
+ * a 500 rather than the bad request it is. A non-string normalises to the empty
+ * string, which emailDomain already reports as "not shaped like an address".
+ */
+export function normalizeEmail(email: unknown): string {
+  if (typeof email !== "string") return "";
   return email.trim().toLowerCase();
 }
 
 /** The bare domain of an address, or null when it isn't shaped like one. */
-export function emailDomain(email: string): string | null {
+export function emailDomain(email: unknown): string | null {
   const normalized = normalizeEmail(email);
   const at = normalized.lastIndexOf("@");
   if (at <= 0 || at === normalized.length - 1) {
