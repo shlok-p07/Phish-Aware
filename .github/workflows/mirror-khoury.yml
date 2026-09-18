@@ -1,8 +1,20 @@
 name: Mirror Khoury main
 
+# Schedule disabled deliberately -- see below. Run it by hand from the Actions
+# tab when you actually want to pull Khoury's tree down.
+#
+# This job syncs the working tree FROM Khoury with `rsync -a --delete`, so every
+# run makes this repo's main identical to Khoury's and commits the result. That
+# is correct for a read-only mirror, and destructive once anyone develops here:
+# on 2026-09-18 it reverted 29 files of work on main (commit a429e24), which had
+# to be restored by reverting the mirror commit.
+#
+# Development now happens in this repo, so the twice-daily run can only undo it.
+# Re-enable the cron only if this repo goes back to being a pure mirror -- and if
+# it does, move development to Khoury first.
 on:
-  schedule:
-    - cron: "0 */12 * * *"
+  # schedule:
+  #   - cron: "0 */12 * * *"
   workflow_dispatch: {}
 
 permissions:
