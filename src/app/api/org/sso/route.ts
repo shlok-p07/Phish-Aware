@@ -7,7 +7,7 @@ import {
   type SsoConnectionDoc,
   type SsoProviderKind,
 } from "@/db";
-import { json, error, requireOrgAdmin, withErrorHandling, readJsonBody } from "@/server/http";
+import { json, error, requireOrgAdmin, withErrorHandling, readJsonBody, optionalText } from "@/server/http";
 import { encryptSecret, decryptSecret, isEncryptionConfigured } from "@/server/secretBox";
 import { ssoRedirectUri } from "@/server/siteUrl";
 import { parseDomainInput } from "@/server/sso/domain";
@@ -87,9 +87,9 @@ export const PUT = withErrorHandling(async (req: NextRequest) => {
   }
 
   const body = (await readJsonBody(req)) as {
-    issuer?: string;
-    clientId?: string;
-    clientSecret?: string;
+    issuer?: unknown;
+    clientId?: unknown;
+    clientSecret?: unknown;
     providerKind?: SsoProviderKind;
     allowedDomains?: string[] | string;
     requireVerifiedEmail?: boolean;
@@ -101,19 +101,24 @@ export const PUT = withErrorHandling(async (req: NextRequest) => {
 
   let issuer: string;
   try {
-    issuer = validateIssuer(body.issuer ?? "");
+    issuer = validateIssuer(body.issuer);
   } catch (err) {
     return error(400, err instanceof SsoConfigError ? err.message : "Invalid issuer");
   }
 
-  const clientId = body.clientId?.trim();
+  // optionalText rather than `?.trim()`: the optional chain guarded null and
+  // undefined but not a number or an object, which threw a TypeError here and
+  // answered 500 rather than 400. The issuer above is handled differently only
+  // because validateIssuer owns its own messages -- it takes `unknown` and
+  // reports a non-string as a missing issuer through the catch.
+  const clientId = optionalText(body.clientId, "Client ID");
   if (!clientId) {
     return error(400, "Client ID is required");
   }
 
   // Blank means "keep what's stored" -- the UI never round-trips the plaintext,
   // so an admin editing the domain list mustn't have to retype the secret.
-  const rawSecret = body.clientSecret?.trim();
+  const rawSecret = optionalText(body.clientSecret, "Client secret");
   if (!rawSecret && !existing?.clientSecretEnc) {
     return error(400, "Client secret is required");
   }

@@ -69,6 +69,24 @@ const config = [
           message:
             "Call installModuleMock() from @/test/mock-module-registry instead of mock.module() directly -- it enforces one mock factory per module path, which mock.module() alone cannot.",
         },
+        /*
+         * zod's ESM entry re-exports a namespace object as a named binding
+         * (`import * as z from "./v3/external.js"; export { z }`). Vite's ESM
+         * interop does not materialise that, so `import { z } from "zod"` is
+         * `undefined` under Vitest and every schema built from it throws at
+         * call time -- seven onboarding-survey tests failed that way, with the
+         * error nowhere near the import that caused it. `import * as z` works
+         * under Next, bun and Vite alike.
+         *
+         * A selector rather than no-restricted-imports/importNames: that
+         * option counts a namespace import as importing every name, so it
+         * rejects the very form this is steering people toward.
+         */
+        {
+          selector: "ImportDeclaration[source.value='zod'] > ImportSpecifier[imported.name='z']",
+          message:
+            'Use `import * as z from "zod"`. zod\'s named `z` export is a re-exported namespace, which Vite resolves to undefined under Vitest.',
+        },
       ],
     },
   },

@@ -1,4 +1,11 @@
-import { z } from "zod";
+// Namespace import, not `import { z }`. zod's ESM entry does
+// `import * as z from "./v3/external.js"; export { z }` -- re-exporting a
+// namespace object as a named binding, which Vite's ESM interop does not
+// materialise, so `z` arrives undefined under Vitest and every schema built
+// here throws "undefined is not an object". The namespace form resolves
+// identically under Next, bun and Vite. See eslint.config.mjs, which bans
+// the named form so this cannot come back.
+import * as z from "zod";
 
 /**
  * The intro survey shown before the calibration diagnostic.
