@@ -53,3 +53,8 @@ coverage/
 
 # Reports/deliverables are kept locally, not in the repo
 docs/
+
+# Portfolio exports are kept locally -- binary documents bloat the history
+# permanently, since git stores a full copy of every revision.
+*.docx
+*.pdf
