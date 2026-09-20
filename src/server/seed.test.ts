@@ -155,3 +155,42 @@ describe("seedIfEmpty against an already-seeded database", () => {
     expect(real.isDemo).toBeUndefined();
   });
 });
+
+describe("concurrent seed runs", () => {
+  it("collapses overlapping callers into a single run", async () => {
+    // src/db/client.ts fires seedIfEmpty on first connect without awaiting it,
+    // and seed-cli.ts calls it directly -- and the CLI's call opens the
+    // connection that triggers the first. Both ran, concurrently, and the
+    // content upserts are $setOnInsert with no unique index behind them, so
+    // each run found no match and each inserted. That is how two copies of a
+    // voice scenario landed in the library four milliseconds apart.
+    // Asserted on promise identity, not just the row count: the in-memory
+    // mock serialises each bulkWrite, so it cannot reproduce the interleaving
+    // that duplicates rows against a real cluster, and a count-only assertion
+    // would pass with the guard removed. Sharing one promise is the guard's
+    // actual contract, and it cannot hold by accident.
+    const first = seedIfEmpty();
+    const second = seedIfEmpty();
+    expect(second).toBe(first);
+
+    await Promise.all([first, second, seedIfEmpty()]);
+
+    expect(fakeDbState.scenarios).toHaveLength(SEED_SCENARIOS.length);
+    expect(fakeDbState.lessons).toHaveLength(LESSONS.length);
+  });
+
+  it("still seeds on a later, genuinely separate run", async () => {
+    // The guard clears on settle, so it must not wedge the seed permanently
+    // after the first call completes.
+    const first = seedIfEmpty();
+    await first;
+    resetFakeDbState();
+    const later = seedIfEmpty();
+    // A fresh promise, not the settled one -- otherwise the guard would wedge
+    // the seed permanently after its first run.
+    expect(later).not.toBe(first);
+    await later;
+
+    expect(fakeDbState.scenarios).toHaveLength(SEED_SCENARIOS.length);
+  });
+});

@@ -219,8 +219,14 @@ function capCues<T extends { severity: number }>(cues: readonly T[]): T[] {
  * Which cues a vector can honestly present. Absent from this map means "every
  * cue applies" -- only email is that unrestricted. Keyed rather than chained so
  * adding a vector is one entry and the compiler names it if it is forgotten.
+ *
+ * Exported so the static seed pool is held to the same rule as generated
+ * content (see seedScenarios.test.ts). Generation filtered against this from
+ * the start; the hand-written library never did, so a cue that a vector cannot
+ * actually show -- an attachment on a phone call -- would have been graded
+ * against the learner with nothing to catch it.
  */
-const VECTOR_ALLOWED_CUES: Partial<Record<PracticeVector, CueId[]>> = {
+export const VECTOR_ALLOWED_CUES: Partial<Record<PracticeVector, CueId[]>> = {
   voice: VOICE_ALLOWED_CUES,
   qr: QR_ALLOWED_CUES,
   social: SOCIAL_ALLOWED_CUES,

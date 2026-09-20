@@ -115,6 +115,11 @@ export async function closeMongoClient(): Promise<void> {
   // abort operations mid-run. Safe from the deadlock that stops getDb() from
   // awaiting the same promise, since provisioning never calls this.
   await globalForMongo._mongoProvisioning?.catch(() => {});
+  // The index-drift report is started by provisioning but not awaited by it,
+  // so it can still be running here. Closing under it is what made `db:seed`
+  // print a "Client must be connected" stack trace after "Seed complete."
+  const { drainIndexDriftReport } = await import("./provision");
+  await drainIndexDriftReport();
   const client = await globalForMongo._mongoClientPromise;
   await client.close();
   globalForMongo._mongoClientPromise = undefined;

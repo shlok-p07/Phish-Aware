@@ -595,4 +595,125 @@ export const SEED_SCENARIOS: SeedScenario[] = [
     difficulty: 3,
     isOnboarding: false,
   },
+
+  // Help-desk impersonation and developer targeting.
+  //
+  // Every other scenario in this file puts the learner on the receiving end of
+  // a scam. These four put them behind the desk -- the IT analyst taking the
+  // call, the engineer asked for repository access -- because that is where the
+  // costly breaches of the last two years actually started, and it is a seat no
+  // other scenario here trains.
+  //
+  // Drawn from Scattered Spider's help-desk playbook against Marks & Spencer
+  // (April 2025: a vished credential reset, two months of reconnaissance, then
+  // DragonForce ransomware, ~£300M and 46 days offline) and MGM Resorts
+  // (September 2023: a LinkedIn profile, one call, an MFA reset, ~$100M), and
+  // from the LexisNexis GitHub breach (December 2024: a socially engineered
+  // developer, 364,000 people's PII taken out of private repositories).
+  //
+  // Each phishing scenario is paired with a legitimate one that looks almost
+  // identical, for the reason given above the legitimate-mail block: a help
+  // desk that refuses every caller is as broken as one that verifies nobody,
+  // and the skill being trained is telling them apart rather than refusing.
+  {
+    vector: "voice",
+    isPhish: true,
+    sender: "Unknown caller",
+    subject: "",
+    body:
+      "You are the IT help desk. It is 9:52 on a Tuesday and the queue is moderate.\n\n" +
+      "Caller: Hey, this is Marcus Webb, enterprise sales, Chicago office. I have a client demo in twenty minutes and I am locked out.\n" +
+      "Caller: My authenticator stopped working after I got a new phone last week and it never got transferred. I already emailed IT but nobody has come back to me.\n" +
+      "You: Can I take your employee ID?\n" +
+      "Caller: I do not have it memorised, it is in my work email and that is exactly what I am locked out of. Can you look me up by name? Marcus Webb, enterprise sales.\n" +
+      "You: Can you confirm your manager or your start date?\n" +
+      "Caller: Diana Reyes, VP of Enterprise Sales. I started in March. Look, this is a six-figure deal and I cannot be late. Can you just do the reset now and I will verify with you straight after?",
+    links: [],
+    attachments: [],
+    cues: [
+      {
+        type: "credential_request",
+        severity: 3,
+        explanation:
+          "The ask is a credential and MFA reset, and every answer that would confirm who is asking is unavailable for a convenient reason. \"Verify me afterwards\" inverts the control: once the reset is done, the verification cannot fail in any way that matters.",
+      },
+      {
+        type: "urgency_language",
+        severity: 3,
+        explanation:
+          "Twenty minutes, a client demo and a six-figure deal. The deadline is not incidental detail -- it is there so that following the procedure feels like the thing that costs the company money.",
+      },
+      {
+        type: "generic_greeting",
+        severity: 2,
+        explanation:
+          "Nothing offered actually identifies the caller. A name, a team, an office and a manager's name are on LinkedIn and the company website; this is exactly how Scattered Spider built the MGM call. Knowing who someone reports to is not proof of being them.",
+      },
+    ],
+    difficulty: 4,
+    isOnboarding: false,
+  },
+  {
+    vector: "voice",
+    isPhish: false,
+    sender: "+1 (312) 555-0174",
+    subject: "",
+    body:
+      "You are the IT help desk. A call comes in from an internal extension.\n\n" +
+      "Caller: Hi, this is Priya Raman in finance. I am locked out after the password rotation yesterday -- no rush, I can work offline this morning.\n" +
+      "You: Can I take your employee ID?\n" +
+      "Caller: Sure, it is 40118. I can also stay on while you call me back on my desk line if that is the process, I know it changed recently.\n" +
+      "You: That would help, thanks.\n" +
+      "Caller: No problem. If it is easier I can raise a ticket first and you can pick it up from there -- whichever is less work for you.",
+    links: [],
+    attachments: [],
+    cues: [],
+    difficulty: 3,
+    isOnboarding: false,
+  },
+  {
+    vector: "social",
+    isPhish: true,
+    sender: "Ryan Okafor (@ryan.okafor.dev)",
+    subject: "",
+    body:
+      "Hey! I am contracting with the platform team this sprint on the payments migration -- Dev said you are the one to ask. Could you add me to the private repo so I can pick up the Stripe work? My GitHub is @ryan-okafor-ext.\n\nAlso, the staging env file has not been shared with me yet. Could you paste the STRIPE_SECRET and the DB connection string here so I am not blocked? I know it is not ideal but the onboarding ticket is stuck with IT and I would rather not lose the day.",
+    links: [],
+    attachments: [],
+    cues: [
+      {
+        type: "credential_request",
+        severity: 3,
+        explanation:
+          "A live secret key and a database connection string, requested in a chat message. No onboarding process hands those over this way, and a secret pasted into a DM exists in that conversation for as long as it is retained. This is the shape of the LexisNexis breach: the target was a developer, and the prize was the repository.",
+      },
+      {
+        type: "sender_domain",
+        severity: 3,
+        explanation:
+          "The account messaging you and the GitHub handle it wants added are different names -- @ryan.okafor.dev versus @ryan-okafor-ext. Repository access is granted to the handle, not to the person in the chat, so that mismatch is the whole request.",
+      },
+      {
+        type: "urgency_language",
+        severity: 2,
+        explanation:
+          "\"Blocked\", \"stuck with IT\", \"lose the day\". Framing the request as unblocking someone makes granting it feel like helpfulness and refusing it feel like obstruction.",
+      },
+    ],
+    difficulty: 4,
+    isOnboarding: false,
+  },
+  {
+    vector: "social",
+    isPhish: false,
+    sender: "Dana Whitmore (@dwhitmore)",
+    subject: "",
+    body:
+      "Morning -- I have picked up the payments migration from Sam while he is on leave. I have raised the access request through the usual ticket (PLAT-2291) so it goes through your team's approval, no need to add me directly. Nothing urgent, whenever you get to it this week is fine. I have the staging credentials from the vault already, so I only need the repo.",
+    links: [],
+    attachments: [],
+    cues: [],
+    difficulty: 3,
+    isOnboarding: false,
+  },
 ];

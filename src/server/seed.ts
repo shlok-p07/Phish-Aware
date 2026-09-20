@@ -13,7 +13,40 @@ const SAMPLE_LEADERBOARD_USERS = [
   { name: "Dana Wu", xp: 95, level: "beginner" as const, streak: 1 },
 ];
 
-export async function seedIfEmpty(): Promise<void> {
+/**
+ * One seed run at a time, per process.
+ *
+ * Two callers reach this: src/db/client.ts fires it on first connect, without
+ * awaiting, and src/db/seed-cli.ts calls it directly for `bun run db:seed`.
+ * The CLI's call has to open a connection to do anything, which triggers the
+ * first -- so running the seed command ran the seed twice, concurrently.
+ *
+ * The content upserts below are `$setOnInsert` with `upsert: true` and there is
+ * no unique index behind them, so two overlapping runs each find no match and
+ * each insert. That is not theoretical: it put two copies of a voice scenario
+ * into the library four milliseconds apart, and is the most likely source of
+ * the duplicate pairs already sitting in the collection.
+ *
+ * Sharing one in-flight promise makes the second caller await the first rather
+ * than start a rival run. Held on globalThis for the same reason the Mongo
+ * client is: a dev hot reload would otherwise hand out a fresh module scope and
+ * lose the guard. Cleared on settle so a later, genuinely separate run still
+ * works -- including a retry after a failure.
+ *
+ * This does not coordinate across processes; two instances booting at once can
+ * still race. A unique index on the content key is the durable fix and needs a
+ * migration, so it is deliberately not done here.
+ */
+const globalForSeed = globalThis as unknown as { _seedInFlight?: Promise<void> };
+
+export function seedIfEmpty(): Promise<void> {
+  globalForSeed._seedInFlight ??= runSeed().finally(() => {
+    globalForSeed._seedInFlight = undefined;
+  });
+  return globalForSeed._seedInFlight;
+}
+
+async function runSeed(): Promise<void> {
   // The static library is topped up rather than seeded once. The previous "only
   // if the collection is empty" guard meant that adding library content for a
   // new vector reached no database that had ever been seeded -- so qr, social

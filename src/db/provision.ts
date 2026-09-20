@@ -506,15 +506,36 @@ async function pruneStaleIndexes(db: Db): Promise<void> {
 }
 
 /**
+ * The in-flight drift report, so a caller that is about to close the client can
+ * wait for it.
+ *
+ * The check is fire-and-forget by design, but discarding the promise entirely
+ * meant nothing could drain it: `bun run db:seed` finished, closed the pool,
+ * and the still-running report then failed with "Client must be connected
+ * before running operations" and printed a stack trace after "Seed complete."
+ * Nothing was wrong, which is the problem -- it reads exactly like a failure.
+ *
+ * closeMongoClient already drains seeding through _mongoProvisioning; this is
+ * the same handle for the same reason.
+ */
+let pendingDriftReport: Promise<void> | null = null;
+
+/** Wait for any in-flight drift report. Safe to call when none is running. */
+export async function drainIndexDriftReport(): Promise<void> {
+  await pendingDriftReport?.catch(() => {});
+}
+
+/**
  * Logs any index this file does not create, without touching it.
  *
  * Deliberately not a reconcile-and-drop: the cluster is shared, and silently
  * dropping an index another team added would be worse than leaving it. Anything
  * genuinely wrong goes in STALE_INDEXES, where it is named and reviewable.
- * Fire-and-forget so a reporting query cannot slow down or fail startup.
+ * Not awaited by the caller, so a reporting query cannot slow down or fail
+ * startup -- but the handle is kept; see drainIndexDriftReport above.
  */
 function reportIndexDrift(db: Db, desired: Map<string, Set<string>>): void {
-  void (async () => {
+  pendingDriftReport = (async () => {
     try {
       for (const [collection, names] of desired) {
         const actual = await db.collection(collection).indexes();
@@ -527,6 +548,8 @@ function reportIndexDrift(db: Db, desired: Map<string, Set<string>>): void {
       }
     } catch (cause) {
       console.warn("[db] could not check for index drift", cause);
+    } finally {
+      pendingDriftReport = null;
     }
   })();
 }
