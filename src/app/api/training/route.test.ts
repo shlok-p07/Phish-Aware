@@ -88,14 +88,15 @@ describe("GET /api/training", () => {
   });
 
   it("shows an assignment the admin made, which was previously invisible", async () => {
-    const c = campaign("Invoice fraud", 5, new Date("2026-10-01"));
+    // Far enough out that the wall clock never makes it overdue.
+    const c = campaign("Invoice fraud", 5, new Date("2099-01-01"));
     assign(c, ME);
 
     expect(await rows()).toEqual([
       {
         id: expect.any(String),
         title: "Invoice fraud",
-        dueDate: "2026-10-01",
+        dueDate: "2099-01-01",
         requiredScenarios: 5,
         // Wording shared with the admin view, so both describe the requirement
         // the same way.
