@@ -43,7 +43,8 @@ link, or a real credential prompt.
   [orval](https://orval.dev/) from a single OpenAPI document
   (`src/api-spec/openapi.yaml`), so the client and server can't silently drift
   apart.
-- **540 tests, `tsc --noEmit`, and a production build all stay green.**
+- **1,341 tests (1,163 `bun test` + 178 Vitest), `tsc --noEmit`, ESLint, and a
+  production build all stay green.**
 
 ## Table of contents
 
@@ -98,7 +99,7 @@ link, or a real credential prompt.
 | Auth          | Custom httpOnly-cookie sessions, scrypt-hashed passwords, a from-scratch OIDC/PKCE SSO layer |
 | Runtime/PM    | [Bun](https://bun.sh/)                                        |
 | Containers    | Docker + Docker Compose (production-parity builds)             |
-| Tests         | `bun test` (540 tests)                                         |
+| Tests         | `bun test` (1,163 tests) + Vitest/happy-dom component tests (178) |
 
 ## Architecture
 
@@ -201,6 +202,7 @@ its file header explains.
 | `bun run db:verify`                 | Read-only. Asks the server which stored documents its own validators reject, and checks provisioning is idempotent. Safe against production and in CI |
 | `bun run db:prune-orphans`          | Removes rows whose owning user or organisation is gone. Both delete paths cascade now; this clears what earlier versions left |
 | `bun run db:dedupe-departments`     | Keeps one department per (organisation, name). Needed before the unique index can be created |
+| `bun run db:dedupe-onboarding`      | Removes duplicated onboarding diagnostic scenarios left by an early seed. Never deletes a scenario that has attempts against it |
 | `bun run db:normalize-sso-domains`  | Reduces stored SSO domains to the bare domain. An address or `@domain` matches nothing at sign-in |
 | `bun run db:migrate-work-type`      | Maps retired `workType` values onto the current vocabulary |
 | `bun run db:prune`                  | Drops collections no longer provisioned, and only if empty |
@@ -220,8 +222,13 @@ coverage such as
 which guards against a React Query cache-sharing bug that caused a refetch
 loop.
 
+Tests that depend on the date either pin a fixed `NOW` or use dates far in
+the past or future, so the suite doesn't start failing as the calendar moves.
+
 ```bash
-bun test
+bun test          # 1,163 unit and route tests
+bun run test:ui   # 178 component tests (Vitest + happy-dom)
+bun run test:all  # both
 ```
 
 ## Admin / organizations
