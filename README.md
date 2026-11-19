@@ -197,7 +197,7 @@ Docker at all.
 | `bun run typecheck` | Type-check the project with `tsc --noEmit`                     |
 | `bun test`          | Run the unit test suite                                         |
 | `bun run codegen`   | Regenerate `api-client`/`api-zod` from `api-spec/openapi.yaml`  |
-| `bun run db:init`   | Apply the original mongosh schema in `database/init/`. Only for an empty database; the app provisions a newer schema itself (see [database/README.md](database/README.md)) |
+| `bun run db:init`   | (Optional) apply the schema with mongosh, from `database/init/`. The app does this itself on startup |
 | `bun run db:seed`   | (Optional, manual) seed lessons/scenarios/sample users via CLI. The app does this itself on startup |
 | `bun run test:ui`   | Component tests (Vitest + happy-dom); `test:ui:watch` and `test:coverage` alongside |
 | `bun run test:all`  | Both suites: `bun test && vitest run` |
@@ -213,6 +213,7 @@ its file header explains.
 | Script                              | What it does |
 | ----------------------------------- | ------------ |
 | `bun run a11y:contrast`             | Checks every text/background pairing the app uses against WCAG, across light, dark and both high-contrast themes, with a spread of customer accents substituted in. Exits non-zero on any failure |
+| `bun run db:export-schema`          | Regenerates the mongosh schema in `database/init/` from `src/db/provision.ts`. Run after a schema change; a test fails until you do |
 | `bun run db:verify`                 | Asks the server which stored documents its own validators reject, and checks provisioning is idempotent. Deletes nothing, but applies the schema the same way app startup does |
 | `bun run db:prune-orphans`          | Removes rows whose owning user or organisation is gone. Both delete paths cascade now; this clears what earlier versions left |
 | `bun run db:dedupe-departments`     | Keeps one department per (organisation, name). Needed before the unique index can be created |

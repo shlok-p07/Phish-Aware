@@ -1,15 +1,15 @@
 /**
- * Ports database/init/01-validators.js and 02-indexes.js to the Node
- * MongoDB driver so schema validators, indexes, and seed data are applied
- * automatically on server startup (see src/instrumentation.ts) -- nobody
- * has to run `bun run db:init`/`db:seed` by hand, on a teammate's machine,
- * in Docker, or on a Render deploy. Idempotent: safe to run on every boot
- * against an already-provisioned cluster (collMod/createIndex are no-ops
- * when nothing changed).
+ * The schema: every collection's $jsonSchema validator and every index,
+ * applied through the Node driver on first connect (see client.ts), so nobody
+ * has to run `bun run db:init`/`db:seed` by hand, on a teammate's machine, in
+ * Docker, or on a deploy. Idempotent: safe to run on every boot against an
+ * already-provisioned cluster (collMod/createIndex are no-ops when nothing
+ * changed).
  *
- * Kept in lockstep with the mongosh scripts in database/init/, which
- * remain the source of truth for the shared cross-team schema and are still
- * runnable standalone (`bun run db:init`) for anyone who prefers mongosh.
+ * This is the only place the schema is written. database/init/01-validators.js
+ * and 02-indexes.js, the mongosh copy shared with other teams, are generated
+ * from it: after a change, run `bun run db:export-schema` and commit the
+ * result. mongoshExport.test.ts fails until you do.
  */
 import type { CreateIndexesOptions, Db, Document, IndexSpecification } from "mongodb";
 import { WORK_MODES } from "@/lib/onboarding-survey";

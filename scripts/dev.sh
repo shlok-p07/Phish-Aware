@@ -56,10 +56,8 @@ fi
 
 # --- Schema + seed (idempotent) --------------------------------------------
 # db:seed connects through getDb(), which applies the app's own schema
-# (src/db/provision.ts) before seeding. This deliberately no longer runs
-# `db:init`: the mongosh scripts in database/init/ have drifted from
-# provision.ts, and applying them to a shared cluster replaces its validators
-# with older ones until the next server restart.
+# (src/db/provision.ts) before seeding, so `db:init` (the same schema as
+# mongosh scripts) would only apply it twice.
 echo "Applying schema and seeding (if empty)..."
 bun run db:seed
 

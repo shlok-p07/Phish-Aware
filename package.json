@@ -21,6 +21,7 @@
     "test:all": "bun test && vitest run",
     "db:prune": "bun run scripts/db/prune-unused-collections.ts",
     "db:verify": "bun run scripts/db/verify-database.ts",
+    "db:export-schema": "bun run scripts/db/export-mongosh-schema.ts",
     "db:migrate-work-type": "bun run scripts/db/migrate-legacy-work-type.ts",
     "db:dedupe-departments": "bun run scripts/db/dedupe-departments.ts",
     "db:dedupe-onboarding": "bun run scripts/db/dedupe-onboarding-scenarios.ts",
