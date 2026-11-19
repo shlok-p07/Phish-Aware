@@ -5,7 +5,7 @@ import type { InsertScenario, SpecConventions } from "@/db";
 // not part of this static data.
 type SeedScenario = Omit<InsertScenario, "scenarioId" | "source" | keyof SpecConventions>;
 
-// Cue ids and severity match the shared phishaware-db schema spec's 8-value
+// Cue ids and severity match the shared database schema spec's 8-value
 // `cueType` enum + numeric severity (see src/server/cues.ts). Severity scale:
 // 1 = low, 2 = medium, 3 = high. Difficulty is 1-5 per the spec (mapped from
 // the old easy/medium/hard labels: easy=1, medium=3, hard=5).

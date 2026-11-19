@@ -1,2 +1,5 @@
 [test]
-preload = ["./test/happydom.ts"]
+# Only discover tests under src/. Without this, bun test also runs the copies of
+# the source that CDK stages in infra/cdk.out/, roughly quadrupling the run.
+root = "./src"
+preload = ["./src/test/setup/happydom.ts"]

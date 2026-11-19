@@ -1,16 +1,16 @@
 #!/bin/bash
-# Uploads the awareness model artifact from backend/models_store/ to the stack's
+# Uploads the awareness model artifact from ml-service/models_store/ to the stack's
 # S3 bucket and redeploys so the ML service loads it.
 #
 #   infra/scripts/upload-model.sh
 #
-# The artifact and its metadata come from the team (see backend/README.md);
+# The artifact and its metadata come from the team (see ml-service/README.md);
 # they are gitignored and not part of the ML image.
 set -euo pipefail
 
 REGION=${AWS_REGION:-${CDK_DEFAULT_REGION:-us-east-1}}
 STACK=${STACK:-PhishAware}
-STORE="$(cd "$(dirname "$0")/../../backend/models_store" && pwd)"
+STORE="$(cd "$(dirname "$0")/../../ml-service/models_store" && pwd)"
 
 output() {
   aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \

@@ -9,8 +9,8 @@
  * Read-only unless asked, and it reports per collection so the scale of what was
  * left behind is visible rather than just fixed.
  *
- *   bun run scripts/prune-orphans.ts --dry-run
- *   bun run scripts/prune-orphans.ts
+ *   bun run scripts/db/prune-orphans.ts --dry-run
+ *   bun run scripts/db/prune-orphans.ts
  */
 import type { ObjectId } from "mongodb";
 import { getDb } from "@/db/client";

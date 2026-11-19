@@ -18,8 +18,8 @@
  *  - substitutes a spread of customer accents through the same adjustment the
  *    app applies, and reports anything under the WCAG AA threshold
  *
- *   bun run scripts/audit-contrast.ts
- *   bun run scripts/audit-contrast.ts --all   # include passing rows
+ *   bun run scripts/audit/audit-contrast.ts
+ *   bun run scripts/audit/audit-contrast.ts --all   # include passing rows
  */
 import { readFileSync } from "node:fs";
 import { accentCss } from "@/components/org-brand";

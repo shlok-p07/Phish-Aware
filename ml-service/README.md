@@ -1,4 +1,4 @@
-# PhishAware AI/ML backend
+# PhishAware ML service
 
 This folder contains a small Python service built with FastAPI. It runs
 separately from the main Next.js application and exposes HTTP endpoints for
@@ -19,13 +19,14 @@ connect to MongoDB.
 Prerequisites:
 
 - Python 3.12.13 (the version recorded in `.python-version`)
-- The model artifact and matching metadata file from the team
+- The model artifact and matching metadata file: either train them (see
+  [Training the model](#training-the-model)) or get them from the team
 - The main application dependencies if you also plan to run Next.js
 
 From the repository root:
 
 ```bash
-cd backend
+cd ml-service
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -39,7 +40,7 @@ On Windows PowerShell, activate the environment with:
 .venv\Scripts\Activate.ps1
 ```
 
-Put these files in `backend/models_store/`:
+Put these files in `ml-service/models_store/`:
 
 ```text
 phishing_awareness_v2.joblib
@@ -53,7 +54,7 @@ python scripts/verify_model.py
 uvicorn app.main:app --reload --port 8001
 ```
 
-Run that command from the `backend/` directory. Running it from the repository
+Run that command from the `ml-service/` directory. Running it from the repository
 root as written will cause `ModuleNotFoundError: No module named 'app'`.
 
 Once started:
@@ -74,7 +75,7 @@ terminals.
 Terminal 1, from the repository root:
 
 ```bash
-./dev.sh
+./scripts/dev.sh
 ```
 
 This prepares MongoDB and starts Next.js on port 3000. It does **not** start the
@@ -83,7 +84,7 @@ Python service.
 Terminal 2:
 
 ```bash
-cd backend
+cd ml-service
 source .venv/bin/activate
 uvicorn app.main:app --reload --port 8001
 ```
@@ -96,8 +97,8 @@ ML_SERVICE_TIMEOUT_MS="60000"
 ```
 
 `ML_SERVICE_TIMEOUT_MS` is deliberately generous. The first awareness request
-checksums and loads a roughly 515 MB artifact; later requests reuse the cached
-predictor and should be much faster.
+checksums and loads the model (about 3 MB); later requests reuse the cached
+predictor and should be faster still.
 
 ## What happens during onboarding
 
@@ -147,7 +148,7 @@ stored fallback model version is `diagnostic-accuracy-v0`.
 ## Architecture
 
 ```text
-backend/
+ml-service/
 ├── app/
 │   ├── main.py                         FastAPI setup, CORS, router mounting
 │   ├── core/
@@ -167,6 +168,7 @@ backend/
 ├── models_store/                       Local model files; ignored by Git
 ├── data/                               Local datasets; ignored by Git
 ├── scripts/
+│   ├── train_awareness.py              Trains and publishes the awareness model
 │   └── verify_model.py                 Metadata/checksum verification
 ├── tests/                              Fast unit and mocked-route tests
 ├── tests/integration/                  Opt-in real-artifact tests
@@ -302,6 +304,63 @@ The joblib artifact contains both preprocessing and the trained regressor. Do
 not manually one-hot encode department or work mode in FastAPI; the fitted
 pipeline performs the same preprocessing used during training.
 
+## Training the model
+
+The current artifact was trained with `scripts/train_awareness.py` on the
+EnterprisePhish-100K dataset from Kaggle (100,000 rows). The dataset is not in
+the repository. Download it with your own Kaggle account and save it as:
+
+```text
+ml-service/data/awareness_training_2026.csv
+```
+
+Train in the same Python and library versions the service runs. The loader
+refuses an artifact pickled under a different scikit-learn version, so a model
+trained on a newer local Python would fail at load time. The simplest way is to
+train inside the production base image:
+
+```bash
+cd ml-service
+printf 'FROM python:3.12-slim\nCOPY requirements.txt /tmp/r.txt\nRUN pip install -q --no-cache-dir -r /tmp/r.txt\n' \
+  | docker build -q -t phishaware-train -f - .
+docker run --rm -v "$PWD":/work -w /work phishaware-train \
+  sh -c "python -m scripts.train_awareness --quick && python -m scripts.verify_model"
+```
+
+That writes `phishing_awareness_v2.joblib` and its metadata to `models_store/`.
+Useful flags:
+
+| Flag | Effect |
+| --- | --- |
+| `--quick` | Compares ridge and gradient boosting only. This is how the current model was trained |
+| `--no-publish` | Evaluates without writing anything |
+| `--iterations N` | Random-search iterations per candidate (default 25) |
+| `--data PATH` | Use a different CSV |
+
+Without `--quick`, the script also tunes random forest and extra trees and
+stacks them. On a 6 GB Docker VM that run was killed for running out of memory,
+and the forests it produces are far too large for the 2 GB production instance,
+so gradient boosting is the deliberate choice, not a shortcut.
+
+The current model's held-out results (20,000 rows the search never saw):
+
+| Metric | Value |
+| --- | --- |
+| R² | 0.942 (ridge baseline: 0.920) |
+| Within ±5 points | 85.2% |
+| Within ±10 points | 99.5% |
+| Mean absolute error | 2.76 points |
+| Same starting level as the true score | 92.9% |
+| Same difficulty band as the true score | 87.8% |
+
+`age`, `failed_phishing_simulation` and `cybersecurity_awareness_score` are
+excluded from training: the app never collects them, and the last one
+correlates 0.90 with the target, so it would inflate the score with a feature
+production can't supply.
+
+To deploy a newly trained model, run `infra/scripts/upload-model.sh` from the
+repository root (see [infra/README.md](../infra/README.md)).
+
 ## Model loading and version safety
 
 The first call to `get_awareness_predictor()`:
@@ -362,30 +421,30 @@ the existing predictor and response contracts.
 
 ## Configuration
 
-`app/core/config.py` reads `backend/.env`. The supported settings are:
+`app/core/config.py` reads `ml-service/.env`. The supported settings are:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `APP_NAME` | `PhishAware ML Service` | Name returned by health/docs |
 | `ENVIRONMENT` | `development` | Environment label |
-| `MODEL_STORE_DIR` | `backend/models_store` | Artifact directory |
+| `MODEL_STORE_DIR` | `ml-service/models_store` | Artifact directory |
 | `AWARENESS_MODEL_FILENAME` | `phishing_awareness_v2.joblib` | Joblib artifact |
 | `AWARENESS_METADATA_FILENAME` | `phishing_awareness_v2.metadata.json` | Artifact metadata |
 | `AWARENESS_MODEL_VERSION` | `awareness-v2.0.0` | Required deployed version |
-| `DATA_DIR` | `backend/data` | Local dataset directory |
+| `DATA_DIR` | `ml-service/data` | Local dataset directory |
 | `CORS_ORIGINS` | Localhost ports 3000 | Comma-separated browser origins |
 
-The root `.env` and `backend/.env` serve different programs:
+The root `.env` and `ml-service/.env` serve different programs:
 
 - Root `.env`: Next.js, MongoDB, and `ML_SERVICE_URL`.
-- `backend/.env`: Python model filenames, version, paths, and CORS.
+- `ml-service/.env`: Python model filenames, version, paths, and CORS.
 
-Do not put `ML_SERVICE_URL` in `backend/.env` expecting FastAPI to use it;
+Do not put `ML_SERVICE_URL` in `ml-service/.env` expecting FastAPI to use it;
 that variable tells Next.js where FastAPI lives.
 
 ## Docker
 
-From `backend/`:
+From `ml-service/`:
 
 ```bash
 docker compose up --build
@@ -395,7 +454,7 @@ The compose file:
 
 - Builds the Python service.
 - Publishes port 8001.
-- Loads `backend/.env`.
+- Loads `ml-service/.env`.
 - Mounts `models_store/` and `data/` into the container.
 
 Stop it with:
@@ -405,14 +464,14 @@ docker compose down
 ```
 
 The model is intentionally not copied into the Docker image. It must exist in
-the host's `backend/models_store/` directory so the volume mount can provide it.
+the host's `ml-service/models_store/` directory so the volume mount can provide it.
 
 ## Tests
 
 Install `requirements-dev.txt`, activate the virtual environment, and run:
 
 ```bash
-cd backend
+cd ml-service
 source .venv/bin/activate
 pytest
 ```
@@ -461,10 +520,10 @@ bun test src/app/api/onboarding/submit/route.test.ts
 
 ### `ModuleNotFoundError: No module named 'app'`
 
-Start Uvicorn while your working directory is `backend/`:
+Start Uvicorn while your working directory is `ml-service/`:
 
 ```bash
-cd backend
+cd ml-service
 source .venv/bin/activate
 uvicorn app.main:app --reload --port 8001
 ```
@@ -504,9 +563,11 @@ unknown fields are included.
 
 ### Checksum verification is slow
 
-That is expected for the roughly 515 MB model. Verification streams the file
-instead of loading a second copy into memory. It happens once per service
-process before the predictor is cached.
+It should not be: the current model is about 3 MB. An earlier artifact was
+roughly 515 MB, so if verification takes seconds, check that
+`models_store/` holds the current files. Verification streams the file instead
+of loading a second copy into memory, and runs once per service process before
+the predictor is cached.
 
 ## Responsibilities at a glance
 

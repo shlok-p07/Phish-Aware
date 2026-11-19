@@ -92,7 +92,7 @@ Run these from the repository root unless noted.
    - Add `<Url>/api/auth/sso/callback` as a redirect URI at any SSO provider you've linked.
 
 6. **Upload the model** once you have the artifact and its metadata in
-   `backend/models_store/` (see [backend/README.md](../backend/README.md)):
+   `ml-service/models_store/` (see [ml-service/README.md](../ml-service/README.md)):
 
    ```bash
    infra/scripts/upload-model.sh

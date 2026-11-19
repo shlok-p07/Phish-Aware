@@ -20,8 +20,8 @@
  * does not leave orphaned attempts and reviews behind the way earlier cleanups
  * did.
  *
- *   bun run scripts/prune-test-accounts.ts          # report only
- *   bun run scripts/prune-test-accounts.ts --yes    # actually delete
+ *   bun run scripts/db/prune-test-accounts.ts          # report only
+ *   bun run scripts/db/prune-test-accounts.ts --yes    # actually delete
  */
 import type { ObjectId } from "mongodb";
 import { getDb } from "@/db/client";

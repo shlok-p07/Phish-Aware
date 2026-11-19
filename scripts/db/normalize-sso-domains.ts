@@ -13,8 +13,8 @@
  * Both write paths now validate, so this is a one-off for what is already
  * stored. Idempotent: a second run finds nothing.
  *
- *   bun run scripts/normalize-sso-domains.ts --dry-run
- *   bun run scripts/normalize-sso-domains.ts
+ *   bun run scripts/db/normalize-sso-domains.ts --dry-run
+ *   bun run scripts/db/normalize-sso-domains.ts
  */
 import { getDb } from "@/db/client";
 import { parseDomainInput } from "@/server/sso/domain";

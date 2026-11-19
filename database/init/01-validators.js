@@ -2,9 +2,9 @@
  * 01-validators.js
  * Creates/updates all 20 collections (17 shared + app-internal `sessions`,
  * `ssoConnections`, `ssoStates`) WITH $jsonSchema validators. Safe to re-run against an already-provisioned
- * cluster (uses collMod for existing collections). Runs automatically on
- * first `docker compose up`, or manually:
- *   mongosh "<uri>" init/01-validators.js
+ * cluster (uses collMod for existing collections). The app applies the same
+ * schema itself on startup (src/db/provision.ts); to run this file manually:
+ *   mongosh "<uri>" database/init/01-validators.js
  *
  * Foolproofing principle: MongoDB is schemaless by default. These validators
  * make the DATABASE itself reject documents with wrong types, bad enums, or

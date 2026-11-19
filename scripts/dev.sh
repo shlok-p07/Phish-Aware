@@ -3,16 +3,16 @@
 # Local dev launcher for PhishAware (Next.js + MongoDB).
 #
 # Usage:
-#   ./dev.sh          # verify Mongo connectivity, init schema, seed, run Next
-#   ./dev.sh stop     # stop the Next dev server started by this script
+#   ./scripts/dev.sh          # verify Mongo connectivity, init schema, seed, run Next
+#   ./scripts/dev.sh stop     # stop the Next dev server started by this script
 #
 # MONGODB_URI must already be set in .env -- either a MongoDB Atlas
-# connection string, or a local instance started with `docker compose up -d
-# mongo` (see docker-compose.yml).
+# connection string, or a MongoDB instance you run yourself (docker-compose.yml
+# only runs the app; it does not provide a database).
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 LOG_DIR="$ROOT/.dev-logs"
@@ -40,7 +40,7 @@ stop 2>/dev/null || true
 # --- MongoDB connectivity ---------------------------------------------------
 if [ ! -f .env ] || ! grep -q "^MONGODB_URI=" .env; then
   echo "MONGODB_URI is not set in .env." >&2
-  echo "Point it at a MongoDB Atlas cluster, or run: docker compose up -d mongo" >&2
+  echo "Point it at a MongoDB Atlas cluster or a MongoDB instance you run yourself." >&2
   exit 1
 fi
 set -a
@@ -74,4 +74,4 @@ echo "  ✅ PhishAware (Next.js) is running"
 echo "     App:  http://localhost:3000/"
 echo "     Logs: $LOG_DIR/next.log"
 echo ""
-echo "  Stop with:  ./dev.sh stop"
+echo "  Stop with:  ./scripts/dev.sh stop"

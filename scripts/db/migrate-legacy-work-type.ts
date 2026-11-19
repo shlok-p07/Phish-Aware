@@ -15,8 +15,8 @@
  * Idempotent: a second run finds nothing and says so. Safe to keep in the repo
  * as the record of what the mapping was.
  *
- *   bun run scripts/migrate-legacy-work-type.ts
- *   bun run scripts/migrate-legacy-work-type.ts --dry-run
+ *   bun run scripts/db/migrate-legacy-work-type.ts
+ *   bun run scripts/db/migrate-legacy-work-type.ts --dry-run
  */
 import { getDb } from "@/db/client";
 

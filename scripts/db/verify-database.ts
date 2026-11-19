@@ -18,7 +18,7 @@
  * Deliberately read-only, so it is safe to run against production and safe to
  * put in CI. Exits non-zero when something is out of line.
  *
- *   bun run scripts/verify-database.ts
+ *   bun run scripts/db/verify-database.ts
  */
 import type { Document } from "mongodb";
 import { getDb } from "@/db/client";

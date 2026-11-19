@@ -17,8 +17,8 @@
  * The emptiness check is the safety property: if anything has started using one
  * of these, this refuses to touch it and says so. Run with:
  *
- *   bun run scripts/prune-unused-collections.ts
- *   bun run scripts/prune-unused-collections.ts --dry-run
+ *   bun run scripts/db/prune-unused-collections.ts
+ *   bun run scripts/db/prune-unused-collections.ts --dry-run
  */
 import { getDb } from "@/db/client";
 

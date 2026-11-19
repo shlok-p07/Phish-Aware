@@ -18,8 +18,8 @@
  * by *name*, so no member is left dangling either way -- but preferring the
  * original keeps ids stable for anything that did capture one.
  *
- *   bun run scripts/dedupe-departments.ts --dry-run
- *   bun run scripts/dedupe-departments.ts
+ *   bun run scripts/db/dedupe-departments.ts --dry-run
+ *   bun run scripts/db/dedupe-departments.ts
  */
 import { ObjectId } from "mongodb";
 import { getDb } from "@/db/client";

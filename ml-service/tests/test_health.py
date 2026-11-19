@@ -11,11 +11,19 @@ def test_healthz():
     assert response.json()["status"] == "ok"
 
 
-def test_readyz_reports_the_loaded_model_and_its_version():
+def test_readyz_reports_the_loaded_model_and_its_version(monkeypatch):
     from app.core.config import get_settings
-    from app.models.awareness_predictor import get_awareness_predictor
+    from app.routes import health
 
-    get_awareness_predictor.cache_clear()
+    # A stand-in for a loaded artifact, so this runs on a machine (or in CI)
+    # without the gitignored model file. Loading the real artifact is covered
+    # by tests/integration, which opts in with RUN_MODEL_INTEGRATION=1.
+    class LoadedPredictor:
+        model_version = get_settings().awareness_model_version
+        trained_at = "2026-01-01T00:00:00Z"
+        metrics = {"r2": 0.9}
+
+    monkeypatch.setattr(health, "get_awareness_predictor", lambda: LoadedPredictor())
     body = TestClient(app).get("/readyz").json()
 
     # A deployment could previously only answer "is the process up", so running
@@ -23,6 +31,8 @@ def test_readyz_reports_the_loaded_model_and_its_version():
     assert body["status"] == "ok"
     assert body["awareness_model"]["loaded"] is True
     assert body["awareness_model"]["version"] == get_settings().awareness_model_version
+    assert body["awareness_model"]["trained_at"] == "2026-01-01T00:00:00Z"
+    assert body["awareness_model"]["metrics"] == {"r2": 0.9}
 
 
 def test_readyz_reports_degraded_and_why_when_no_model_is_present(tmp_path, monkeypatch):

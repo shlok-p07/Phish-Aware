@@ -10,3 +10,11 @@ Dockerfile
 .dockerignore
 docker-compose.yml
 infra
+# Not part of the Next.js build: the Python service builds its own image, and
+# docs/repo housekeeping would only invalidate the layer cache.
+ml-service
+.github
+.claude
+poster
+*.md
+**/*.md

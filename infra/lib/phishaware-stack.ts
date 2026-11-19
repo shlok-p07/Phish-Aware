@@ -18,7 +18,7 @@ import * as ssm from "aws-cdk-lib/aws-ssm";
 import type { Construct } from "constructs";
 
 export interface PhishAwareStackProps extends StackProps {
-  /** Repository root, which holds the Next.js Dockerfile and backend/. */
+  /** Repository root, which holds the Next.js Dockerfile and ml-service/. */
   readonly repoRoot: string;
   /**
    * Public hostname, e.g. "phishaware.example.com", with a DNS A record pointing
@@ -67,8 +67,9 @@ export class PhishAwareStack extends Stack {
       // Repo housekeeping files are excluded too, so editing them doesn't
       // change the image hash and trigger a redeploy.
       exclude: [
-        "backend", "infra", "poster", ".claude", ".github",
-        "README.md", ".gitignore", "vercel.json", "docker-compose.yml", "dev.sh",
+        "ml-service", "infra", "poster", ".claude", ".github",
+        "*.md", "**/*.md", ".gitignore", ".editorconfig", "vercel.json",
+        "docker-compose.yml", "scripts/dev.sh",
       ],
       // Baked into robots.txt, the sitemap and metadata at build time. Only a
       // real domain is known before deploy; the sslip.io fallback is set at
@@ -78,7 +79,7 @@ export class PhishAwareStack extends Stack {
         : undefined,
     });
     const mlImage = new DockerImageAsset(this, "MlImage", {
-      directory: join(props.repoRoot, "backend"),
+      directory: join(props.repoRoot, "ml-service"),
       platform,
     });
 

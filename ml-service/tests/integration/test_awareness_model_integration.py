@@ -1,7 +1,8 @@
 """Integration coverage for the checked metadata and real joblib pipeline.
 
-These tests intentionally do not run in the normal fast suite. The production
-artifact is roughly 515 MB, so opt in with RUN_MODEL_INTEGRATION=1.
+These tests intentionally do not run in the normal fast suite: they need the
+trained artifact in models_store/, which is gitignored and absent in CI. Opt in
+with RUN_MODEL_INTEGRATION=1.
 """
 
 import json
