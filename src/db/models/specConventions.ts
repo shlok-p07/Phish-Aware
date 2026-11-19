@@ -1,6 +1,6 @@
 /**
  * Fields every collection in the shared database schema spec carries
- * (see database/init/01-validators.js's `make()` helper): a generic
+ * (see src/db/provision.ts's `make()` helper): a generic
  * extension bag, and standard timestamps with soft-delete. Not applied to
  * `sessions`, which is app-internal and not part of the shared spec.
  */

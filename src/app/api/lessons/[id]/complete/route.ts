@@ -1,7 +1,7 @@
 import { lessonsCollection, usersCollection } from "@/db";
 import { CompleteLessonResponse } from "@/api-zod";
 import { markLessonComplete } from "@/server/lessonCompletion";
-import { json, error, requireUserId, withErrorHandling } from "@/server/http";
+import { json, parseResponse, error, requireUserId, withErrorHandling } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,6 @@ export const POST = withErrorHandling(
     const user = await users.findOne({ _id: userId }, { projection: { orgId: 1 } });
 
     await markLessonComplete(userId, lesson._id, user?.orgId ?? null);
-    return json(CompleteLessonResponse.parse({ completed: true }));
+    return json(parseResponse(CompleteLessonResponse, { completed: true }));
   },
 );

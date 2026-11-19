@@ -10,7 +10,7 @@ import {
 await installMongoMock();
 await installScenarioGeneratorMock();
 
-const { POOL_TARGET_SIZE, topUpPoolInBackground } = await import("./scenarioPool");
+const { POOL_TARGET_SIZE, topUpPoolInBackground, __resetScenarioPoolState } = await import("./scenarioPool");
 
 const PARAMS = {
   vector: "email" as const,
@@ -43,6 +43,9 @@ let errorSpy: ReturnType<typeof spyOn> | null = null;
 beforeEach(() => {
   resetFakeDbState();
   resetFakeGeneratorState();
+  // Cooldowns and in-flight guards are per process; without a reset each test
+  // only passed because it happened to use a vector no earlier test had touched.
+  __resetScenarioPoolState();
   generator.result = GENERATED;
 });
 

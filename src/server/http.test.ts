@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { HttpError, readJsonBody, withErrorHandling } from "./http";
+import * as z from "zod";
+import { HttpError, parseResponse, readJsonBody, withErrorHandling } from "./http";
 
 describe("withErrorHandling", () => {
   it("returns a 503 for database connection/configuration errors", async () => {
@@ -13,6 +14,44 @@ describe("withErrorHandling", () => {
     await expect(response.json()).resolves.toEqual({
       error: expect.stringContaining("Database unavailable"),
     });
+  });
+});
+
+describe("request vs response validation", () => {
+  const BodySchema = z.object({ name: z.string() });
+  const ResponseSchema = z.object({ id: z.string() });
+
+  it("answers 400 when the request fails its schema", async () => {
+    const handler = withErrorHandling(async () => {
+      BodySchema.parse({ name: 42 });
+      return new Response(null);
+    });
+
+    const response = await handler();
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "Invalid request" });
+  });
+
+  it("answers 500 when the server's own response fails its schema", async () => {
+    // A server bug, so the client must not be told its request was invalid.
+    const handler = withErrorHandling(async () => {
+      parseResponse(ResponseSchema, { id: 7 });
+      return new Response(null);
+    });
+    const logged = console.error;
+    console.error = () => {};
+    try {
+      const response = await handler();
+      expect(response.status).toBe(500);
+      await expect(response.json()).resolves.toEqual({ error: "Internal server error" });
+    } finally {
+      console.error = logged;
+    }
+  });
+
+  it("returns the parsed response, with unknown keys stripped, when it is valid", () => {
+    expect(parseResponse(ResponseSchema, { id: "a", extra: true })).toEqual({ id: "a" });
   });
 });
 

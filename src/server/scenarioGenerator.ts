@@ -410,12 +410,10 @@ export async function generatePhishingScenario(
     // isPhish themselves are forced rather than trusted from the prompt.
     const cues = params.isPhish
       ? capCues(
-          parsed.cues.filter((c) => {
-            if (params.vector === "sms") return c.type !== "unexpected_attachment";
-            if (params.vector === "voice") return VOICE_ALLOWED_CUES.includes(c.type);
-            if (params.vector === "qr") return QR_ALLOWED_CUES.includes(c.type);
-            return true;
-          }),
+          // The same table the refine prompt offers the model, so a vector can't
+          // be restricted in the prompt but unrestricted here (social and web
+          // once were). A vector with no entry (email) allows every cue.
+          parsed.cues.filter((c) => VECTOR_ALLOWED_CUES[params.vector]?.includes(c.type) ?? true),
         )
       : [];
     if (params.isPhish && cues.length === 0) {

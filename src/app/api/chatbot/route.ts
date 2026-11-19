@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { SendChatbotMessageBody, SendChatbotMessageResponse } from "@/api-zod";
 import { getChatbotReply, type ChatMessage } from "@/server/chatbot";
-import { json, error, requireUserId, withErrorHandling, readJsonBody } from "@/server/http";
+import { json, parseResponse, error, requireUserId, withErrorHandling, readJsonBody } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
@@ -14,5 +14,5 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     return error(503, "The assistant is temporarily unavailable. Please try again shortly.");
   }
 
-  return json(SendChatbotMessageResponse.parse({ reply }));
+  return json(parseResponse(SendChatbotMessageResponse, { reply }));
 });

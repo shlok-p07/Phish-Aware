@@ -516,3 +516,67 @@ describe("red flags the learner owes a review on", () => {
     expect(chosen!.difficulty).toBe(4);
   });
 });
+
+describe("the attack profile chosen for this round", () => {
+  const history = () => times(4, (i) => attempt(`s${i}`, true, i % 2 === 0, 3));
+  const phish = (id: string, attackType?: string, tactics: string[] = [], difficulty = 3): Candidate => ({
+    id,
+    difficulty,
+    isPhish: true,
+    cues: [],
+    attackType,
+    tactics,
+  });
+  const profile = { attackType: "invoice_fraud", persuasionTactic: "urgency" };
+
+  it("prefers the chosen attack type, then the chosen tactic", () => {
+    const pool = [
+      phish("other", "credential_harvesting", ["urgency"]),
+      phish("typeOnly", "invoice_fraud", ["authority"]),
+      phish("both", "invoice_fraud", ["urgency"]),
+    ];
+    expect(selectScenario(pool, history(), { startingDifficulty: 3, profile, rng: first })!.id).toBe("both");
+    expect(
+      selectScenario(pool.slice(0, 2), history(), { startingDifficulty: 3, profile, rng: first })!.id,
+    ).toBe("typeOnly");
+  });
+
+  it("never serves the wrong level to match the profile", () => {
+    const chosen = selectScenario(
+      [phish("match", "invoice_fraud", ["urgency"], 4), phish("rightLevel", "malware_delivery", [], 3)],
+      // No history, so the target is the starting level. (history() is four
+      // correct in a row, which would step the target up to 4.)
+      [],
+      { startingDifficulty: 3, profile, rng: first },
+    );
+    expect(chosen!.id).toBe("rightLevel");
+  });
+
+  it("never outweighs a red flag the learner owes a review on", () => {
+    const chosen = selectScenario(
+      [
+        { ...phish("match", "invoice_fraud", ["urgency"]), cues: ["generic_greeting"] },
+        { ...phish("owed", "malware_delivery"), cues: ["sender_domain"] },
+      ],
+      history(),
+      { startingDifficulty: 3, reviewCues: ["sender_domain"], profile, rng: first },
+    );
+    expect(chosen!.id).toBe("owed");
+  });
+
+  it("does not tilt the phishing/legitimate mix", () => {
+    // A legitimate message has no attack type. Penalising it for that would
+    // push every profiled learner toward phishing, undoing the 50/50 mix.
+    const legit = cand("legit", 3, false);
+    const pools = [
+      [phish("match", "invoice_fraud", ["urgency"]), legit],
+      [phish("noMatch", "malware_delivery"), legit],
+    ];
+    for (const pool of pools) {
+      const withProfile = scoreCandidates(pool, history(), { startingDifficulty: 3, profile });
+      const without = scoreCandidates(pool, history(), { startingDifficulty: 3 });
+      const gap = (scored: typeof without) => scored[0]!.score - scored[1]!.score;
+      expect(gap(withProfile)).toBe(gap(without));
+    }
+  });
+});

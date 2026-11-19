@@ -5,7 +5,9 @@ MongoDB access for PhishAware. This folder holds the connection, the schema the 
 | File | What it does |
 | --- | --- |
 | [`client.ts`](client.ts) | Connects, provisions the schema, starts seeding. Exports `getDb`, `getCollection`, `getMongoClient`, `closeMongoClient` |
-| [`provision.ts`](provision.ts) | Node port of [`database/init/01-validators.js`](../../database/init/01-validators.js) and [`02-indexes.js`](../../database/init/02-indexes.js): `ensureSchema`, `ensureIndexes`, `provisionDatabase` |
+| [`provision.ts`](provision.ts) | The schema, written once: `ensureSchema`, `ensureIndexes`, `provisionDatabase` |
+| [`mongoshExport.ts`](mongoshExport.ts) | Renders the mongosh scripts in [`database/init/`](../../database/init/) from `provision.ts` and `demoDataset.ts` (`bun run db:export-schema`) |
+| [`demoDataset.ts`](demoDataset.ts) | The demo organisation behind `database/init/03-seed.js`, typed against the models |
 | [`objectId.ts`](objectId.ts) | `toObjectId` returns `null` on malformed input, so a route can answer 400 or 404 instead of throwing |
 | [`models/`](models/) | One file per collection (table below) |
 | `seed-cli.ts`, `migrate-invited-users.ts`, `sso-demo.ts` | Command-line scripts (see below) |
@@ -34,30 +36,13 @@ On first connect, `client.ts` awaits `provisionDatabase()` before it hands back 
 - **Removing an index** takes more than deleting its line, because `createIndex` never drops anything. Add the index name to `STALE_INDEXES`; it is dropped on boot.
 - **Drift report.** After indexing, the app logs any index on a managed collection that `provision.ts` did not create. It never drops one, because the cluster is shared.
 
-## Keeping `provision.ts` and `database/init/` in lockstep
+## The mongosh copy in `database/init/`
 
-The schema exists twice. The app runs only `provision.ts`. The mongosh scripts in [`database/init/`](../../database/init/) are, per the `provision.ts` header, the source of truth for the shared cross-team schema, and `bun run db:init` applies them by hand. No test compares the two, so keeping them equal is a review job. Make every change in both places:
-
-| Change | In `provision.ts` | In `database/init/` |
-| --- | --- | --- |
-| Add or change a field | The collection's `make()` call in `ensureSchema` | The same `make()` call in `01-validators.js` |
-| Change an enum | The constant at the top (`ROLE`, `VECTOR`, `CUE`, ...) | The same constant in `01-validators.js` |
-| Add an index | `index()` in `ensureIndexes` | `createIndex` in `02-indexes.js` |
-| Remove an index | Add it to `STALE_INDEXES` | Delete the `createIndex` line |
-| Add a collection with a named PK | `PK` map | `PK` map in both `01-validators.js` and `02-indexes.js` |
+`provision.ts` is the only place the schema is written. The mongosh scripts in [`database/init/`](../../database/init/), the copy shared with other teams, are generated from it: [`mongoshExport.ts`](mongoshExport.ts) runs `ensureSchema` and `ensureIndexes` against a recording stand-in for the driver and prints what they would apply. After any schema change, run `bun run db:export-schema` and commit the regenerated files. [`mongoshExport.test.ts`](mongoshExport.test.ts) fails until you do.
 
 Some enums are also mirrored in TypeScript. `CueId` in [`src/server/cues.ts`](../server/cues.ts) must match `CUE`, and [`src/server/vectorTaxonomy.test.ts`](../server/vectorTaxonomy.test.ts) checks that `VECTOR` in `provision.ts` covers every practice vector. `WORK_TYPE` is built from `WORK_MODES` in `src/lib/onboarding-survey.ts`.
 
 Moderate validation does not recheck stored documents. A document that breaks a new rule stays put, and its next update is rejected. After a schema change, run `bun run db:verify`. It runs provisioning twice to check that the second pass creates nothing, then counts the stored documents each validator rejects.
-
-**The two copies have already drifted.** Examples, from the current files:
-
-- `01-validators.js` still creates `profiles` and `surveys`. `provision.ts` no longer does (see [`scripts/db/prune-unused-collections.ts`](../../scripts/db/prune-unused-collections.ts)), and only `provision.ts` creates `lessonCompletions`.
-- `surveyResponses`: `database/init/` uses `surveyId` with a unique `(userId, surveyId)` index. `provision.ts` uses `surveyKey` and `surveyVersion`, and lists that index in `STALE_INDEXES`.
-- `reviews.orgId` and `consents.orgId` are required ObjectIds in `database/init/` and nullable in `provision.ts`.
-- `users`: only `01-validators.js` type-checks the password-reset and lockout fields. Only `provision.ts` has `isDemo` and an enum for `workType`.
-
-Both copies use `collMod`, so `bun run db:init` on a live database replaces the app's validators with the older ones until the app provisions again on its next start. Reconcile the files before you rely on `db:init`.
 
 ## Models
 
@@ -97,7 +82,7 @@ Each file exports a `XDoc` interface, an `InsertX` type, an `X_COLLECTION` name 
 
 `client.ts` starts the seed on first connect, and `seed-cli.ts` calls it directly. A shared promise on `globalThis` keeps it to one run per process. Two processes booting at once can still race.
 
-[`database/init/03-seed.js`](../../database/init/03-seed.js) is separate. It wipes the seeded collections before inserting a starter dataset, and neither the app nor `db:init` runs it. Never point it at real data.
+[`database/init/03-seed.js`](../../database/init/03-seed.js) is separate: an opt-in demo organisation (`bun run db:seed:demo`), generated from [`demoDataset.ts`](demoDataset.ts). It upserts fixed demo ids only and refuses a database with real users; see [database/README.md](../../database/README.md#the-demo-organisation-03-seedjs).
 
 ## Command-line scripts
 
@@ -112,15 +97,16 @@ Each runs through `tsx --env-file=.env`, so it reads `.env`.
 ## Adding a field
 
 1. Add it to the doc interface in `models/`. Make it optional if older rows will not have it, as `users.ts` does for the lockout fields.
-2. If the database should check its type or enum, add it to the `make()` call in `provision.ts` and in `01-validators.js`. Add it to `required` only if every stored document already has it.
-3. If you query on it, add the index to both `ensureIndexes` and `02-indexes.js`.
-4. Run `bun run db:verify` against a database.
+2. If the database should check its type or enum, add it to the `make()` call in `provision.ts`. Add it to `required` only if every stored document already has it.
+3. If you query on it, add the index to `ensureIndexes`.
+4. Run `bun run db:export-schema` and commit the regenerated `database/init/` files.
+5. Run `bun run db:verify` against a database.
 
 ## Adding a collection
 
 1. Create `models/<name>.ts` by copying an existing model. Extend `SpecConventions` and add a named primary key, unless the data is transient and internal, like `sessions` and `ssoStates`.
 2. Export it from [`index.ts`](index.ts).
-3. In `provision.ts`, add the `PK` entry, a `make()` call and its indexes. Mirror all three in `01-validators.js` and `02-indexes.js`.
+3. In `provision.ts`, add the `PK` entry, a `make()` call and its indexes. Then run `bun run db:export-schema`.
 4. If it has a `userId` or `orgId` field, add it to one of the lists in [`src/server/ownedData.ts`](../server/ownedData.ts). `ownedData.test.ts` reads `provision.ts` and fails until you do.
 5. Add it to [`src/test/mock-mongo.ts`](../test/mock-mongo.ts): an array in `fakeDbState`, a line in `resetFakeDbState`, and an accessor in `installMongoMock`. `mock-mongo.test.ts` fails if an accessor is missing.
 

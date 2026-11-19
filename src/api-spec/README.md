@@ -61,12 +61,12 @@ Handlers that import `@/api-zod` parse the body on the way in and the response o
 ```ts
 const body = SignupBody.parse(await readJsonBody(req));
 // ...
-return json(SignupResponse.parse(toUserDto(user)), { status: 201 });
+return json(parseResponse(SignupResponse, toUserDto(user)), { status: 201 });
 ```
 
-The helpers come from `src/server/http.ts`. `withErrorHandling` turns any `ZodError` into a
-400 `{ error: "Invalid request", details }`. That includes a response that fails its own
-schema, so a handler that drifts from the spec returns a 400, not a 500.
+The helpers come from `src/server/http.ts`. `withErrorHandling` turns a request `ZodError`
+into a 400 `{ error: "Invalid request", details }`. A response that fails `parseResponse` is a
+server bug, so it is logged and returned as a 500.
 
 Only 20 of the 47 `route.ts` files import `@/api-zod`: six `auth` routes (`guest`, `login`,
 `me`, `signup`, both `password-reset`), `chatbot`, `dashboard`, `healthz`, `readyz`,

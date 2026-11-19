@@ -29,7 +29,7 @@ infrastructure changes, see [infra/README.md](infra/README.md).
 | A page or UI | `src/app/`, `src/components/` | [src/components/README.md](src/components/README.md) |
 | An API endpoint | `src/api-spec/openapi.yaml`, then `src/app/api/` | [src/api-spec/README.md](src/api-spec/README.md), [src/app/api/README.md](src/app/api/README.md) |
 | Business rules (grading, leveling, scenario choice, SSO) | `src/server/` | [src/server/README.md](src/server/README.md) |
-| A collection or field | `src/db/provision.ts`, `src/db/models/`, then `database/init/` | [src/db/README.md](src/db/README.md) |
+| A collection or field | `src/db/provision.ts` and `src/db/models/`, then `bun run db:export-schema` | [src/db/README.md](src/db/README.md) |
 | The awareness model or its API | `ml-service/` | [ml-service/README.md](ml-service/README.md) |
 | Hosting | `infra/` | [infra/README.md](infra/README.md) |
 | A maintenance or audit script | `scripts/` | [scripts/README.md](scripts/README.md) |
@@ -39,10 +39,9 @@ Two rules that are easy to miss:
 - **Generated code is never edited by hand.** `src/api-client/generated/` and
   `src/api-zod/generated/` come from the OpenAPI spec. Change the spec and run
   `bun run codegen`, then commit the regenerated files with it.
-- **The schema exists twice.** The app runs `src/db/provision.ts`. The
-  `mongosh` scripts in `database/init/` are the shared cross-team copy and are
-  meant to get the same change, but they have already drifted, and editing only
-  them changes nothing in the app (see [src/db/README.md](src/db/README.md)).
+- **`database/init/` is generated.** The schema comes from
+  `src/db/provision.ts` and the demo seed from `src/db/demoDataset.ts`. Run
+  `bun run db:export-schema` after changing either, and commit the result.
 
 ## Before you open a pull request
 
@@ -51,13 +50,14 @@ Run the same checks as CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml
 ```bash
 bun run lint
 bun run typecheck
-bun test                 # unit and route tests
+bun run test             # unit and route tests, each file isolated
 bun run test:ui          # component tests (Vitest)
 bun run a11y:contrast    # if you touched colours or themes
 bun run build
 ```
 
-For changes under `ml-service/`, run `python -m pytest` there. For changes
+For changes to the schema or `database/init/`, also run `bun run db:check-init`
+(needs Docker). For changes under `ml-service/`, run `python -m pytest` there. For changes
 under `infra/`, run `bun run typecheck && bun run test` there.
 
 ### Tests

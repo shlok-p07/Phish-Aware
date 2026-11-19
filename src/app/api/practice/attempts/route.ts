@@ -7,7 +7,7 @@ import { gradeAttempt } from "@/server/grading";
 import { levelForXp } from "@/server/leveling";
 import { computeStreak } from "@/server/streak";
 import { applyReviewOutcomes, outcomesForAttempt } from "@/server/reviewSchedule";
-import { json, error, requireUserId, withErrorHandling, readJsonBody } from "@/server/http";
+import { json, parseResponse, error, requireUserId, withErrorHandling, readJsonBody } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +34,10 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const graded = gradeAttempt(scenario, body.verdict, body.selectedCues as CueId[], body.confidence);
 
   const attempts = await attemptsCollection();
+  // Read before inserting: once this attempt is stored it would count as its
+  // own "earlier" correct answer, and first_catch could never be earned.
+  const hadCorrectAttempt =
+    (await attempts.findOne({ userId: user._id, correct: true })) !== null;
   const id = new ObjectId();
   await attempts.insertOne({
     _id: id,
@@ -45,7 +49,8 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     // Persisted as the shared spec's "phish"/"legit" string enum; the wire-level
     // SubmitAttemptInput.verdict stays boolean -- simplest for a 2-choice UI.
     verdict: body.verdict ? "phish" : "legit",
-    selectedCues: body.selectedCues,
+    // What was graded, not the raw request array (see GradedAttempt.selectedCues).
+    selectedCues: graded.selectedCues,
     confidence: body.confidence,
     correct: graded.correct,
     missedCues: graded.missedCues,
@@ -87,9 +92,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   const badgesEarned: string[] = [];
   const existingBadges = new Set(user.badges);
-  const priorAttempts = await attempts.find({ userId: user._id }).toArray();
-  const priorCorrectCount = priorAttempts.filter((a) => a.correct).length;
-  if (graded.correct && priorCorrectCount === 0 && !existingBadges.has("first_catch")) {
+  if (graded.correct && !hadCorrectAttempt && !existingBadges.has("first_catch")) {
     badgesEarned.push("first_catch");
   }
   if (newStreak >= 7 && !existingBadges.has("week_streak")) {
@@ -115,7 +118,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   );
 
   return json(
-    SubmitAttemptResponse.parse({
+    parseResponse(SubmitAttemptResponse, {
       correct: graded.correct,
       correctVerdict: graded.correctVerdict,
       caughtCues: graded.caughtCues,

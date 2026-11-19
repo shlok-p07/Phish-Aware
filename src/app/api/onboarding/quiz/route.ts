@@ -1,6 +1,6 @@
 import { scenariosCollection } from "@/db";
 import { GetOnboardingQuizResponse } from "@/api-zod";
-import { json, requireUserId, withErrorHandling } from "@/server/http";
+import { json, parseResponse, requireUserId, withErrorHandling } from "@/server/http";
 import { selectQuizScenarios } from "@/server/onboardingQuiz";
 
 export const dynamic = "force-dynamic";
@@ -20,5 +20,5 @@ export const GET = withErrorHandling(async () => {
     body: s.body,
     links: s.links,
   }));
-  return json(GetOnboardingQuizResponse.parse(questions));
+  return json(parseResponse(GetOnboardingQuizResponse, questions));
 });

@@ -31,6 +31,16 @@ const TOP_UP_COOLDOWN_MS = 60_000;
 const cooldownUntil = new Map<string, number>();
 
 /**
+ * Test-only: forget in-flight top-ups and cooldowns. The state is
+ * module-level by design (it must outlive a request), so without this one
+ * test's cooldown silently decides the next test's outcome.
+ */
+export function __resetScenarioPoolState(): void {
+  topUpInFlight.clear();
+  cooldownUntil.clear();
+}
+
+/**
  * Fires off (but does not await) one more generation call to replenish a
  * vector's pool if it's below target -- using this request's own,
  * already-computed personalization context (department/difficulty/tactic),

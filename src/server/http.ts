@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ZodError } from "zod";
+import { ZodError, type ZodTypeAny, type output } from "zod";
 import type { ObjectId } from "mongodb";
 import { getUserIdFromRequest } from "./session";
 import { usersCollection, type UserDoc } from "@/db";
@@ -123,6 +123,29 @@ export function optionalText(value: unknown, field: string): string | null {
   return value.trim() || null;
 }
 
+/**
+ * A response that failed its own schema: the server built something the API
+ * contract doesn't allow. That is a server bug, so it must surface as a 500,
+ * not as the 400 a ZodError from request parsing gets.
+ */
+export class ResponseValidationError extends Error {
+  constructor(readonly issues: ZodError["issues"]) {
+    super("Response failed its schema");
+    this.name = "ResponseValidationError";
+  }
+}
+
+/**
+ * Validate (and strip) a response body against its generated schema. Use this
+ * instead of `Schema.parse(data)` for responses, so a mismatch is reported as
+ * the server's fault.
+ */
+export function parseResponse<S extends ZodTypeAny>(schema: S, data: unknown): output<S> {
+  const result = schema.safeParse(data);
+  if (!result.success) throw new ResponseValidationError(result.error.issues);
+  return result.data;
+}
+
 export function withErrorHandling<Args extends unknown[]>(
   handler: (...args: Args) => Promise<Response>,
 ) {
@@ -134,6 +157,10 @@ export function withErrorHandling<Args extends unknown[]>(
         return err.code
           ? NextResponse.json({ error: err.message, code: err.code }, { status: err.status })
           : error(err.status, err.message);
+      }
+      if (err instanceof ResponseValidationError) {
+        console.error("Response failed its schema", err.issues);
+        return error(500, "Internal server error");
       }
       if (err instanceof ZodError) {
         return NextResponse.json(

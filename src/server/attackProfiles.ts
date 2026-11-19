@@ -2,7 +2,7 @@
  * Vocabulary for the adaptive scenario generator (see project's AI-pipeline
  * spec). Persuasion tactics reuse the shared spec's `emotionalLevers` enum,
  * extended from 6 to 8 values to match the product spec exactly (see
- * database/init/01-validators.js's LEVER const, kept in lockstep).
+ * src/db/provision.ts's LEVER const, kept in lockstep).
  */
 import { isDepartment, type Department } from "@/lib/onboarding-survey";
 

@@ -44,7 +44,7 @@ link, or a real credential prompt.
   [orval](https://orval.dev/) from a single OpenAPI document
   (`src/api-spec/openapi.yaml`), so the client and server can't silently drift
   apart.
-- **1,341 tests (1,163 `bun test` + 178 Vitest), `tsc --noEmit`, ESLint, and a
+- **1,370 tests (1,192 `bun test` + 178 Vitest), `tsc --noEmit`, ESLint, and a
   production build all stay green.**
 
 ## Table of contents
@@ -103,7 +103,7 @@ link, or a real credential prompt.
 | Runtime/PM    | [Bun](https://bun.sh/)                                        |
 | Containers    | Docker + Docker Compose (production-parity builds)             |
 | Hosting       | Vercel, or the whole stack on one AWS EC2 instance via CDK (`infra/`) |
-| Tests         | `bun test` (1,163 tests) + Vitest/happy-dom component tests (178) |
+| Tests         | `bun test` (1,192 tests, isolated per file) + Vitest/happy-dom component tests (178) |
 
 ## Architecture
 
@@ -195,12 +195,12 @@ Docker at all.
 | `bun run start`     | Serve the production build                                      |
 | `bun run lint`      | Run ESLint (flat config, `eslint.config.mjs`)                   |
 | `bun run typecheck` | Type-check the project with `tsc --noEmit`                     |
-| `bun test`          | Run the unit test suite                                         |
+| `bun run test`      | Run the unit test suite, each file isolated (`bun test --isolate`) |
 | `bun run codegen`   | Regenerate `api-client`/`api-zod` from `api-spec/openapi.yaml`  |
-| `bun run db:init`   | Apply the original mongosh schema in `database/init/`. Only for an empty database; the app provisions a newer schema itself (see [database/README.md](database/README.md)) |
+| `bun run db:init`   | (Optional) apply the schema with mongosh, from `database/init/`. The app does this itself on startup |
 | `bun run db:seed`   | (Optional, manual) seed lessons/scenarios/sample users via CLI. The app does this itself on startup |
 | `bun run test:ui`   | Component tests (Vitest + happy-dom); `test:ui:watch` and `test:coverage` alongside |
-| `bun run test:all`  | Both suites: `bun test && vitest run` |
+| `bun run test:all`  | Both suites: `bun test --isolate && vitest run` |
 | `bun run sso:demo`  | Create a demo org and SSO connection to try single sign-on locally |
 | `./scripts/dev.sh`  | Check MongoDB, apply the schema, seed if empty, and start the dev server in the background; `./scripts/dev.sh stop` stops it |
 
@@ -213,6 +213,9 @@ its file header explains.
 | Script                              | What it does |
 | ----------------------------------- | ------------ |
 | `bun run a11y:contrast`             | Checks every text/background pairing the app uses against WCAG, across light, dark and both high-contrast themes, with a spread of customer accents substituted in. Exits non-zero on any failure |
+| `bun run db:seed:demo`              | Adds a demo organisation (`database/init/03-seed.js`) to a development database; `db:seed:demo:remove` takes it out. Refuses a database with real users |
+| `bun run db:check-init`             | Runs the mongosh scripts against a throwaway MongoDB container and checks them. Needs Docker |
+| `bun run db:export-schema`          | Regenerates the mongosh scripts in `database/init/` from `src/db/provision.ts` and `src/db/demoDataset.ts`. Run after changing either; a test fails until you do |
 | `bun run db:verify`                 | Asks the server which stored documents its own validators reject, and checks provisioning is idempotent. Deletes nothing, but applies the schema the same way app startup does |
 | `bun run db:prune-orphans`          | Removes rows whose owning user or organisation is gone. Both delete paths cascade now; this clears what earlier versions left |
 | `bun run db:dedupe-departments`     | Keeps one department per (organisation, name). Needed before the unique index can be created |
@@ -240,7 +243,7 @@ Tests that depend on the date either pin a fixed `NOW` or use dates far in
 the past or future, so the suite doesn't start failing as the calendar moves.
 
 ```bash
-bun test          # 1,163 unit and route tests
+bun run test      # 1,192 unit and route tests
 bun run test:ui   # 178 component tests (Vitest + happy-dom)
 bun run test:all  # both
 ```

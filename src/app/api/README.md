@@ -59,13 +59,15 @@ handler here is wrapped in `withErrorHandling`.
   the body with a generated schema, such as `LoginBody.parse(...)` from `@/api-zod`.
   Others, including all `org/*` routes, `consents` and `notifications`, cast the
   body and check fields by hand with `optionalText()` and `toObjectId()`.
-- **Output:** return `json(data)`, often as `json(Schema.parse(data))`. For an
+- **Output:** return `json(data)`, or `json(parseResponse(Schema, data))` to
+  validate against the generated response schema. Don't use `Schema.parse` for a
+  response: its `ZodError` would be reported as the client's fault. For an
   expected failure, return `error(status, message)` or throw
   `new HttpError(status, message, code?)`.
 - **Errors:** `withErrorHandling` shapes each error as JSON:
   - an `HttpError` becomes `{ error }`, or `{ error, code }` when a code is set
-  - a `ZodError` becomes 400 `{ error: "Invalid request", details }`, even one
-    thrown by a response schema
+  - a response that fails `parseResponse` is logged and becomes 500
+  - any other `ZodError` (request parsing) becomes 400 `{ error: "Invalid request", details }`
   - an error that looks like a lost database connection becomes 503
   - anything else becomes 500
 - **Rate limiting:** `rateLimit(key, limit, windowMs)` and `clientIp()` come from
@@ -99,7 +101,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     return error(503, "The assistant is temporarily unavailable. Please try again shortly.");
   }
 
-  return json(SendChatbotMessageResponse.parse({ reply }));
+  return json(parseResponse(SendChatbotMessageResponse, { reply }));
 });
 ```
 
@@ -128,7 +130,7 @@ To add or change a route:
 3. Write the `route.ts` using the pattern above.
 4. Put reusable logic in `src/server/` and give it its own `*.test.ts`.
 5. Add a `route.test.ts` next to the handler.
-6. Run `bun test`, `bun run typecheck` and `bun run lint`.
+6. Run `bun run test`, `bun run typecheck` and `bun run lint`.
 
 Nothing checks that a handler matches its spec entry beyond its use of the
 generated schemas.
@@ -157,7 +159,7 @@ blocks direct calls. In `beforeEach`, reset shared state with `resetFakeDbState(
 `NODE_ENV` and other environment variables inside each test, not at module scope.
 
 ```bash
-bun test               # unit and route tests; bunfig.toml limits discovery to ./src
-bun test src/app/api   # route tests only
-bun run test:all       # bun test, then the Vitest component suite
+bun run test               # unit and route tests, isolated; bunfig.toml limits discovery to ./src
+bun run test src/app/api   # route tests only
+bun run test:all           # bun tests, then the Vitest component suite
 ```

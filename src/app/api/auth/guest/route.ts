@@ -7,7 +7,7 @@ import {
 } from "@/server/session";
 import { toUserDto } from "@/server/dto";
 import { buildUserDoc } from "@/server/users";
-import { json, withErrorHandling } from "@/server/http";
+import { json, parseResponse, withErrorHandling } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
@@ -23,5 +23,5 @@ export const POST = withErrorHandling(async () => {
   });
   await users.insertOne(user);
   await createSession(user._id, GUEST_SESSION_TTL_MS);
-  return json(ContinueAsGuestResponse.parse(toUserDto(user)), { status: 201 });
+  return json(parseResponse(ContinueAsGuestResponse, toUserDto(user)), { status: 201 });
 });

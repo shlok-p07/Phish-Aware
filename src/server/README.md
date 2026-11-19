@@ -112,12 +112,15 @@ wrong verdict earns 5. XP never goes below 0. The route then stores the attempt 
    last 8 attempts reaches `STEP_UP_ABOVE` (0.85) or after 3 correct in a row, and down one at
    `STEP_DOWN_BELOW` (0.6). A campaign's `minDifficulty` is a floor.
 3. **Which scenario.** `selectScenario` scores pooled candidates by `WEIGHT`: level mismatch,
-   recent repeats, phish/legit imbalance, and missing campaign or review cues. Ties break randomly.
+   recent repeats, phish/legit imbalance, missing campaign or review cues, and a phishing
+   candidate that isn't the chosen attack type (3) or doesn't use the chosen tactic (1). Ties
+   break randomly.
 
-The attack type and tactic from step 1 feed generation: the background top-up, or a live
-`generatePhishingScenario(params, "interactive")` call when no candidate exists. `selectScenario`
-does not filter the pool by attack type, so for a pooled scenario the chosen attack type and tactic
-have no effect on what is served.
+The attack type and tactic from step 1 also feed generation: the background top-up, or a live
+`generatePhishingScenario(params, "interactive")` call when no candidate exists. In pool selection
+their combined weight (4) stays below one level of mismatch (5) and the review term (6), so they
+steer among scenarios that already fit. Legitimate candidates take the best phishing candidate's
+profile cost, so the profile never changes the phishing/legitimate mix.
 
 ### LLM calls and failover
 
@@ -130,9 +133,8 @@ non-LLM fallback. The limiter allows one call in flight per bucket and keeps `IN
 (25%) of each bucket away from background work.
 
 `generatePhishingScenario` drafts at temperature 1.0, refines at 0.4, parses with Zod and caps cues
-at 4. A legitimate scenario gets no cues. A phishing scenario left with none returns `null`. Its
-vector filter checks `sms`, `voice` and `qr`, although `VECTOR_ALLOWED_CUES` also covers `social`
-and `web`.
+at 4. A legitimate scenario gets no cues. A phishing scenario left with none returns `null`. The
+model's cues are filtered through `VECTOR_ALLOWED_CUES`, the same table the refine prompt offers.
 
 ### Who SSO lets in
 
@@ -156,7 +158,7 @@ pending invitation first, then the newest row.
 ## Invariants
 
 - **Enums in lockstep.** `CueId`, `PersuasionTacticId`, `AttackTypeId` and `PRACTICE_VECTORS` must
-  match `CUE`, `LEVER`, `ATTACK_TYPE` and `VECTOR` in `src/db/provision.ts` (and in the older
+  match `CUE`, `LEVER`, `ATTACK_TYPE` and `VECTOR` in `src/db/provision.ts` (and so in the generated
   `database/init/01-validators.js`). Vectors also appear in `src/api-spec/openapi.yaml` and in `VECTOR_BRIEF`.
   [vectorTaxonomy.test.ts](vectorTaxonomy.test.ts) checks vectors only. A test also holds
   `DEPARTMENT_ATTACK_TYPES` keys equal to `DEPARTMENTS` in `src/lib/onboarding-survey.ts`.
@@ -168,8 +170,8 @@ pending invitation first, then the newest row.
   [seedScenarios.test.ts](seedScenarios.test.ts)).
 - **No real names in stored scenarios.** The pool is shared. Store `NAME_TOKEN` and substitute at
   serve time.
-- **Store what was graded.** Per its comment, callers persist `GradedAttempt.selectedCues`, the
-  de-duplicated list.
+- **Store what was graded.** Callers persist `GradedAttempt.selectedCues`, the de-duplicated list,
+  not the raw request array.
 - **Newest first.** `scenarioFit` reads array position as recency.
 - **Ownership lists.** A test requires every provisioned collection with a `userId` or `orgId` to
   appear in an [ownedData.ts](ownedData.ts) list.
@@ -184,8 +186,8 @@ Tests sit next to the code as `*.test.ts`. `mlClient.integration.test.ts` starts
 HTTP server. Pure modules accept injected `random`, `rng` or `now`. Run from the repository root:
 
 ```bash
-bun test                            # all tests under ./src (bunfig.toml: root = "./src")
-bun test src/server/grading.test.ts # one file
+bun run test                            # all tests under ./src, each file isolated
+bun run test src/server/grading.test.ts # one file
 ```
 
 Shared test doubles live in `src/test/`. Every `mock.module()` call goes through
