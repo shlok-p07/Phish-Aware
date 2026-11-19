@@ -34,6 +34,7 @@ Each double exports mutable state, a reset function and an installer. Install at
 | [`mock-sso-oidc.ts`](mock-sso-oidc.ts) | `await installSsoOidcMock()` | `configurationFor` in `@/server/sso/oidc`, which does a real HTTPS discovery | SSO callback tests |
 | [`mock-scenario-generator.ts`](mock-scenario-generator.ts) | `await installScenarioGeneratorMock()` | `generatePhishingScenario` in `@/server/scenarioGenerator` | A test must not reach an LLM provider. `fakeGeneratorState` can return a result, return `null`, throw, or hold the call open with `gate` |
 | [`env.ts`](env.ts) | n/a | Nothing. Exports `captureEnv`, `restoreEnv`, `setEnv` | A test changes `process.env` |
+| [`bson-schema.ts`](bson-schema.ts) | n/a | Nothing. Exports `checkBsonSchema(doc, $jsonSchema)` | A test needs to know whether a document would pass a collection's validator. Throws on keywords it doesn't implement |
 
 Use `env.ts` to undo an env change. Assigning `undefined` to a `process.env` key stores the string `"undefined"`, and that value leaks into every later test file in the run.
 

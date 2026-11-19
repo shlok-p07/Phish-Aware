@@ -213,7 +213,9 @@ its file header explains.
 | Script                              | What it does |
 | ----------------------------------- | ------------ |
 | `bun run a11y:contrast`             | Checks every text/background pairing the app uses against WCAG, across light, dark and both high-contrast themes, with a spread of customer accents substituted in. Exits non-zero on any failure |
-| `bun run db:export-schema`          | Regenerates the mongosh schema in `database/init/` from `src/db/provision.ts`. Run after a schema change; a test fails until you do |
+| `bun run db:seed:demo`              | Adds a demo organisation (`database/init/03-seed.js`) to a development database; `db:seed:demo:remove` takes it out. Refuses a database with real users |
+| `bun run db:check-init`             | Runs the mongosh scripts against a throwaway MongoDB container and checks them. Needs Docker |
+| `bun run db:export-schema`          | Regenerates the mongosh scripts in `database/init/` from `src/db/provision.ts` and `src/db/demoDataset.ts`. Run after changing either; a test fails until you do |
 | `bun run db:verify`                 | Asks the server which stored documents its own validators reject, and checks provisioning is idempotent. Deletes nothing, but applies the schema the same way app startup does |
 | `bun run db:prune-orphans`          | Removes rows whose owning user or organisation is gone. Both delete paths cascade now; this clears what earlier versions left |
 | `bun run db:dedupe-departments`     | Keeps one department per (organisation, name). Needed before the unique index can be created |

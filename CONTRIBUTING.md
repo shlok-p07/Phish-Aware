@@ -39,9 +39,9 @@ Two rules that are easy to miss:
 - **Generated code is never edited by hand.** `src/api-client/generated/` and
   `src/api-zod/generated/` come from the OpenAPI spec. Change the spec and run
   `bun run codegen`, then commit the regenerated files with it.
-- **The schema is written once, in `src/db/provision.ts`.** The `mongosh`
-  scripts in `database/init/` are generated from it: run
-  `bun run db:export-schema` after a schema change and commit the result.
+- **`database/init/` is generated.** The schema comes from
+  `src/db/provision.ts` and the demo seed from `src/db/demoDataset.ts`. Run
+  `bun run db:export-schema` after changing either, and commit the result.
 
 ## Before you open a pull request
 
@@ -56,7 +56,8 @@ bun run a11y:contrast    # if you touched colours or themes
 bun run build
 ```
 
-For changes under `ml-service/`, run `python -m pytest` there. For changes
+For changes to the schema or `database/init/`, also run `bun run db:check-init`
+(needs Docker). For changes under `ml-service/`, run `python -m pytest` there. For changes
 under `infra/`, run `bun run typecheck && bun run test` there.
 
 ### Tests

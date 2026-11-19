@@ -36,7 +36,8 @@ changing anything: add `--dry-run` to see what a script would do, or, for
 | Command | File | What it does |
 | --- | --- | --- |
 | `bun run db:verify` | [`verify-database.ts`](db/verify-database.ts) | Reports stored documents that the current validators would reject, and checks that provisioning is idempotent. It deletes nothing, but it does apply the schema (`ensureSchema`/`ensureIndexes`), exactly as the app does on startup |
-| `bun run db:export-schema` | [`export-mongosh-schema.ts`](db/export-mongosh-schema.ts) | Regenerates `database/init/01-validators.js` and `02-indexes.js` from `src/db/provision.ts`. Run after any schema change; a test fails until you do. Touches no database |
+| `bun run db:export-schema` | [`export-mongosh-schema.ts`](db/export-mongosh-schema.ts) | Regenerates the mongosh scripts in `database/init/` from `src/db/provision.ts` and `src/db/demoDataset.ts`. Run after changing either; a test fails until you do. Touches no database |
+| `bun run db:check-init` | [`check-init-scripts.sh`](db/check-init-scripts.sh) | Runs every `database/init/` script against a throwaway `mongo:7` container and checks the results. Needs Docker; CI runs it |
 | `bun run db:prune-orphans` | [`prune-orphans.ts`](db/prune-orphans.ts) | Removes rows whose owning user or organisation no longer exists |
 | `bun run db:dedupe-departments` | [`dedupe-departments.ts`](db/dedupe-departments.ts) | Keeps one department per (organisation, name), so the unique index can be created |
 | `bun run db:dedupe-onboarding` | [`dedupe-onboarding-scenarios.ts`](db/dedupe-onboarding-scenarios.ts) | Removes duplicated onboarding scenarios from an early seed. Never deletes one that has attempts |

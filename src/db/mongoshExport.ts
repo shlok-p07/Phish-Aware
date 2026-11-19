@@ -1,5 +1,7 @@
 /**
- * Renders database/init/01-validators.js and 02-indexes.js from provision.ts.
+ * Renders the mongosh scripts in database/init/ from their single sources:
+ * 01-validators.js and 02-indexes.js from provision.ts, and 03-seed.js from
+ * demoDataset.ts.
  *
  * The schema used to exist twice: hand-written mongosh scripts (the shared
  * cross-team copy) and their Node port here, which is what the app runs. No
@@ -12,7 +14,8 @@
  *
  * Nothing here connects to a database.
  */
-import type { Db } from "mongodb";
+import { ObjectId, type Db } from "mongodb";
+import { buildDemoDataset, RANDOM_TOKEN } from "./demoDataset";
 import { ensureIndexes, ensureSchema } from "./provision";
 
 export interface RecordedCollection {
@@ -134,5 +137,102 @@ for (const { collection, name } of STALE_INDEXES) {
 }
 
 print(\`indexes applied: \${INDEXES.length}\`);
+`;
+}
+
+// --- 03-seed.js: the demo organisation ------------------------------------
+
+/**
+ * Any fixed instant works: dates are written as offsets from it and rebuilt
+ * from the clock when the script runs, so the demo always looks current (a
+ * campaign due in two weeks stays due in two weeks).
+ */
+const RENDER_EPOCH = new Date(Date.UTC(2026, 0, 1));
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** JSON-safe form of a demo document: ObjectIds, relative dates and the token placeholder become markers the script revives. */
+function encodeDemoValue(value: unknown): unknown {
+  if (value instanceof ObjectId) return { $oid: value.toHexString() };
+  if (value instanceof Date) return { $daysAgo: (RENDER_EPOCH.getTime() - value.getTime()) / DAY_MS };
+  if (value === RANDOM_TOKEN) return { $randomToken: true };
+  if (Array.isArray(value)) return value.map(encodeDemoValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, encodeDemoValue(v)]));
+  }
+  return value;
+}
+
+export function renderDemoSeed(): string {
+  const data = encodeDemoValue(buildDemoDataset(RENDER_EPOCH));
+  return `/**
+ * 03-seed.js -- GENERATED from src/db/demoDataset.ts. Do not edit by hand.
+ *
+ * A demo organisation (Northwind Trading Co.) for local development and
+ * screenshots. Run it after 01-validators.js and 02-indexes.js:
+ *
+ *   mongosh "<uri>" database/init/03-seed.js                        # add or refresh
+ *   DEMO_SEED_REMOVE=1 mongosh "<uri>" database/init/03-seed.js     # remove it again
+ *
+ * Safe by construction:
+ * - Every document has a fixed demo _id and is upserted, so re-running refreshes
+ *   the demo and nothing else. It never deletes or rewrites other documents.
+ * - It refuses to run against a database that has real users (anyone other
+ *   than these members and the app's isDemo leaderboard fixtures), because a
+ *   demo org has no place in production. DEMO_SEED_FORCE=1 overrides that.
+ * - No member has a password, and the pending invitation's token is generated
+ *   fresh on each run, so nothing committed here can be used to sign in.
+ *
+ * To change the data, edit src/db/demoDataset.ts and run
+ * \`bun run db:export-schema\`. src/db/demoDataset.test.ts fails if this file
+ * is out of date.
+ */
+db = db.getSiblingDB("phishaware");
+
+const DATA = ${JSON.stringify(data, null, 2)};
+
+const DAY_MS = ${DAY_MS};
+const now = Date.now();
+function revive(value) {
+  if (Array.isArray(value)) return value.map(revive);
+  if (value && typeof value === "object") {
+    if ("$oid" in value) return new ObjectId(value.$oid);
+    if ("$daysAgo" in value) return new Date(now - value.$daysAgo * DAY_MS);
+    if ("$randomToken" in value) return require("crypto").randomBytes(32).toString("base64url");
+    const out = {};
+    for (const [key, inner] of Object.entries(value)) out[key] = revive(inner);
+    return out;
+  }
+  return value;
+}
+
+const docs = revive(DATA);
+const env = (typeof process !== "undefined" && process.env) || {};
+
+if (env.DEMO_SEED_REMOVE === "1") {
+  for (const [collection, rows] of Object.entries(docs)) {
+    const { deletedCount } = db
+      .getCollection(collection)
+      .deleteMany({ _id: { $in: rows.map((row) => row._id) } });
+    print(\`removed \${deletedCount} from \${collection}\`);
+  }
+} else {
+  const realUsers = db.getCollection("users").countDocuments({
+    _id: { $nin: docs.users.map((user) => user._id) },
+    isDemo: { $ne: true },
+  });
+  if (realUsers > 0 && env.DEMO_SEED_FORCE !== "1") {
+    print(
+      \`[03-seed] refusing: this database has \${realUsers} real user(s). \` +
+        "The demo org is for development databases. Set DEMO_SEED_FORCE=1 to seed anyway.",
+    );
+    quit(1);
+  }
+  for (const [collection, rows] of Object.entries(docs)) {
+    for (const row of rows) {
+      db.getCollection(collection).replaceOne({ _id: row._id }, row, { upsert: true });
+    }
+    print(\`seeded \${rows.length} into \${collection}\`);
+  }
+}
 `;
 }

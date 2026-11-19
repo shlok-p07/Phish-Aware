@@ -6,7 +6,8 @@ MongoDB access for PhishAware. This folder holds the connection, the schema the 
 | --- | --- |
 | [`client.ts`](client.ts) | Connects, provisions the schema, starts seeding. Exports `getDb`, `getCollection`, `getMongoClient`, `closeMongoClient` |
 | [`provision.ts`](provision.ts) | The schema, written once: `ensureSchema`, `ensureIndexes`, `provisionDatabase` |
-| [`mongoshExport.ts`](mongoshExport.ts) | Renders `provision.ts` as the mongosh scripts in [`database/init/`](../../database/init/) (`bun run db:export-schema`) |
+| [`mongoshExport.ts`](mongoshExport.ts) | Renders the mongosh scripts in [`database/init/`](../../database/init/) from `provision.ts` and `demoDataset.ts` (`bun run db:export-schema`) |
+| [`demoDataset.ts`](demoDataset.ts) | The demo organisation behind `database/init/03-seed.js`, typed against the models |
 | [`objectId.ts`](objectId.ts) | `toObjectId` returns `null` on malformed input, so a route can answer 400 or 404 instead of throwing |
 | [`models/`](models/) | One file per collection (table below) |
 | `seed-cli.ts`, `migrate-invited-users.ts`, `sso-demo.ts` | Command-line scripts (see below) |
@@ -81,7 +82,7 @@ Each file exports a `XDoc` interface, an `InsertX` type, an `X_COLLECTION` name 
 
 `client.ts` starts the seed on first connect, and `seed-cli.ts` calls it directly. A shared promise on `globalThis` keeps it to one run per process. Two processes booting at once can still race.
 
-[`database/init/03-seed.js`](../../database/init/03-seed.js) is separate and out of date: it predates the current schema, so its `surveyResponses` rows fail the validator. It also wipes the seeded collections first. Neither the app nor `db:init` runs it. Never point it at real data.
+[`database/init/03-seed.js`](../../database/init/03-seed.js) is separate: an opt-in demo organisation (`bun run db:seed:demo`), generated from [`demoDataset.ts`](demoDataset.ts). It upserts fixed demo ids only and refuses a database with real users; see [database/README.md](../../database/README.md#the-demo-organisation-03-seedjs).
 
 ## Command-line scripts
 
