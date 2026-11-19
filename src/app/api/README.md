@@ -130,7 +130,7 @@ To add or change a route:
 3. Write the `route.ts` using the pattern above.
 4. Put reusable logic in `src/server/` and give it its own `*.test.ts`.
 5. Add a `route.test.ts` next to the handler.
-6. Run `bun test`, `bun run typecheck` and `bun run lint`.
+6. Run `bun run test`, `bun run typecheck` and `bun run lint`.
 
 Nothing checks that a handler matches its spec entry beyond its use of the
 generated schemas.
@@ -159,7 +159,7 @@ blocks direct calls. In `beforeEach`, reset shared state with `resetFakeDbState(
 `NODE_ENV` and other environment variables inside each test, not at module scope.
 
 ```bash
-bun test               # unit and route tests; bunfig.toml limits discovery to ./src
-bun test src/app/api   # route tests only
-bun run test:all       # bun test, then the Vitest component suite
+bun run test               # unit and route tests, isolated; bunfig.toml limits discovery to ./src
+bun run test src/app/api   # route tests only
+bun run test:all           # bun tests, then the Vitest component suite
 ```

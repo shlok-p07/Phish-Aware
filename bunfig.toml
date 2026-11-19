@@ -3,3 +3,5 @@
 # the source that CDK stages in infra/cdk.out/, roughly quadrupling the run.
 root = "./src"
 preload = ["./src/test/setup/happydom.ts"]
+# Isolation (--isolate) is set in package.json's "test" script, not here:
+# Bun 1.4 ignores `isolate` in bunfig.toml.

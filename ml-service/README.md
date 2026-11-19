@@ -507,13 +507,13 @@ From the repository root, the TypeScript client has a real-HTTP integration
 test that starts a temporary local server:
 
 ```bash
-bun test src/server/mlClient.integration.test.ts
+bun run test src/server/mlClient.integration.test.ts
 ```
 
 The Next.js onboarding route tests are:
 
 ```bash
-bun test src/app/api/onboarding/submit/route.test.ts
+bun run test src/app/api/onboarding/submit/route.test.ts
 ```
 
 ## Common problems

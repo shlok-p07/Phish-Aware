@@ -186,8 +186,8 @@ Tests sit next to the code as `*.test.ts`. `mlClient.integration.test.ts` starts
 HTTP server. Pure modules accept injected `random`, `rng` or `now`. Run from the repository root:
 
 ```bash
-bun test                            # all tests under ./src (bunfig.toml: root = "./src")
-bun test src/server/grading.test.ts # one file
+bun run test                            # all tests under ./src, each file isolated
+bun run test src/server/grading.test.ts # one file
 ```
 
 Shared test doubles live in `src/test/`. Every `mock.module()` call goes through

@@ -50,7 +50,7 @@ Run the same checks as CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml
 ```bash
 bun run lint
 bun run typecheck
-bun test                 # unit and route tests
+bun run test             # unit and route tests, each file isolated
 bun run test:ui          # component tests (Vitest)
 bun run a11y:contrast    # if you touched colours or themes
 bun run build

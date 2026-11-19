@@ -8,7 +8,7 @@ The runner is chosen by file extension, not by directory.
 
 | Runner | Files | Config | Commands |
 | --- | --- | --- | --- |
-| `bun test` | `*.test.ts`, `*.test.tsx` | [`bunfig.toml`](../../bunfig.toml): discovers tests under `./src`, preloads [`setup/happydom.ts`](setup/happydom.ts) | `bun test` (also `bun run test`) |
+| `bun test` | `*.test.ts`, `*.test.tsx` | [`bunfig.toml`](../../bunfig.toml): discovers tests under `./src`, preloads [`setup/happydom.ts`](setup/happydom.ts) | `bun run test` (`bun test --isolate`) |
 | Vitest | `*.vitest.tsx` | [`vitest.config.ts`](../../vitest.config.ts): `happy-dom` environment, setup file [`setup/vitest-setup.ts`](setup/vitest-setup.ts), `restoreMocks: true` | `bun run test:ui`, `bun run test:ui:watch`, `bun run test:coverage` |
 
 `bun run test:all` runs both. Bun's default globs do not match `.vitest.`, so no file runs twice.
@@ -39,6 +39,12 @@ Each double exports mutable state, a reset function and an installer. Install at
 Use `env.ts` to undo an env change. Assigning `undefined` to a `process.env` key stores the string `"undefined"`, and that value leaks into every later test file in the run.
 
 `mock-mongo.ts`, `mock-session.ts`, `mock-openid-client.ts` and `mock-sso-oidc.ts` spread the real module and override only some exports. For `@/db` this means any accessor left out would reach the real database, so [`mock-mongo.test.ts`](mock-mongo.test.ts) fails if one is missing. The Mongo fake also throws on any query or update operator it does not implement. Add the operator to `mock-mongo.ts` instead of working around it in your test.
+
+## Isolation and order
+
+`bun run test` passes `--isolate`, so every test file gets a fresh global and module registry. Without it, `mock.module()` from one file stays in force for every file after it. Before isolation was turned on, the suite only passed in its default file order: every randomized order failed, with 6 to 37 failures each. Use `bun run test` rather than plain `bun test`. Bun 1.4 ignores `isolate` in `bunfig.toml`, so the flag lives in the script.
+
+CI runs `bun test --isolate --randomize`, which also shuffles tests within a file. A test that only passes after another one therefore fails in review. To replay a CI failure, pass the printed seed: `bun run test --randomize --seed=<n>`. Module-level state that has to outlive a request, such as a rate limiter or an in-flight guard, needs a test-only reset called in `beforeEach`. Examples are `__resetRateLimits()` and `__resetScenarioPoolState()`.
 
 ## Why `installModuleMock()` and not `mock.module()`
 
