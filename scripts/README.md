@@ -15,12 +15,14 @@ scripts/
 ## `dev.sh`
 
 ```bash
-./scripts/dev.sh        # check MONGODB_URI, apply schema + indexes, seed if empty, start `next dev`
+./scripts/dev.sh        # check MONGODB_URI, apply the app schema, seed if empty, start `next dev`
 ./scripts/dev.sh stop   # stop the dev server it started
 ```
 
 It needs `MONGODB_URI` in `.env`, pointing at Atlas or a MongoDB you run
-yourself. It writes logs to `.dev-logs/next.log`. It starts only Next.js; the
+yourself. The schema comes from `src/db/provision.ts`, applied when
+`bun run db:seed` connects; the launcher no longer runs `db:init` (see
+[database/README.md](../database/README.md)). It writes logs to `.dev-logs/next.log`. It starts only Next.js; the
 ML service runs separately (see [ml-service/README.md](../ml-service/README.md)).
 Most of the time `bun run dev` is enough, because the app provisions and seeds
 itself on the first request.

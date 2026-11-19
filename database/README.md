@@ -31,8 +31,8 @@ bun run db:init      # runs 01-validators.js then 02-indexes.js against MONGODB_
 `db:init` needs `mongosh` installed. **Don't run it against a database the app
 already uses**: it replaces the current validators with these older ones until
 the app next starts and re-applies `provision.ts`. You don't need it at all for
-a new database, since the app provisions itself. `scripts/dev.sh` still runs it
-on every start, and the app then re-applies its own schema.
+a new database, since the app provisions itself, and `scripts/dev.sh` no longer
+runs it.
 
 `db:init` deliberately doesn't run the seed script; the app seeds itself
 through `bun run db:seed` (Node, in [`src/db/`](../src/db/)) only when the

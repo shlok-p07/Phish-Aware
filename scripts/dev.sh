@@ -3,7 +3,7 @@
 # Local dev launcher for PhishAware (Next.js + MongoDB).
 #
 # Usage:
-#   ./scripts/dev.sh          # verify Mongo connectivity, init schema, seed, run Next
+#   ./scripts/dev.sh          # verify Mongo connectivity, apply schema + seed, run Next
 #   ./scripts/dev.sh stop     # stop the Next dev server started by this script
 #
 # MONGODB_URI must already be set in .env -- either a MongoDB Atlas
@@ -55,9 +55,12 @@ if command -v mongosh >/dev/null 2>&1; then
 fi
 
 # --- Schema + seed (idempotent) --------------------------------------------
-echo "Applying schema validators/indexes..."
-bun run db:init >/dev/null
-echo "Seeding (if empty)..."
+# db:seed connects through getDb(), which applies the app's own schema
+# (src/db/provision.ts) before seeding. This deliberately no longer runs
+# `db:init`: the mongosh scripts in database/init/ have drifted from
+# provision.ts, and applying them to a shared cluster replaces its validators
+# with older ones until the next server restart.
+echo "Applying schema and seeding (if empty)..."
 bun run db:seed
 
 # --- Next.js ---------------------------------------------------------------
