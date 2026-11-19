@@ -9,3 +9,4 @@ npm-debug.log*
 Dockerfile
 .dockerignore
 docker-compose.yml
+infra

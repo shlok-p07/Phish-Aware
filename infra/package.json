@@ -1,0 +1,25 @@
+{
+  "name": "phishaware-infra",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AWS CDK app that runs the whole PhishAware stack on one EC2 instance",
+  "type": "module",
+  "scripts": {
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy",
+    "destroy": "cdk destroy",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.check.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "aws-cdk": "2.1147.0",
+    "tsx": "4.23.15",
+    "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.275.0",
+    "constructs": "10.8.1"
+  }
+}

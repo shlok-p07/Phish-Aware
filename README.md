@@ -56,6 +56,7 @@ link, or a real credential prompt.
 - [Testing](#testing)
 - [Admin, organizations & SSO](#admin--organizations)
 - [ML backend (FastAPI)](#ml-backend-fastapi)
+- [Deploying to AWS EC2](#deploying-to-aws-ec2)
 - [Safety](#safety)
 
 ## Features
@@ -99,6 +100,7 @@ link, or a real credential prompt.
 | Auth          | Custom httpOnly-cookie sessions, scrypt-hashed passwords, a from-scratch OIDC/PKCE SSO layer |
 | Runtime/PM    | [Bun](https://bun.sh/)                                        |
 | Containers    | Docker + Docker Compose (production-parity builds)             |
+| Hosting       | Vercel, or the whole stack on one AWS EC2 instance via CDK (`infra/`) |
 | Tests         | `bun test` (1,163 tests) + Vitest/happy-dom component tests (178) |
 
 ## Architecture
@@ -124,6 +126,9 @@ src/
 
 phishaware-db/init/     # $jsonSchema validators + indexes -- source of truth
                            for the Mongo schema
+
+infra/                  # AWS CDK app: the whole stack on one EC2 instance
+                           (see "Deploying to AWS EC2" below)
 
 backend/                # Separate FastAPI service for ML model/dataset work
                            (see "ML backend" below) -- its own deploy, its own
@@ -414,6 +419,16 @@ Runs at [http://localhost:8001](http://localhost:8001), interactive docs at
 `/docs`. Tests: `pytest` (from the activated venv).
 
 </details>
+
+## Deploying to AWS EC2
+
+[`infra/`](infra/) is a separate AWS CDK (TypeScript) project that runs the
+Next.js app, the ML service and a Caddy TLS proxy on a single EC2 instance
+with Docker Compose. It is sized for student credits: a free-tier-eligible
+`t4g.small`, no NAT gateway or load balancer, Session Manager instead of SSH,
+and an optional budget alert. MongoDB stays on Atlas. `cdk deploy` builds the
+images locally, pushes them to ECR and restarts the containers. Setup, costs
+and day-to-day commands are in [infra/README.md](infra/README.md).
 
 ## Safety
 

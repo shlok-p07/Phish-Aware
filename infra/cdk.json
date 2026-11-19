@@ -1,0 +1,15 @@
+{
+  "app": "npx tsx bin/phishaware.ts",
+  "watch": {
+    "include": [
+      "bin/**",
+      "lib/**",
+      "host/**"
+    ]
+  },
+  "context": {
+    "instanceType": "t4g.small",
+    "monthlyBudgetUsd": 10,
+    "domain": "phish-aware.tech"
+  }
+}
