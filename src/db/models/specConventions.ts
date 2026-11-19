@@ -1,6 +1,6 @@
 /**
- * Fields every collection in the shared phishaware-db schema spec carries
- * (see phishaware-db/init/01-validators.js's `make()` helper): a generic
+ * Fields every collection in the shared database schema spec carries
+ * (see database/init/01-validators.js's `make()` helper): a generic
  * extension bag, and standard timestamps with soft-delete. Not applied to
  * `sessions`, which is app-internal and not part of the shared spec.
  */

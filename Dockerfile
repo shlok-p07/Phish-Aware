@@ -13,6 +13,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Only NEXT_PUBLIC_* vars need to be present at build time; runtime secrets
 # (MONGODB_URI, etc.) are supplied via the container's environment instead.
+# NEXT_PUBLIC_SITE_URL is baked into robots.txt, the sitemap and page metadata;
+# left empty, those fall back to http://localhost:3000.
+ARG NEXT_PUBLIC_SITE_URL=""
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN bun run build
 

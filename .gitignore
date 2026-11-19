@@ -58,3 +58,10 @@ docs/
 # permanently, since git stores a full copy of every revision.
 *.docx
 *.pdf
+
+# CDK (infra/)
+/infra/node_modules/
+/infra/cdk.out/
+/infra/cdk.local.json
+# Context lookups embed the AWS account ID; the stack pins its AZ instead.
+/infra/cdk.context.json

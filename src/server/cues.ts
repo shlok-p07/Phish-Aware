@@ -1,5 +1,5 @@
-// Matches the shared phishaware-db schema spec's `cueType` enum exactly
-// (phishaware-db/init/01-validators.js's `CUE` const) -- these ids are
+// Matches the shared database schema spec's `cueType` enum exactly
+// (database/init/01-validators.js's `CUE` const) -- these ids are
 // validated at the database layer, so they must stay in sync.
 export type CueId =
   | "sender_domain"

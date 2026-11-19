@@ -32,7 +32,7 @@ export default defineConfig({
     environment: "happy-dom",
     globals: false,
     include: ["src/**/*.vitest.{ts,tsx}"],
-    setupFiles: ["./test/vitest-setup.ts"],
+    setupFiles: ["./src/test/setup/vitest-setup.ts"],
     restoreMocks: true,
     coverage: {
       provider: "v8",

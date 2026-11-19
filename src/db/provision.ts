@@ -1,5 +1,5 @@
 /**
- * Ports phishaware-db/init/01-validators.js and 02-indexes.js to the Node
+ * Ports database/init/01-validators.js and 02-indexes.js to the Node
  * MongoDB driver so schema validators, indexes, and seed data are applied
  * automatically on server startup (see src/instrumentation.ts) -- nobody
  * has to run `bun run db:init`/`db:seed` by hand, on a teammate's machine,
@@ -7,7 +7,7 @@
  * against an already-provisioned cluster (collMod/createIndex are no-ops
  * when nothing changed).
  *
- * Kept in lockstep with the mongosh scripts in phishaware-db/init/, which
+ * Kept in lockstep with the mongosh scripts in database/init/, which
  * remain the source of truth for the shared cross-team schema and are still
  * runnable standalone (`bun run db:init`) for anyone who prefers mongosh.
  */
@@ -365,7 +365,7 @@ export async function ensureIndexes(db: Db): Promise<void> {
     if (code !== 11000 && code !== 85 && code !== 86) throw cause;
     console.warn(
       "[db] departments has duplicate (orgId, name) rows, so the unique index was " +
-        "not created. Run: bun run scripts/dedupe-departments.ts",
+        "not created. Run: bun run db:dedupe-departments",
     );
   }
   await index("departments", { orgId: 1 });

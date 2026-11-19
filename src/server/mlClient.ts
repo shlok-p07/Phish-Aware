@@ -38,8 +38,8 @@ export async function predictAwareness(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...features, diagnostic_accuracy: diagnosticAccuracy }),
-      // The first request verifies and loads a ~515 MB model. Later requests
-      // reuse the cached predictor and are substantially faster.
+      // The first request verifies and loads the model from disk. Later
+      // requests reuse the cached predictor and are substantially faster.
       signal: AbortSignal.timeout(timeoutMs),
       cache: "no-store",
     });

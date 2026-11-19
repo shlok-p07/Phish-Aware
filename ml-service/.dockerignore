@@ -1,0 +1,13 @@
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.env
+tests
+data
+models_store
+# Docs and training tooling are not part of the image (the Dockerfile copies
+# only requirements.txt and app/), so editing them should not change its hash.
+*.md
+scripts

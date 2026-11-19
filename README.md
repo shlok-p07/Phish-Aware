@@ -34,8 +34,9 @@ link, or a real credential prompt.
   ID-token validation against a cached JWKS, not a third-party auth SDK. See
   [Single sign-on](#single-sign-on-oidc).
 - **The database schema is enforced, not just assumed.** MongoDB's
-  `$jsonSchema` validators are the actual source of truth for every
-  collection (`phishaware-db/init/`), and the app provisions and seeds itself
+  `$jsonSchema` validators, applied by
+  [`src/db/provision.ts`](src/db/provision.ts), make the database itself reject
+  malformed documents, and the app provisions and seeds itself
   idempotently on boot, so a fresh teammate or a fresh deploy needs zero manual
   setup steps.
 - **The API is generated, end-to-end, from one spec.** Request/response types,
@@ -55,7 +56,9 @@ link, or a real credential prompt.
 - [Scripts](#scripts)
 - [Testing](#testing)
 - [Admin, organizations & SSO](#admin--organizations)
-- [ML backend (FastAPI)](#ml-backend-fastapi)
+- [ML service (FastAPI)](#ml-service-fastapi)
+- [Deploying to AWS EC2](#deploying-to-aws-ec2)
+- [Contributing](#contributing)
 - [Safety](#safety)
 
 ## Features
@@ -99,36 +102,46 @@ link, or a real credential prompt.
 | Auth          | Custom httpOnly-cookie sessions, scrypt-hashed passwords, a from-scratch OIDC/PKCE SSO layer |
 | Runtime/PM    | [Bun](https://bun.sh/)                                        |
 | Containers    | Docker + Docker Compose (production-parity builds)             |
+| Hosting       | Vercel, or the whole stack on one AWS EC2 instance via CDK (`infra/`) |
 | Tests         | `bun test` (1,163 tests) + Vitest/happy-dom component tests (178) |
 
 ## Architecture
 
-```
-src/
-├── app/                # Next.js App Router
-│   ├── (app)/          # Authenticated app (dashboard, learn, practice, admin, ...)
-│   ├── api/            # Route handlers (auth, lessons, practice, profile, org, ...)
-│   ├── auth/           # Login / signup / SSO entry point
-│   ├── invite/[token]/ # Public invitation accept page
-│   ├── onboarding/     # Diagnostic quiz
-│   └── page.tsx        # Public marketing landing page
-├── api-spec/           # OpenAPI spec (openapi.yaml) + orval codegen config
-├── api-client/         # Generated React Query hooks + fetch client
-├── api-zod/            # Generated Zod request/response schemas
-├── components/         # UI components (incl. shadcn/ui in components/ui)
-├── db/                 # MongoDB client + collection models
-└── server/             # Domain logic: grading, leveling, streaks, sessions, seeds
-    ├── llm/             # Groq/Gemini completion layer, scenario generation, chatbot
-    └── sso/             # OIDC: PKCE, discovery/JWKS cache, ID-token claims,
-                          # decideSsoProvisioning() (the pure "who gets in" rule)
+Three deployable parts live in one repository: the Next.js app (the root
+project), a Python ML service, and the AWS infrastructure that runs both.
 
-phishaware-db/init/     # $jsonSchema validators + indexes -- source of truth
-                           for the Mongo schema
-
-backend/                # Separate FastAPI service for ML model/dataset work
-                           (see "ML backend" below) -- its own deploy, its own
-                           dependencies, not part of the Next.js app
 ```
+.
+├── src/                  # The Next.js app                      → src/README.md
+│   ├── app/              # App Router pages and API route handlers
+│   │   ├── (app)/        #   Signed-in app: dashboard, learn, practice, admin, ...
+│   │   ├── api/          #   Route handlers                      → src/app/api/README.md
+│   │   ├── auth/         #   Login / signup / SSO entry point
+│   │   ├── invite/       #   Public invitation accept page
+│   │   └── onboarding/   #   Survey + diagnostic quiz
+│   ├── server/           # Domain logic and business rules      → src/server/README.md
+│   │   ├── llm/          #   Groq/Gemini clients, failover and rate limiting
+│   │   └── sso/          #   OIDC: PKCE, discovery/JWKS cache, provisioning rule
+│   ├── db/               # MongoDB client, models, provisioning → src/db/README.md
+│   ├── components/       # React components (shadcn/ui in ui/)  → src/components/README.md
+│   ├── api-spec/         # OpenAPI spec + orval config          → src/api-spec/README.md
+│   ├── api-client/       #   generated React Query hooks (do not edit)
+│   ├── api-zod/          #   generated Zod schemas (do not edit)
+│   ├── hooks/, lib/      # Shared React hooks and client-safe utilities
+│   └── test/             # Test doubles and runner setup        → src/test/README.md
+├── ml-service/           # FastAPI awareness model service      → ml-service/README.md
+├── infra/                # AWS CDK: the whole stack on one EC2  → infra/README.md
+├── database/init/        # mongosh validators, indexes, seed    → database/README.md
+├── scripts/              # Dev launcher, DB maintenance, audits → scripts/README.md
+├── Dockerfile            # Production image for the Next.js app
+└── docker-compose.yml    # Local production-parity run of that image
+```
+
+Requests reach a page or a route handler in `src/app`. Handlers use
+`src/server` for the domain rules (grading, leveling, scenario choice, SSO) and
+read and write MongoDB through `src/db`. Nothing in `src/server` imports from
+`src/app` or `src/components`. Only the onboarding route calls the ML service,
+and it falls back to quiz accuracy if the service is down.
 
 ## Getting started
 
@@ -184,22 +197,23 @@ Docker at all.
 | `bun run typecheck` | Type-check the project with `tsc --noEmit`                     |
 | `bun test`          | Run the unit test suite                                         |
 | `bun run codegen`   | Regenerate `api-client`/`api-zod` from `api-spec/openapi.yaml`  |
-| `bun run db:init`   | (Optional, manual) apply the MongoDB schema via mongosh. The app does this itself on startup |
+| `bun run db:init`   | Apply the original mongosh schema in `database/init/`. Only for an empty database; the app provisions a newer schema itself (see [database/README.md](database/README.md)) |
 | `bun run db:seed`   | (Optional, manual) seed lessons/scenarios/sample users via CLI. The app does this itself on startup |
 | `bun run test:ui`   | Component tests (Vitest + happy-dom); `test:ui:watch` and `test:coverage` alongside |
 | `bun run test:all`  | Both suites: `bun test && vitest run` |
 | `bun run sso:demo`  | Create a demo org and SSO connection to try single sign-on locally |
+| `./scripts/dev.sh`  | Check MongoDB, apply the schema, seed if empty, and start the dev server in the background; `./scripts/dev.sh stop` stops it |
 
 ### Maintenance and audits
 
-One-off and diagnostic scripts. All are idempotent, all default to reporting
+One-off and diagnostic scripts, in [`scripts/`](scripts/README.md). All are idempotent, all default to reporting
 rather than changing anything, and each exists because of a specific bug, which
 its file header explains.
 
 | Script                              | What it does |
 | ----------------------------------- | ------------ |
 | `bun run a11y:contrast`             | Checks every text/background pairing the app uses against WCAG, across light, dark and both high-contrast themes, with a spread of customer accents substituted in. Exits non-zero on any failure |
-| `bun run db:verify`                 | Read-only. Asks the server which stored documents its own validators reject, and checks provisioning is idempotent. Safe against production and in CI |
+| `bun run db:verify`                 | Asks the server which stored documents its own validators reject, and checks provisioning is idempotent. Deletes nothing, but applies the schema the same way app startup does |
 | `bun run db:prune-orphans`          | Removes rows whose owning user or organisation is gone. Both delete paths cascade now; this clears what earlier versions left |
 | `bun run db:dedupe-departments`     | Keeps one department per (organisation, name). Needed before the unique index can be created |
 | `bun run db:dedupe-onboarding`      | Removes duplicated onboarding diagnostic scenarios left by an early seed. Never deletes a scenario that has attempts against it |
@@ -384,26 +398,35 @@ in-process counter keyed by IP + email that dies with the process, while this
 lives on the user document, so failures spread across many IPs (or across a
 redeploy) still add up.
 
-## ML backend (FastAPI)
+## ML service (FastAPI)
 
-`backend/` is a separate Python service, scaffolded MVC-style, for
-phishing-related model/dataset work. It's not part of the Next.js app; its
-own deploy, its own dependencies. Two endpoints, two different states:
-message classification (is this specific message phishing?) is still a
-placeholder heuristic (`backend/app/models/predictor.py`), ready to swap in
-a trained model without touching the routing or API layer around it.
-User-awareness prediction (how likely is this person to fall for phishing,
-based on their onboarding survey/quiz answers) already runs a real trained
-model (`src/server/mlClient.ts` calls it from
-`src/app/api/onboarding/submit/route.ts`); if the service is unavailable,
-onboarding falls back to diagnostic quiz accuracy instead.
+[`ml-service/`](ml-service/) is a separate Python service with two endpoints:
+
+- **Awareness prediction** (`POST /predictions/awareness`) runs a real trained
+  model. It predicts a new user's starting awareness score from their 16
+  onboarding survey answers. `src/server/mlClient.ts` calls it from
+  `src/app/api/onboarding/submit/route.ts`; if the service is unavailable,
+  onboarding falls back to diagnostic quiz accuracy instead.
+- **Message classification** (`POST /predictions/classify`) is still a
+  placeholder keyword heuristic (`ml-service/app/models/predictor.py`), shaped
+  so a trained classifier can replace it without touching the routes.
+
+The awareness model is a scikit-learn gradient-boosting pipeline trained on
+the 100,000-row EnterprisePhish-100K dataset. On 20,000 held-out rows it
+explains 94% of the variance (R² 0.942), lands within 5 points of the true
+score 85% of the time, and puts 93% of people at the right starting level. The
+artifact is about 3 MB. Training steps and the reasoning behind the model
+choice are in [ml-service/README.md](ml-service/README.md#training-the-model).
+
+It has its own dependencies and Docker image, and is deployed alongside the
+Next.js app on the same EC2 instance.
 
 <details>
 <summary><strong>Running it locally</strong></summary>
 
 ```bash
-cd backend
-python3 -m venv .venv
+cd ml-service
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env
@@ -414,6 +437,22 @@ Runs at [http://localhost:8001](http://localhost:8001), interactive docs at
 `/docs`. Tests: `pytest` (from the activated venv).
 
 </details>
+
+## Deploying to AWS EC2
+
+[`infra/`](infra/) is a separate AWS CDK (TypeScript) project that runs the
+Next.js app, the ML service and a Caddy TLS proxy on a single EC2 instance
+with Docker Compose. It is sized for student credits: a free-tier-eligible
+`t4g.small`, no NAT gateway or load balancer, Session Manager instead of SSH,
+and an optional budget alert. MongoDB stays on Atlas. `cdk deploy` builds the
+images locally, pushes them to ECR and restarts the containers. Setup, costs
+and day-to-day commands are in [infra/README.md](infra/README.md).
+
+## Contributing
+
+Setup, the checks to run before opening a pull request, and code conventions
+are in [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately as
+described in [SECURITY.md](SECURITY.md), not in a public issue.
 
 ## Safety
 

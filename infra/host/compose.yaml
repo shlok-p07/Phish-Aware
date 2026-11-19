@@ -1,0 +1,46 @@
+# The whole PhishAware stack on one host. Written to /opt/phishaware by the
+# instance's user data and started by deploy.sh, which supplies WEB_IMAGE and
+# ML_IMAGE through images.env.
+name: phishaware
+
+services:
+  # TLS termination. Caddy obtains and renews certificates by itself; they live
+  # in the caddy_data volume so a restart does not re-issue them. deploy.sh
+  # writes caddy/Caddyfile.
+  caddy:
+    image: caddy:2.8.4
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./caddy:/etc/caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+  # The Next.js app. Bound to loopback as well, so the host's readyz timer can
+  # reach it without going through Caddy; it is not reachable from outside.
+  web:
+    image: ${WEB_IMAGE}
+    restart: unless-stopped
+    env_file: web.env
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - ml
+
+  # The FastAPI awareness model. Only the web container talks to it, over the
+  # compose network, so it publishes no port.
+  ml:
+    image: ${ML_IMAGE}
+    restart: unless-stopped
+    env_file: ml.env
+    volumes:
+      - ./models_store:/app/models_store:ro
+
+volumes:
+  caddy_data:
+  caddy_config:
