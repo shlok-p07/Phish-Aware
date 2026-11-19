@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import type { Filter } from "mongodb";
 import { usersCollection, type UserDoc } from "@/db";
 import { GetLeaderboardResponse } from "@/api-zod";
-import { json, requireUserId, withErrorHandling } from "@/server/http";
+import { json, parseResponse, requireUserId, withErrorHandling } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
@@ -74,5 +74,5 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     level: u.level as "beginner" | "intermediate" | "advanced",
     isCurrentUser: u._id.equals(currentUserId),
   }));
-  return json(GetLeaderboardResponse.parse(entries));
+  return json(parseResponse(GetLeaderboardResponse, entries));
 });

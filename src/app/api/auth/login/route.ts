@@ -16,7 +16,7 @@ import {
   mustResetPassword,
   recordFailedAttempt,
 } from "@/server/loginLockout";
-import { json, error, withErrorHandling, HttpError, readJsonBody } from "@/server/http";
+import { json, parseResponse, error, withErrorHandling, HttpError, readJsonBody } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
@@ -101,5 +101,5 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     { _id: user._id },
     { $set: { lastLoginAt, ...clearedLockoutFields() } },
   );
-  return json(LoginResponse.parse(toUserDto({ ...user, lastLoginAt })));
+  return json(parseResponse(LoginResponse, toUserDto({ ...user, lastLoginAt })));
 });

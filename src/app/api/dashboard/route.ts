@@ -2,7 +2,7 @@ import { usersCollection, attemptsCollection } from "@/db";
 import { GetDashboardResponse } from "@/api-zod";
 import { xpProgress } from "@/server/leveling";
 import { taxonomyPerformanceAreas } from "@/server/attackProfileSelector";
-import { json, error, requireUserId, withErrorHandling } from "@/server/http";
+import { json, parseResponse, error, requireUserId, withErrorHandling } from "@/server/http";
 import { reviewSummary } from "@/server/reviewSchedule";
 import { percent } from "@/lib/utils";
 
@@ -43,7 +43,7 @@ export const GET = withErrorHandling(async () => {
   const retention = await reviewSummary(user._id);
 
   return json(
-    GetDashboardResponse.parse({
+    parseResponse(GetDashboardResponse, {
       name: user.name,
       level: user.level,
       xp: user.xp,

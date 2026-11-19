@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { scenariosCollection, attemptsCollection, usersCollection, specDefaults } from "@/db";
 import type { ScenarioDoc } from "@/db";
 import { GetNextPracticeScenarioResponse } from "@/api-zod";
-import { json, error, requireUserId, withErrorHandling } from "@/server/http";
+import { json, parseResponse, error, requireUserId, withErrorHandling } from "@/server/http";
 import {
   difficultyForAwarenessScore,
   pickIsPhish,
@@ -231,6 +231,8 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     difficulty: s.difficulty,
     isPhish: s.isPhish,
     cues: (s.cues ?? []).map((c) => c.type),
+    attackType: s.attackType,
+    tactics: s.emotionalLevers ?? [],
   }));
 
   const picked = selectScenario(candidateViews, history, {
@@ -238,6 +240,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     minDifficulty: focus?.minDifficulty ?? 1,
     focusCues: focus?.cues ?? [],
     reviewCues,
+    profile: { attackType, persuasionTactic },
   });
   const chosen = picked && candidates.find((s) => s._id.toString() === picked.id);
   if (!chosen) {
@@ -252,7 +255,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   const personalized = personalizeScenario(chosen, user?.name);
 
   return json(
-    GetNextPracticeScenarioResponse.parse({
+    parseResponse(GetNextPracticeScenarioResponse, {
       id: chosen._id.toString(),
       vector: personalized.vector,
       sender: personalized.sender,

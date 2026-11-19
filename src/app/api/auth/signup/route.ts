@@ -11,7 +11,7 @@ import {
 } from "@/server/session";
 import { toUserDto } from "@/server/dto";
 import { normalizeEmail } from "@/server/sso/domain";
-import { json, error, withErrorHandling, readJsonBody } from "@/server/http";
+import { json, parseResponse, error, withErrorHandling, readJsonBody } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +49,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
       // Swap the short-lived guest session for a full-length one.
       await destroySession();
       await createSession(upgraded!._id);
-      return json(SignupResponse.parse(toUserDto(upgraded!)), { status: 201 });
+      return json(parseResponse(SignupResponse, toUserDto(upgraded!)), { status: 201 });
     }
   }
 
@@ -68,5 +68,5 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     throw err;
   }
   await createSession(user._id);
-  return json(SignupResponse.parse(toUserDto(user)), { status: 201 });
+  return json(parseResponse(SignupResponse, toUserDto(user)), { status: 201 });
 });

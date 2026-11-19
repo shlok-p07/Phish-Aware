@@ -30,6 +30,10 @@ export interface Candidate {
   isPhish: boolean;
   /** The cues this scenario actually carries, for a cue-focused campaign. */
   cues?: string[];
+  /** Taxonomy snapshot, set on generated phishing scenarios; legacy rows omit it. */
+  attackType?: string;
+  /** Persuasion tactics the scenario uses (its `emotionalLevers`). */
+  tactics?: string[];
 }
 
 /** One past attempt, newest first in the arrays passed below. */
@@ -75,6 +79,13 @@ export interface SelectionOptions {
    * other. See WEIGHT.missesReviewCue.
    */
   reviewCues?: string[];
+  /**
+   * The attack type and tactic the adaptive engine chose for this round
+   * (selectAttackProfile). Without this, the choice only shaped *generation*:
+   * a learner served from the pool got whatever scenario fit the level, so
+   * weakness targeting did nothing on most rounds. See WEIGHT.missesAttackType.
+   */
+  profile?: { attackType?: string; persuasionTactic?: string };
   /** Injected for deterministic tests; defaults to Math.random. */
   rng?: () => number;
 }
@@ -138,6 +149,18 @@ export const WEIGHT = {
    * scenario satisfy a mandatory campaign by carrying an unrelated review cue.
    */
   missesReviewCue: 6,
+  /**
+   * Cost for a phishing candidate that isn't the attack type, or doesn't use
+   * the tactic, the adaptive engine chose this round.
+   *
+   * Together (4) below one level of mismatch, so the profile never serves
+   * material at the wrong difficulty, and below review and campaign, which are obligations or
+   * schedule-driven needs rather than a preference. Legitimate candidates carry
+   * no attack type; scoreCandidates gives them the best phishing candidate's
+   * cost so this term can never tilt the phishing/legitimate mix.
+   */
+  missesAttackType: 3,
+  missesTactic: 1,
 } as const;
 
 const clampLevel = (n: number) => Math.max(1, Math.min(5, n));
@@ -213,7 +236,7 @@ export function scoreCandidates(
   history: readonly HistoryEntry[],
   opts: SelectionOptions,
 ): ScoredCandidate[] {
-  const { startingDifficulty, minDifficulty = 1, focusCues = [], reviewCues = [] } = opts;
+  const { startingDifficulty, minDifficulty = 1, focusCues = [], reviewCues = [], profile } = opts;
   const target = Math.max(targetDifficulty(history, startingDifficulty), clampLevel(minDifficulty));
   const recent = history.slice(0, RECENCY_WINDOW);
 
@@ -227,6 +250,21 @@ export function scoreCandidates(
   const window = history.slice(0, BALANCE_WINDOW);
   const phishSeen = window.filter((h) => h.isPhish).length;
   const drift = window.length === 0 ? 0 : (2 * phishSeen - window.length) / window.length;
+
+  // Profile fit, phishing candidates only. Legitimate ones take the cheapest
+  // phishing cost, so the best phishing match and a legitimate message stand
+  // level on this term and the balance term alone decides between them.
+  const profileCost = (c: Candidate): number => {
+    if (!profile) return 0;
+    let cost = 0;
+    if (profile.attackType && c.attackType !== profile.attackType) cost += WEIGHT.missesAttackType;
+    if (profile.persuasionTactic && !(c.tactics ?? []).includes(profile.persuasionTactic)) {
+      cost += WEIGHT.missesTactic;
+    }
+    return cost;
+  };
+  const phishCosts = candidates.filter((c) => c.isPhish).map(profileCost);
+  const legitProfileCost = phishCosts.length > 0 ? Math.min(...phishCosts) : 0;
 
   return candidates.map((c) => {
     // Pull hard toward the target level. Dominant term.
@@ -253,6 +291,9 @@ export function scoreCandidates(
       const rehearses = (c.cues ?? []).some((cue) => reviewCues.includes(cue));
       if (!rehearses) score -= WEIGHT.missesReviewCue;
     }
+
+    // Then toward the attack type and tactic chosen for this learner.
+    score -= c.isPhish ? profileCost(c) : legitProfileCost;
 
     return { candidate: c, score };
   });

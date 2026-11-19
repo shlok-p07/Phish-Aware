@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 import { toObjectId } from "@/db/objectId";
 import { attemptsCollection, scenariosCollection } from "@/db";
 import { GetAnalyticsResponse } from "@/api-zod";
-import { json, requireUserId, withErrorHandling } from "@/server/http";
+import { json, parseResponse, requireUserId, withErrorHandling } from "@/server/http";
 import { computeLearnerAnalytics } from "@/server/learnerAnalytics";
 
 export const dynamic = "force-dynamic";
@@ -25,5 +25,5 @@ export const GET = withErrorHandling(async () => {
     new Map(scenarios.map((scenario) => [scenario._id.toString(), scenario.vector])),
   );
 
-  return json(GetAnalyticsResponse.parse(analytics));
+  return json(parseResponse(GetAnalyticsResponse, analytics));
 });

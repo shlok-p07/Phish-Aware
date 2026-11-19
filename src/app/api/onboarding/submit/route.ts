@@ -12,7 +12,7 @@ import {
   ONBOARDING_SURVEY_KEY,
   ONBOARDING_SURVEY_VERSION,
 } from "@/lib/onboarding-survey";
-import { json, requireUserId, withErrorHandling, readJsonBody } from "@/server/http";
+import { json, parseResponse, requireUserId, withErrorHandling, readJsonBody } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
@@ -146,7 +146,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   }
 
   return json(
-    SubmitOnboardingQuizResponse.parse({
+    parseResponse(SubmitOnboardingQuizResponse, {
       level,
       correctCount,
       totalCount,

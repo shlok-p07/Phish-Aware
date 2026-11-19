@@ -1,6 +1,6 @@
 import { ReadinessCheckResponse } from "@/api-zod";
 import { usersCollection } from "@/db";
-import { json, withErrorHandling } from "@/server/http";
+import { json, parseResponse, withErrorHandling } from "@/server/http";
 
 /**
  * Whether the app can actually serve traffic.
@@ -36,7 +36,7 @@ export const GET = withErrorHandling(async () => {
   // Always 200. This is a status document, and a probe that 503s is harder to
   // distinguish from the deployment itself being gone.
   return json(
-    ReadinessCheckResponse.parse({
+    parseResponse(ReadinessCheckResponse, {
       ready: database === "ok",
       database,
       checkedAt: new Date().toISOString(),

@@ -271,6 +271,28 @@ describe("generatePhishingScenario", () => {
     });
   });
 
+  // Every vector with a restricted cue list must enforce it on the model's
+  // output, not just mention it in the prompt.
+  for (const vector of ["social", "web"] as const) {
+    describe(`${vector} vector`, () => {
+      it("drops cues the vector cannot carry", async () => {
+        llmMockState.groqClient = groqReturningInOrder(
+          draftJson(),
+          refinedJson({
+            cues: [
+              { type: "urgency_language", severity: 3, explanation: "Creates time pressure." },
+              { type: "unexpected_attachment", severity: 3, explanation: "Impossible here." },
+              { type: "suspicious_qr", severity: 3, explanation: "Impossible here." },
+            ],
+          }),
+        );
+        const result = await generatePhishingScenario({ ...BASE_PARAMS, vector });
+        expect(result).not.toBeNull();
+        expect(result!.cues.map((c) => c.type)).toEqual(["urgency_language"]);
+      });
+    });
+  }
+
   describe("legitimate (isPhish: false) scenarios", () => {
     const LEGIT_PARAMS: GenerateScenarioParams = { ...BASE_PARAMS, isPhish: false };
 
